@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+	<var-def name="page">
+        <text>
+            <xpath expression="/html/body/table/tbody/tr[5]/td/table/tbody">
+                <html-to-xml>
+                    <http url="${url}"/>
+                </html-to-xml>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="buyVolume">
+        <text>
+            <xpath expression="sum(//tr[1]/td[2]/table/tbody/tr/td[1]/table/tbody/tr[position()>2 and position()&lt;8]/td[2]/div[1]/text())">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="sellVolume">
+        <text>
+            <xpath expression="sum(//tr[1]/td[2]/table/tbody/tr/td[2]/table/tbody/tr[position()>2 and position()&lt;8]/td[2]/div[1]/text())">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="openPrice">
+        <text>
+            <xpath expression="//tr[4]/td[2]/table/tbody/tr[2]/td[2]/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="dayHigh">
+        <text>
+            <xpath expression="//tr[4]/td[2]/table/tbody/tr[2]/td[4]/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="lastPrice">
+        <text>
+            <xpath expression="//tr[4]/td[2]/table/tbody/tr[3]/td[2]/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="dayLow">
+        <text>
+            <xpath expression="//tr[4]/td[2]/table/tbody/tr[3]/td[4]/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="yesterdayClosePrice">
+        <text>
+            <xpath expression="//tr[4]/td[2]/table/tbody/tr[4]/td[2]/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="trade">
+        <text>
+            <xpath expression="//tr[4]/td[2]/table/tbody/tr[4]/td[4]/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="closePrice">
+        <text>
+            <xpath expression="//tr[4]/td[2]/table/tbody/tr[5]/td[2]/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="volume">
+        <text>
+            <xpath expression="//tr[4]/td[2]/table/tbody/tr[5]/td[4]/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="value">
+        <text>
+            <xpath expression="//tr[4]/td[2]/table/tbody/tr[6]/td[4]/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+</config>

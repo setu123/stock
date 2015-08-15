@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+	<var-def name="codes">
+            <xpath expression="//a[@class='ab1']/text()">
+                <html-to-xml>
+                    <http url="${url}"/>
+                </html-to-xml>
+            </xpath>
+    </var-def>
+</config>

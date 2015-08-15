@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+	<var-def name="range">
+        <text>
+            <xpath expression="/html/body/table[2]/tbody/tr/td[2]/table/tbody/tr[3]/td[1]/table[2]/tbody/tr/td/table/tbody/tr[3]/td[4]/font/text()">
+                <html-to-xml>
+                    <http url="${url}"/>
+                </html-to-xml>
+            </xpath>
+        </text>
+    </var-def>
+</config>

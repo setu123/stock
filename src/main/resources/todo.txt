@@ -1,0 +1,5 @@
+1. Hammer scanner
+2. Volume change scanner
+3. Change length scanner (close_price-open_price should be bigger than average)
+4. 2 day green
+5. Trade change
