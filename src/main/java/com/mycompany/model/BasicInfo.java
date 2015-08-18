@@ -1,6 +1,5 @@
 package com.mycompany.model;
 
-import java.util.Date;
 import java.util.Objects;
 
 /**
@@ -8,22 +7,20 @@ import java.util.Objects;
  * @author Setu
  */
 
-public class YearStatistics {
+public class BasicInfo {
     private String code;
-    private Date date;
     private float low;
     private float high;
 
-    public YearStatistics() {
+    public BasicInfo() {
     }
 
-    public YearStatistics(String code) {
+    public BasicInfo(String code) {
         this.code = code;
     }
 
-    public YearStatistics(String code, Date date, float low, float high) {
+    public BasicInfo(String code, float low, float high) {
         this.code = code;
-        this.date = date;
         this.low = low;
         this.high = high;
     }
@@ -34,14 +31,6 @@ public class YearStatistics {
 
     public void setCode(String code) {
         this.code = code;
-    }
-
-    public Date getDate() {
-        return date;
-    }
-
-    public void setDate(Date date) {
-        this.date = date;
     }
 
     public float getLow() {
@@ -64,7 +53,6 @@ public class YearStatistics {
     public int hashCode() {
         int hash = 7;
         hash = 97 * hash + Objects.hashCode(this.code);
-        hash = 97 * hash + Objects.hashCode(this.date);
         return hash;
     }
 
@@ -76,11 +64,8 @@ public class YearStatistics {
         if (getClass() != obj.getClass()) {
             return false;
         }
-        final YearStatistics other = (YearStatistics) obj;
+        final BasicInfo other = (BasicInfo) obj;
         if (!Objects.equals(this.code, other.code)) {
-            return false;
-        }
-        if (!Objects.equals(this.date, other.date)) {
             return false;
         }
         return true;
@@ -90,7 +75,7 @@ public class YearStatistics {
 
     @Override
     public String toString() {
-        return "YearStatistics{" + "code=" + code + ", date=" + date + ", low=" + low + ", high=" + high + '}';
+        return "YearStatistics{" + "code=" + code + ", low=" + low + ", high=" + high + '}';
     }
 
 }

@@ -8,7 +8,7 @@ import java.util.Map;
  * @date Apr 16, 2015
  * @author Setu
  */
-public class Item extends YearStatistics implements Comparable<Item>{
+public class Item extends BasicInfo implements Comparable<Item>{
     private int trade;
     private float pressure;
     private int buyVolume;
@@ -37,6 +37,7 @@ public class Item extends YearStatistics implements Comparable<Item>{
     private SignalType signal;
     private float vtcRatio;
     private SignalType vtcSignal;
+    private Date date;
 
     public SignalType getSignal() {
         return signal;
@@ -304,5 +305,11 @@ public class Item extends YearStatistics implements Comparable<Item>{
         this.adjustedYesterdayClosePrice = adjustedYesterdayClosePrice;
     }
     
-    
+    public Date getDate() {
+        return date;
+    }
+
+    public void setDate(Date date) {
+        this.date = date;
+    }
 }

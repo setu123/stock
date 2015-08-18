@@ -30,6 +30,7 @@ import org.webharvest.runtime.Scraper;
 import org.webharvest.runtime.variables.ListVariable;
 import org.webharvest.runtime.variables.NodeVariable;
 import org.xml.sax.SAXException;
+import sun.net.www.http.HttpClient;
 
 /**
  * @date Apr 18, 2015

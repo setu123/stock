@@ -32,15 +32,90 @@ public class Client {
         //checkByScript();
         
         checkByScript2();
+        
+        //getBSPressure();
+        
+        //hammer();
 
+    }
+    
+    private static void hammer() throws SQLException, ClassNotFoundException{
+        ItemDaoImpl dao = new ItemDaoImpl();
+        dao.open();
+        CustomHashMap oneYearData = dao.getData(120);
+        ScannerService scanerService = new ScannerService();
+        String script = "ALLTEX";
+        for (String code : oneYearData.keySet()) {
+            if (!code.equals(script)) {
+                continue;
+            }
+
+            List<Item> items = oneYearData.getItems(code);
+            Collections.sort(items);          
+
+            Item calculatedItem = new Item();
+            calculatedItem.setRSI(30);
+            calculatedItem.setDivergence(-20);
+            
+            for (int i = 3; i < items.size(); i++) {
+                Item today = items.get(i);
+                Item yesterday = items.get(i - 1);
+                Item dayBeforeYesterday = items.get(i - 2);
+                Item towDayBeforeYesterday = items.get(i - 3);
+                
+                float tcYesterday = (float) yesterday.getTrade() / (float) dayBeforeYesterday.getTrade();
+                float vcYesterday = (float) yesterday.getVolume() / (float) dayBeforeYesterday.getVolume();
+                float vtcRatioYesterday = vcYesterday / tcYesterday;
+                float yesterdayGap = ((yesterday.getAdjustedClosePrice() - yesterday.getOpenPrice()) / yesterday.getOpenPrice()) * 100;
+                float yesterdaychange = ((yesterday.getAdjustedClosePrice() - dayBeforeYesterday.getAdjustedClosePrice()) / dayBeforeYesterday.getAdjustedClosePrice()) * 100;
+                float dayBeforeYesterdayGap = ((dayBeforeYesterday.getAdjustedClosePrice() - dayBeforeYesterday.getOpenPrice()) / dayBeforeYesterday.getOpenPrice()) * 100;
+                float dayBeforeYesterdayChange = ((dayBeforeYesterday.getAdjustedClosePrice() - towDayBeforeYesterday.getAdjustedClosePrice()) / towDayBeforeYesterday.getAdjustedClosePrice()) * 100;
+                float yesterdayTrade = yesterday.getTrade();
+                
+                float tcToday = (float) today.getTrade() / (float) yesterday.getTrade();
+                float vcToday = (float) today.getVolume() / (float) yesterday.getVolume();
+                float vtcRatioToday = vcToday / tcToday;
+                float todayGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
+                float todaychange = ((today.getAdjustedClosePrice() - yesterday.getAdjustedClosePrice()) / yesterday.getAdjustedClosePrice()) * 100;
+                float todayTrade = today.getTrade();
+                
+                List itemSubList = new ArrayList();
+                long totalTrade = 0;
+                long totalVolume = 0;
+                float yesterdayVolumePerTradeChange = 0;
+                for(int j=0; j<=i; j++){
+                    if(j==i){
+                        float averageVolumePerTrade = (float)(totalVolume/totalTrade);
+                        float yesterdayVolumePerTrade = yesterday.getAdjustedVolume()/yesterday.getTrade();
+                        yesterdayVolumePerTradeChange = yesterdayVolumePerTrade/averageVolumePerTrade;
+                    }
+                    totalTrade += items.get(j).getTrade();
+                    totalVolume += items.get(j).getAdjustedVolume();
+                    itemSubList.add(items.get(j));
+                }
+                
+                if(scanerService.isTailFoundYesterday(calculatedItem, itemSubList))
+                    System.out.println("Date: " + today.getDate() + ", Code: " + today.getCode());
+                
+            }
+        }
+                
+    }
+    
+    private static void getBSPressure() throws SQLException, ClassNotFoundException{
+        ScannerService service = new ScannerService();
+        List<Item> items = service.getItemsWithscannedProperties();
+        for(Item item: items){
+            System.out.println(item);
+        }
     }
     
     private static void checkByScript2() throws SQLException, ClassNotFoundException, ParseException {
         ItemDaoImpl dao = new ItemDaoImpl();
         dao.open();
-        CustomHashMap oneYearData = dao.getOneYearData();
+        CustomHashMap oneYearData = dao.getData(120);
         ScannerService scanerService = new ScannerService();
-        String script = "GEMINISEA";
+        String script = "RDFOOD";
         for (String code : oneYearData.keySet()) {
             if (!code.equals(script)) {
                 continue;
@@ -92,7 +167,8 @@ public class Client {
                 float todayVolumePerTrade = today.getAdjustedVolume()/today.getTrade();
                 float volumePerTradeChange = todayVolumePerTrade/averageVolumePerTrade;
                 
-                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_YEAR);
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
                 float rsi = scanerService.calculateRSI(itemSubList);
                 boolean isLastTwoDaysGreen = yesterdayGap>0 && dayBeforeYesterdayGap>0 && yesterdaychange>0.5 && dayBeforeYesterdayChange>0.5;
                 float tradeChangeWithYesterday = (((float)today.getTrade()-(float)yesterday.getTrade())/(float)yesterday.getTrade())*100;
@@ -109,28 +185,24 @@ public class Client {
                 
                 
                 //This is 2nd best choice
-                if (todaychange>0.1 
-                        && todayGap >= 0.5 
-                        && vtcRatioToday>1.3 
-                        && yesterdayVolumePerTradeChange<.80 
-                        && volumePerTradeChange>.60 
-                        && tradeChangeWithYesterday>10
-                        && !isSuddenHike
-                        && rsi<=65 
-                        && !isLastTwoDaysGreen) {
-                    System.out.println(today.getDate() + ", code: " + code + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday);
-                } 
+//                if (todaychange>0.1 
+//                        && todayGap >= 0.5 
+//                        && vtcRatioToday>1.3 
+//                        && yesterdayVolumePerTradeChange<.80 
+//                        && volumePerTradeChange>.60 
+//                        && tradeChangeWithYesterday>10
+//                        && !isSuddenHike
+//                        && rsi<=65 
+//                        && !isLastTwoDaysGreen) {
+//                    System.out.println(today.getDate() + ", code: " + code + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday);
+//                } 
                 
-                if (todaychange>0.1 
-                        && todayGap >= 0.5 
-                        && vtcRatioToday>vtcRatioYesterday 
-                        && vtcRatioToday>0.9
-                        && volumePerTradeChange<vtcRatioToday 
-                        && tradeChangeWithYesterday>5
-                        //&& !isSuddenHike
-                        && rsi<=65 
-                        && !isLastTwoDaysGreen) {
-                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday);
+                if ((todaychange>0.5 || todayGap >= 0.5) 
+                        && vtcRatioToday>1.2
+                        && volumePerTradeChange>1.3
+                        && (volumeChange>1.2 || tradeChange>1.2)
+                        && rsi<=65 ) {
+                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", todaychange: " + todaychange + ", todayGAP: " + today.getAdjustedClosePrice());
                 }
                 
                 
@@ -147,7 +219,7 @@ public class Client {
     private static void checkByScript() throws SQLException, ClassNotFoundException, ParseException {
         ItemDaoImpl dao = new ItemDaoImpl();
         dao.open();
-        CustomHashMap oneYearData = dao.getOneYearData();
+        CustomHashMap oneYearData = dao.getData(60);
         String script = "ABBANK";
         for (String code : oneYearData.keySet()) {
             if (!code.equals(script)) {
@@ -175,7 +247,7 @@ public class Client {
     private static void checkByDate() throws SQLException, ClassNotFoundException, ParseException {
         ItemDaoImpl dao = new ItemDaoImpl();
         dao.open();
-        CustomHashMap oneYearData = dao.getOneYearData();
+        CustomHashMap oneYearData = dao.getData(60);
 
         for (String code : oneYearData.keySet()) {
             List<Item> items = oneYearData.getItems(code);

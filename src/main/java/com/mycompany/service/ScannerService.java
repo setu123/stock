@@ -28,7 +28,9 @@ public class ScannerService {
     private final String VTC_SIGNAL = "VTC_SIGNAL";
     public static final int RSI_PERIOD = 14;
     public static final int TRADING_DAYS_IN_A_YEAR = 250;
+    public static final int TRADING_DAYS_IN_2_MONTH = 44;
     public static final int TRADING_DAYS_IN_A_WEEK = 5;
+    public static final int DAYS_IN_A_YEAR = 365;
     //private static float MACD_MAX = 0;
 
     public ScannerService() {
@@ -39,25 +41,27 @@ public class ScannerService {
         Calendar start = Calendar.getInstance();
         dao.open();
         List<Item> items = getPressure();
-        CustomHashMap oneYearData = dao.getOneYearData();
+        //CustomHashMap oneYearData = dao.getOneYearData();
+        //Get 2 month data
+        CustomHashMap dataArchive = dao.getData(365);
         //System.out.println("up to one year data time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
         mergeItems(items, getHammer(), HAMMER);
         //System.out.println("up to hammer time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
-        mergeItems(items, getCandlestickLengthChange(oneYearData), CANDLESTICK_LENGTH_CHANGE);
+        mergeItems(items, getCandlestickLengthChange(dataArchive), CANDLESTICK_LENGTH_CHANGE);
         //System.out.println("up to candle stick change time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
         mergeItems(items, getConsecutiveGreen(), CONSECUTIVE_GREEN);
         //System.out.println("up to consecutive green time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
-        mergeItems(items, getTradeChange(), TRADE_CHANGE);
+        mergeItems(items, getTradeChange(dataArchive), TRADE_CHANGE);
         //System.out.println("up to trade change time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
-        mergeItems(items, getRSI(oneYearData), RSI);
+        mergeItems(items, getRSI(dataArchive), RSI);
         //System.out.println("up to rsi time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
-        mergeItems(items, getDivergence(oneYearData), DIVERGENCE);
+        mergeItems(items, getDivergence(dataArchive), DIVERGENCE);
         //System.out.println("up to divergence time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
-        mergeItems(items, getVolumeChange(oneYearData), VOLUME_CHANGE);
+        mergeItems(items, getVolumeChange(dataArchive), VOLUME_CHANGE);
         //System.out.println("up to volume change time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
-        mergeItems(items, getSignal(items, oneYearData), SIGNAL);
+        mergeItems(items, getSignal(items, dataArchive), SIGNAL);
         //System.out.println("up to volume change time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
-        mergeItems(items, getVolumePerTradeChangeBasedSignal(items, oneYearData), VTC_SIGNAL);
+        mergeItems(items, getVolumePerTradeChangeBasedSignal(items, dataArchive), VTC_SIGNAL);
 
         dao.close();
         return items;
@@ -79,6 +83,7 @@ public class ScannerService {
         return items;
     }
 
+    @Deprecated
     private List<Item> getTradeChange() throws SQLException, ClassNotFoundException {
         List<Item> items = dao.getTradeChange();
         return items;
@@ -402,9 +407,9 @@ public class ScannerService {
         Item yesterday = items.get(items.size() - 2);
         Item dayBeforeYesterday = items.get(items.size() - 3);
 
-        float oneYearVolumeChange = calculatedItem.getVolumeChange();
+        float twoMonthVolumeChange = calculatedItem.getVolumeChange();
         float oneWeekVolumeChange = calculateVolumeChange(items, TRADING_DAYS_IN_A_WEEK);
-        float oneYearTradeChange = calculatedItem.getTradeChange();
+        float twoMonthTradeChange = calculatedItem.getTradeChange();
         float oneWeekTradeChange = calculateTradeChange(items, TRADING_DAYS_IN_A_WEEK);
         float todayPriceChangeWithRespectToClose = ((today.getAdjustedClosePrice() - yesterday.getAdjustedClosePrice()) / yesterday.getAdjustedClosePrice()) * 100;
         float todayPriceChangeWithRespectToOpen = ((today.getAdjustedClosePrice() - yesterday.getOpenPrice()) / yesterday.getOpenPrice()) * 100;
@@ -435,7 +440,7 @@ public class ScannerService {
         float gapWithYesterdayMinimum = ((today.getAdjustedClosePrice() - yesterdayMinimum) / yesterdayMinimum) * 100;
 
         // @2. Should have consecutive green or volume/trade change greater than 2 than year average and greater than 1.5 than last 7 days
-        if (!(consecutiveGreen || ((oneYearVolumeChange >= 2 && oneWeekVolumeChange >= 1.5) || (oneYearTradeChange >= 2 && oneWeekTradeChange >= 1.5)) || gapWithDayBeforeYesterdayMinimum > 7 || gapWithYesterdayMinimum > 7 || todayPriceGap > 6)) {
+        if (!(consecutiveGreen || ((twoMonthVolumeChange >= 2 && oneWeekVolumeChange >= 1.5) || (twoMonthTradeChange >= 2 && oneWeekTradeChange >= 1.5)) || gapWithDayBeforeYesterdayMinimum > 7 || gapWithYesterdayMinimum > 7 || todayPriceGap > 6)) {
             return false;
         }
 
@@ -450,7 +455,7 @@ public class ScannerService {
         }
 
         // @5. Both vchange and tchange should be greater than 0.8
-        if (!(oneYearVolumeChange >= 0.8 && oneYearTradeChange >= 0.8)) {
+        if (!(twoMonthVolumeChange >= 0.8 && twoMonthTradeChange >= 0.8)) {
             return false;
         }
 
@@ -489,7 +494,7 @@ public class ScannerService {
         return true;
     }
 
-    private boolean isTailFoundYesterday(Item calculatedItem, List<Item> items) {
+    public boolean isTailFoundYesterday(Item calculatedItem, List<Item> items) {
         Item today = items.get(items.size() - 1);
         Item yesterday = items.get(items.size() - 2);
         Item dayBeforeYesterday = items.get(items.size() - 3);
@@ -830,7 +835,22 @@ public class ScannerService {
             Collections.sort(items);
             Item item = new Item();
             item.setCode(code);
-            item.setVolumeChange(calculateVolumeChange(items, TRADING_DAYS_IN_A_YEAR));
+            item.setVolumeChange(calculateVolumeChange(items, TRADING_DAYS_IN_2_MONTH));
+            distinctItems.add(item);
+        }
+
+        return distinctItems;
+    }
+    
+    private List<Item> getTradeChange(CustomHashMap cMap) {
+        List<Item> distinctItems = new ArrayList<>();
+        List<Item> items;
+        for (String code : cMap.keySet()) {
+            items = cMap.getItems(code);
+            Collections.sort(items);
+            Item item = new Item();
+            item.setCode(code);         
+            item.setTradeChange(calculateTradeChange(items, TRADING_DAYS_IN_2_MONTH));
             distinctItems.add(item);
         }
 
@@ -870,12 +890,13 @@ public class ScannerService {
         float avgVolume = Math.round(totalVolume / count);
         //System.out.println("code: " + items.get(0).getCode() + ", totalVolume: " + totalVolume + ", avgVolume: " + avgVolume);
         float ratio = (items.get(items.size() - 1).getAdjustedVolume()) / avgVolume;
+        //System.out.println("totalVolume: " + totalVolume + ", count: " + count + "avg: " + avgVolume + ", current: " + items.get(items.size() - 1).getAdjustedVolume());
         DecimalFormat df = new DecimalFormat("#.#");
         String ratioString = df.format(ratio);
         return Float.parseFloat(ratioString);
     }
 
-    private float calculateTradeChange(List<Item> items, int days) {
+    public float calculateTradeChange(List<Item> items, int days) {
         if (items.size() == 1) {
             return 1;
         }
@@ -888,7 +909,7 @@ public class ScannerService {
         for (int i = items.size() - 2; (i >= 0 && (items.size() - i) < (days + 2)); i--) {
             totalTrade += items.get(i).getTrade();
             ++count;
-        }
+            }
         float avgTrade = Math.round(totalTrade / count);
         //System.out.println("code: " + items.get(0).getCode() + ", totalVolume: " + totalVolume + ", avgVolume: " + avgVolume);
         float ratio = (items.get(items.size() - 1).getTrade()) / avgTrade;
