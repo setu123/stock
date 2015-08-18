@@ -877,7 +877,7 @@ public class ScannerService {
         if (items.size() == 1) {
             return 1;
         }
-
+        
         if (days <= 0) {
             days = TRADING_DAYS_IN_A_YEAR;     //Trading days in a year
         }
