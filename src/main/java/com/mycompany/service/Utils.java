@@ -2,6 +2,10 @@ package com.mycompany.service;
 
 import com.mycompany.dao.ItemDaoImpl;
 import com.mycompany.model.DividentHistory;
+import com.mycompany.model.Item;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.MalformedURLException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.webharvest.definition.ScraperConfiguration;
 
 /**
  * @date May 22, 2015
@@ -23,6 +28,7 @@ public class Utils {
     private static final Map<String, List<DividentHistory>> dividentMap = new HashMap<>();
     public static Date today;
     public static Date yesterday;
+    private static List<Item> allItems;
 
     private static List<DividentHistory> getDividentHistory() {
         if (dividentHistory == null) {
@@ -38,8 +44,25 @@ public class Utils {
                 ex.printStackTrace();
             }
         }
-        
+
         return dividentHistory;
+    }
+
+    public static List<Item> getCodes() {
+        if (allItems == null) {
+            Utils utils = new Utils();
+            String path = utils.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+            try {
+                ScraperConfiguration config = Crawler.getScraperConfig(path, Crawler.CrawlType.CODE_NAMES);
+                Crawler crawler = new Crawler(config, null, Crawler.CrawlType.CODE_NAMES, null);
+                crawler.start();
+                crawler.join();
+                allItems = (List<Item>) crawler.getParams().get("items");
+            } catch (FileNotFoundException | InterruptedException ex) {
+                allItems = new ArrayList<>();
+            }
+        }
+        return allItems;
     }
 
     private static List<DividentHistory> getHistory(String code) {
@@ -71,30 +94,4 @@ public class Utils {
             Logger.getLogger(Utils.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-
-//    public static Date today() {
-//        if (today == null) {
-//            try {
-//                dao.open();
-//                today = dao.getToday();
-//                dao.close();
-//            } catch (SQLException | ClassNotFoundException ex) {
-//                Logger.getLogger(Utils.class.getName()).log(Level.SEVERE, null, ex);
-//            }
-//        }
-//        return today;
-//    }
-//
-//    public static Date yesterday() {
-//        if (today == null) {
-//            try {
-//                dao.open();
-//                today = dao.getYesterday();
-//                dao.close();
-//            } catch (SQLException | ClassNotFoundException ex) {
-//                Logger.getLogger(Utils.class.getName()).log(Level.SEVERE, null, ex);
-//            }
-//        }
-//        return yesterday;
-//    }
 }

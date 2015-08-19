@@ -51,7 +51,7 @@ public class SyncService implements Job {
         Calendar start = Calendar.getInstance();
         
         try {
-            List<Item> items = getCodes();
+            List<Item> items = Utils.getCodes();
             selectTopItems(items);
             fetchBSVolume(items);
             items = getValidItems(items);
@@ -77,7 +77,7 @@ public class SyncService implements Job {
 
     public void syncYearStatistics() throws IOException {
         try {
-            List<Item> items = getCodes();
+            List<Item> items = Utils.getCodes();
             fetchYearStatistics(items);
 
             ItemDaoImpl itemDao = new ItemDaoImpl();
@@ -111,6 +111,12 @@ public class SyncService implements Job {
 
         return validItems;
     }
+    
+    public float getPriceDiffWithPreviousLow(List<Item> items, int days){
+        int size = items.size();
+        int counter = 0;
+        for(int i=size-2; i>=0; i--)
+    }
 
 //    private boolean isEligibleToUpdate(List<Item> items){
 //        for(Item item: items)
@@ -135,6 +141,8 @@ public class SyncService implements Job {
 //        
 //        return items;
 //    }
+    
+    @Deprecated
     public List<Item> getCodes() throws MalformedURLException, IOException, InterruptedException {
         if (allItems == null) {
             ScraperConfiguration config = Crawler.getScraperConfig(context, Crawler.CrawlType.CODE_NAMES);

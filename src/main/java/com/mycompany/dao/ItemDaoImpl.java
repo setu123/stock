@@ -28,7 +28,7 @@ public class ItemDaoImpl {
     static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
     static final String DB_URL = "jdbc:mysql://localhost:3306/stock";
     static final String USER = "root";
-    static final String PASS = "root";
+    static final String PASS = "";
     static final int FACE_VALUE = 10;
     //private final String DATE_FORMAT = "dd/MM/yyyy";
     //private final DateFormat dateFormat = new SimpleDateFormat(DATE_FORMAT);

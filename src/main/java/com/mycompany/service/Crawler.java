@@ -110,6 +110,33 @@ public class Crawler extends Thread {
 
         return null;
     }
+    
+    public static ScraperConfiguration getScraperConfig(String configPath, CrawlType crawlType) throws FileNotFoundException {
+        switch (crawlType) {
+            case ITEM_PRICE:
+                if (PRESSURE_CONFIG == null) {
+                    PRESSURE_CONFIG = new ScraperConfiguration(configPath + pressureConfigFile);
+                }
+                return PRESSURE_CONFIG;
+            case ITEM_YEAR_STATISTICS:
+                if (YEAR_STATISTIC_CONFIG == null) {
+                    YEAR_STATISTIC_CONFIG = new ScraperConfiguration(configPath + yearStatisticsFile);
+                }
+                return YEAR_STATISTIC_CONFIG;
+            case DATA_ARCHIVE:
+                if (DATA_ARCHIVE_CONFIG == null) {
+                    DATA_ARCHIVE_CONFIG = new ScraperConfiguration(configPath + dataArchiveFile);
+                }
+                return DATA_ARCHIVE_CONFIG;
+            case CODE_NAMES:
+                if (CODE_NAMES_CONFIG == null) {
+                    CODE_NAMES_CONFIG = new ScraperConfiguration(configPath + codeNamesFile);
+                }
+                return CODE_NAMES_CONFIG;
+        }
+
+        return null;
+    }
 
     @Override
     public void run() {

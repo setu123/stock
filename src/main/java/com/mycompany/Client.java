@@ -1,11 +1,13 @@
 package com.mycompany;
 
+import bsh.util.Util;
 import com.mycompany.dao.ItemDaoImpl;
 import com.mycompany.model.Item;
 import com.mycompany.service.CustomHashMap;
 import com.mycompany.service.ImportService;
 import com.mycompany.service.ScannerService;
 import com.mycompany.service.SyncService;
+import com.mycompany.service.Utils;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.DateFormat;
@@ -121,17 +123,19 @@ public class Client {
         dao.open();
         CustomHashMap oneYearData = dao.getData(120);
         ScannerService scanerService = new ScannerService();
-        String script = "SPCL";
+        String script = "NORTHERN";
+        //List<Item> codes = Utils.getCodes();
         for (String code : oneYearData.keySet()) {
-            if (!code.equals(script)) {
-                continue;
-            }
+//            if (!code.equals(script)) {
+//                continue;
+//            }
 
             List<Item> items = oneYearData.getItems(code);
             Collections.sort(items);
 
             float previousVolumeChange = 0;
             float previousTradeChange = 0;
+            float previousYesterdayVolumePerTradeChange = 0;
 
             for (int i = 3; i < items.size(); i++) {
                 Item today = items.get(i);
@@ -191,10 +195,11 @@ public class Client {
 //                        && rsi<=65 ) {
 //                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", todaychange: " + todaychange + ", todayGAP: " + today.getAdjustedClosePrice());
 //                }
-                if ((todaychange>0.5 || todayGap >= 0.5)
+                if ((todaychange>0.5 && todayGap >= 0)
+                        && !(yesterdayVolumePerTradeChange>1 && previousYesterdayVolumePerTradeChange>1)
                         && ((volumePerTradeChange > 1.4
-                        && vtcRatioToday>0.95
-                        && (volumeChange > 2 && tradeChange > 2)
+                        && (vtcRatioToday>0.95 && (vtcRatioToday-vtcRatioYesterday)>-0.3 )
+                        && (volumeChange > 2)
                         && (volumeChangeWithYesterday > 1.5))
                         || (volumePerTradeChange > 2 && volumeChange<=1.0))
                    ) {
@@ -203,6 +208,7 @@ public class Client {
 
                 previousVolumeChange = volumeChange;
                 previousTradeChange = tradeChange;
+                previousYesterdayVolumePerTradeChange = yesterdayVolumePerTradeChange;
             }
         }
     }
