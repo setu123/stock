@@ -1,8 +1,10 @@
 package com.mycompany.model;
 
+import com.mycompany.service.FloatSerializer;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import org.codehaus.jackson.map.annotate.JsonSerialize;
 
 /**
  * @date Apr 16, 2015
@@ -193,6 +195,7 @@ public class Item extends BasicInfo implements Comparable<Item>{
         this.hammer = hammer;
     }
 
+    @JsonSerialize(using = FloatSerializer.class)
     public float getVolumeChange() {
         return volumeChange;
     }
@@ -223,6 +226,7 @@ public class Item extends BasicInfo implements Comparable<Item>{
         return true;
     }
 
+    @JsonSerialize(using = FloatSerializer.class)
     public float getTradeChange() {
         return tradeChange;
     }

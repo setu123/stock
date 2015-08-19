@@ -52,6 +52,7 @@ public class SyncService implements Job {
         
         try {
             List<Item> items = Utils.getCodes();
+            System.out.println("codes size: " + items.size());
             selectTopItems(items);
             fetchBSVolume(items);
             items = getValidItems(items);
@@ -110,12 +111,6 @@ public class SyncService implements Job {
         }
 
         return validItems;
-    }
-    
-    public float getPriceDiffWithPreviousLow(List<Item> items, int days){
-        int size = items.size();
-        int counter = 0;
-        for(int i=size-2; i>=0; i--)
     }
 
 //    private boolean isEligibleToUpdate(List<Item> items){

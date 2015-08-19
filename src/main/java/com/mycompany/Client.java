@@ -184,6 +184,7 @@ public class Client {
                 float tradeChangeWithYesterday = ((float)today.getTrade() / (float)yesterday.getTrade());
                 float volumeChangeWithYesterday = ((float)today.getVolume() / (float)yesterday.getVolume());
                 boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
+                float diffWithPreviousLow = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
 
 //                if ((todaychange>0.5 || todayGap >= 0.5) 
 //                        && vtcRatioToday>0.9
@@ -197,13 +198,14 @@ public class Client {
 //                }
                 if ((todaychange>0.5 && todayGap >= 0)
                         && !(yesterdayVolumePerTradeChange>1 && previousYesterdayVolumePerTradeChange>1)
-                        && ((volumePerTradeChange > 1.4
+                        && ((volumePerTradeChange > 1.5
                         && (vtcRatioToday>0.95 && (vtcRatioToday-vtcRatioYesterday)>-0.3 )
-                        && (volumeChange > 2)
+                        && (volumeChange>2 && tradeChange>=1.6)
                         && (volumeChangeWithYesterday > 1.5))
-                        || (volumePerTradeChange > 2 && volumeChange<=1.0))
+                        || (volumePerTradeChange > 2 && volumeChange<=1.0 && volumeChange>0.5))
+                        && diffWithPreviousLow<10
                    ) {
-                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday );
+                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow);
                 }
 
                 previousVolumeChange = volumeChange;

@@ -204,72 +204,57 @@ public class ScannerService {
     }
 
     private Item.SignalType getVolumePerTradeChangeBasedSignal(Item calculatedItem, List<Item> items) {
-        if (items.size()<4 || calculatedItem==null) {
+        if (items.size() < 4 || calculatedItem == null) {
             return null;
         }
 
-        Item today = items.get(items.size() - 1);
-        Item yesterday = items.get(items.size() - 2);
-        Item dayBeforeYesterday = items.get(items.size() - 3);
-        Item towDayBeforeYesterday = items.get(items.size() - 4);
+        int size = items.size();
+        Item today = items.get(size - 1);
+        Item yesterday = items.get(size - 2);
+        Item dayBeforeYesterday = items.get(size - 3);
+        //Item towDayBeforeYesterday = items.get(size - 4);
 
         float tcYesterday = (float) yesterday.getTrade() / (float) dayBeforeYesterday.getTrade();
         float vcYesterday = (float) yesterday.getVolume() / (float) dayBeforeYesterday.getVolume();
         float vtcRatioYesterday = vcYesterday / tcYesterday;
-        float yesterdayGap = ((yesterday.getAdjustedClosePrice() - yesterday.getOpenPrice()) / yesterday.getOpenPrice()) * 100;
-        float yesterdaychange = ((yesterday.getAdjustedClosePrice() - dayBeforeYesterday.getAdjustedClosePrice()) / dayBeforeYesterday.getAdjustedClosePrice()) * 100;
-        float dayBeforeYesterdayGap = ((dayBeforeYesterday.getAdjustedClosePrice() - dayBeforeYesterday.getOpenPrice()) / dayBeforeYesterday.getOpenPrice()) * 100;
-        float dayBeforeYesterdayChange = ((dayBeforeYesterday.getAdjustedClosePrice() - towDayBeforeYesterday.getAdjustedClosePrice()) / towDayBeforeYesterday.getAdjustedClosePrice()) * 100;
-        float yesterdayTrade = yesterday.getTrade();
+        //float yesterdayGap = ((yesterday.getAdjustedClosePrice() - yesterday.getOpenPrice()) / yesterday.getOpenPrice()) * 100;
+        //float yesterdaychange = ((yesterday.getAdjustedClosePrice() - dayBeforeYesterday.getAdjustedClosePrice()) / dayBeforeYesterday.getAdjustedClosePrice()) * 100;
+        //float dayBeforeYesterdayGap = ((dayBeforeYesterday.getAdjustedClosePrice() - dayBeforeYesterday.getOpenPrice()) / dayBeforeYesterday.getOpenPrice()) * 100;
+        //float dayBeforeYesterdayChange = ((dayBeforeYesterday.getAdjustedClosePrice() - towDayBeforeYesterday.getAdjustedClosePrice()) / towDayBeforeYesterday.getAdjustedClosePrice()) * 100;
 
         float tcToday = (float) today.getTrade() / (float) yesterday.getTrade();
         float vcToday = (float) today.getVolume() / (float) yesterday.getVolume();
         float vtcRatioToday = vcToday / tcToday;
         float todayGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
         float todaychange = ((today.getAdjustedClosePrice() - yesterday.getAdjustedClosePrice()) / yesterday.getAdjustedClosePrice()) * 100;
-        float todayTrade = today.getTrade();
-
-        //List itemSubList = new ArrayList();
-        long totalTrade = 0;
-        long totalVolume = 0;
-        float yesterdayVolumePerTradeChange = 0;
-        for (int j = 0; j < items.size() - 1; j++) {
-            if (j == (items.size() - 2)) {
-                float averageVolumePerTrade = (float) (totalVolume / totalTrade);
-                float yesterdayVolumePerTrade = yesterday.getAdjustedVolume() / yesterday.getTrade();
-                yesterdayVolumePerTradeChange = yesterdayVolumePerTrade / averageVolumePerTrade;
-            }
-            totalTrade += items.get(j).getTrade();
-            totalVolume += items.get(j).getAdjustedVolume();
-            //itemSubList.add(items.get(j));
-        }
-        float averageVolumePerTrade = (float) (totalVolume / totalTrade);
-        float todayVolumePerTrade = today.getAdjustedVolume() / today.getTrade();
-        float volumePerTradeChange = todayVolumePerTrade / averageVolumePerTrade;
+                //float averageVolumePerTrade = (float) (totalVolume / totalTrade);
+        //float todayVolumePerTrade = today.getAdjustedVolume() / today.getTrade();
 
         float volumeChange = calculatedItem.getVolumeChange();
-        float rsi = calculatedItem.getRSI();
-        boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
-        float tradeChangeWithYesterday = (((float) today.getTrade() - (float) yesterday.getTrade()) / (float) yesterday.getTrade()) * 100;
-        float volumeChangeWithYesterday = today.getVolume() / yesterday.getVolume();
-        boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
+        float tradeChange = calculatedItem.getTradeChange();
+        float volumePerTradeChange = volumeChange / tradeChange;
 
-        if (todaychange > 0.1
-                && todayGap >= 0.5
-                && vtcRatioToday > vtcRatioYesterday
-                && vtcRatioToday > 0.9
-                && volumePerTradeChange < vtcRatioToday
-                && tradeChangeWithYesterday > 5
-                //&& !isSuddenHike
-                && rsi <= 65
-                && !isLastTwoDaysGreen
-                && today.getTrade() > 50
-                && today.getValue() > 3
-                && calculatedItem.getDivergence() <= 30
-                && calculatedItem.getPressure()>-10
-                ) {
-            //System.out.println("Date: " + today.getDate() + ", code: " + calculatedItem.getCode() + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday);
-             return Item.SignalType.BUY;
+        //boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
+        float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
+        float volumeChangeWithYesterday = ((float) today.getVolume() / (float) yesterday.getVolume());
+        //boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
+        float diffWithPreviousLow = getPriceDiffWithPreviousLow(items, 10);
+        float previousYesterdayVolumePerTradeChange = 9999;
+        float yesterdayVolumePerTradeChange = 9999;
+        
+        
+        
+
+        if ((todaychange > 0.5 && todayGap >= 0)
+                && !(yesterdayVolumePerTradeChange > 1 && previousYesterdayVolumePerTradeChange > 1)
+                && ((volumePerTradeChange > 1.5
+                && (vtcRatioToday > 0.95 && (vtcRatioToday - vtcRatioYesterday) > -0.3)
+                && (volumeChange > 2 && tradeChange >= 1.6)
+                && (volumeChangeWithYesterday > 1.5))
+                || (volumePerTradeChange > 2 && volumeChange <= 1.0 && volumeChange > 0.5))
+                && diffWithPreviousLow < 10) {
+            System.out.println("Date: " + today.getDate() + ", code: " + today.getCode() + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow);
+            return Item.SignalType.BUY;
         }
 
         return Item.SignalType.HOLD;
@@ -841,7 +826,7 @@ public class ScannerService {
 
         return distinctItems;
     }
-    
+
     private List<Item> getTradeChange(CustomHashMap cMap) {
         List<Item> distinctItems = new ArrayList<>();
         List<Item> items;
@@ -849,7 +834,7 @@ public class ScannerService {
             items = cMap.getItems(code);
             Collections.sort(items);
             Item item = new Item();
-            item.setCode(code);         
+            item.setCode(code);
             item.setTradeChange(calculateTradeChange(items, TRADING_DAYS_IN_2_MONTH));
             distinctItems.add(item);
         }
@@ -877,7 +862,7 @@ public class ScannerService {
         if (items.size() == 1) {
             return 1;
         }
-        
+
         if (days <= 0) {
             days = TRADING_DAYS_IN_A_YEAR;     //Trading days in a year
         }
@@ -891,9 +876,31 @@ public class ScannerService {
         //System.out.println("code: " + items.get(0).getCode() + ", totalVolume: " + totalVolume + ", avgVolume: " + avgVolume);
         float ratio = (items.get(items.size() - 1).getAdjustedVolume()) / avgVolume;
         //System.out.println("totalVolume: " + totalVolume + ", count: " + count + "avg: " + avgVolume + ", current: " + items.get(items.size() - 1).getAdjustedVolume());
-        DecimalFormat df = new DecimalFormat("#.#");
-        String ratioString = df.format(ratio);
-        return Float.parseFloat(ratioString);
+//        DecimalFormat df = new DecimalFormat("#.#");
+//        String ratioString = df.format(ratio);
+//        return Float.parseFloat(ratioString);
+        return ratio;
+    }
+
+    public float getPriceDiffWithPreviousLow(List<Item> items, int days) {
+        int size = items.size();
+        int counter = 0;
+        float minimum = 10000;
+
+        for (int i = size - 2; i >= 0; i--) {
+            float closePrice = items.get(i).getAdjustedClosePrice();
+            if (closePrice < minimum) {
+                minimum = closePrice;
+            }
+            ++counter;
+            if (counter == days) {
+                break;
+            }
+        }
+
+        float lastDayClosePrice = items.get(size - 1).getAdjustedClosePrice();
+        float diff = ((lastDayClosePrice - minimum) / minimum) * 100;
+        return diff;
     }
 
     public float calculateTradeChange(List<Item> items, int days) {
@@ -909,7 +916,7 @@ public class ScannerService {
         for (int i = items.size() - 2; (i >= 0 && (items.size() - i) < (days + 2)); i--) {
             totalTrade += items.get(i).getTrade();
             ++count;
-            }
+        }
         float avgTrade = Math.round(totalTrade / count);
         //System.out.println("code: " + items.get(0).getCode() + ", totalVolume: " + totalVolume + ", avgVolume: " + avgVolume);
         float ratio = (items.get(items.size() - 1).getTrade()) / avgTrade;

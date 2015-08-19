@@ -51,7 +51,9 @@ public class Utils {
     public static List<Item> getCodes() {
         if (allItems == null) {
             Utils utils = new Utils();
+            String splitter = "com/";
             String path = utils.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+            path = path.split(splitter)[0];
             try {
                 ScraperConfiguration config = Crawler.getScraperConfig(path, Crawler.CrawlType.CODE_NAMES);
                 Crawler crawler = new Crawler(config, null, Crawler.CrawlType.CODE_NAMES, null);
