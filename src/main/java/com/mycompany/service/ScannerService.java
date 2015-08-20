@@ -245,7 +245,7 @@ public class ScannerService {
                 && (vtcRatioToday > 0.95 && (vtcRatioToday - vtcRatioYesterday) > -0.3)
                 && (volumeChange > 2 && tradeChange >= 1.6)
                 && (volumeChangeWithYesterday > 1.5))
-                || (todayVolumePerTradeChange > 2 && volumeChange <= 1.0 && volumeChange > 0.5))
+                )
                 && diffWithPreviousLow < 10
                 && divergence < 20
                 && trade >= 50) {

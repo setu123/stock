@@ -202,7 +202,7 @@ public class Client {
                         && (vtcRatioToday>0.95 && (vtcRatioToday-vtcRatioYesterday)>-0.3 )
                         && (volumeChange>2 && tradeChange>=1.6)
                         && (volumeChangeWithYesterday > 1.5))
-                        || (volumePerTradeChange > 2 && volumeChange<=1.0 && volumeChange>0.5))
+                        )
                         && diffWithPreviousLow<10
                    ) {
                     System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow);
