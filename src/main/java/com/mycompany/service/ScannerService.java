@@ -1,6 +1,7 @@
 package com.mycompany.service;
 
 import com.mycompany.dao.ItemDaoImpl;
+import com.mycompany.model.ChangesInVolumePerTrade;
 import com.mycompany.model.Item;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
@@ -212,48 +213,43 @@ public class ScannerService {
         Item today = items.get(size - 1);
         Item yesterday = items.get(size - 2);
         Item dayBeforeYesterday = items.get(size - 3);
-        //Item towDayBeforeYesterday = items.get(size - 4);
 
         float tcYesterday = (float) yesterday.getTrade() / (float) dayBeforeYesterday.getTrade();
-        float vcYesterday = (float) yesterday.getVolume() / (float) dayBeforeYesterday.getVolume();
+        float vcYesterday = (float) yesterday.getAdjustedVolume() / (float) dayBeforeYesterday.getAdjustedVolume();
         float vtcRatioYesterday = vcYesterday / tcYesterday;
-        //float yesterdayGap = ((yesterday.getAdjustedClosePrice() - yesterday.getOpenPrice()) / yesterday.getOpenPrice()) * 100;
-        //float yesterdaychange = ((yesterday.getAdjustedClosePrice() - dayBeforeYesterday.getAdjustedClosePrice()) / dayBeforeYesterday.getAdjustedClosePrice()) * 100;
-        //float dayBeforeYesterdayGap = ((dayBeforeYesterday.getAdjustedClosePrice() - dayBeforeYesterday.getOpenPrice()) / dayBeforeYesterday.getOpenPrice()) * 100;
-        //float dayBeforeYesterdayChange = ((dayBeforeYesterday.getAdjustedClosePrice() - towDayBeforeYesterday.getAdjustedClosePrice()) / towDayBeforeYesterday.getAdjustedClosePrice()) * 100;
 
         float tcToday = (float) today.getTrade() / (float) yesterday.getTrade();
-        float vcToday = (float) today.getVolume() / (float) yesterday.getVolume();
+        float vcToday = (float) today.getAdjustedVolume() / (float) yesterday.getAdjustedVolume();
         float vtcRatioToday = vcToday / tcToday;
         float todayGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
         float todaychange = ((today.getAdjustedClosePrice() - yesterday.getAdjustedClosePrice()) / yesterday.getAdjustedClosePrice()) * 100;
-                //float averageVolumePerTrade = (float) (totalVolume / totalTrade);
-        //float todayVolumePerTrade = today.getAdjustedVolume() / today.getTrade();
 
         float volumeChange = calculatedItem.getVolumeChange();
         float tradeChange = calculatedItem.getTradeChange();
-        float volumePerTradeChange = volumeChange / tradeChange;
+        int divergence = calculatedItem.getDivergence();
+        int trade = calculatedItem.getTrade();
+        float value = calculatedItem.getValue();
 
-        //boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
         float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
-        float volumeChangeWithYesterday = ((float) today.getVolume() / (float) yesterday.getVolume());
-        //boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
+        float volumeChangeWithYesterday = ((float) today.getAdjustedVolume() / (float) yesterday.getAdjustedVolume());
         float diffWithPreviousLow = getPriceDiffWithPreviousLow(items, 10);
-        float previousYesterdayVolumePerTradeChange = 9999;
-        float yesterdayVolumePerTradeChange = 9999;
         
+        ChangesInVolumePerTrade changes = ChangesInVolumePerTrade.getChangesInVolumePerTrade(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+        float previousYesterdayVolumePerTradeChange = changes.getDayBeforeYesterdayChange();
+        float yesterdayVolumePerTradeChange = changes.getYesterdayChange();
+        float todayVolumePerTradeChange = changes.getTodayChange();       
         
-        
-
         if ((todaychange > 0.5 && todayGap >= 0)
                 && !(yesterdayVolumePerTradeChange > 1 && previousYesterdayVolumePerTradeChange > 1)
-                && ((volumePerTradeChange > 1.5
+                && ((todayVolumePerTradeChange > 1.5
                 && (vtcRatioToday > 0.95 && (vtcRatioToday - vtcRatioYesterday) > -0.3)
                 && (volumeChange > 2 && tradeChange >= 1.6)
                 && (volumeChangeWithYesterday > 1.5))
-                || (volumePerTradeChange > 2 && volumeChange <= 1.0 && volumeChange > 0.5))
-                && diffWithPreviousLow < 10) {
-            System.out.println("Date: " + today.getDate() + ", code: " + today.getCode() + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow);
+                || (todayVolumePerTradeChange > 2 && volumeChange <= 1.0 && volumeChange > 0.5))
+                && diffWithPreviousLow < 10
+                && divergence < 20
+                && trade >= 50) {
+            System.out.println("Date: " + today.getDate() + ", code: " + today.getCode() + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + todayVolumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow);
             return Item.SignalType.BUY;
         }
 
@@ -864,7 +860,7 @@ public class ScannerService {
         }
 
         if (days <= 0) {
-            days = TRADING_DAYS_IN_A_YEAR;     //Trading days in a year
+            days = TRADING_DAYS_IN_2_MONTH;     //Trading days in a year
         }
         long totalVolume = 0;
         int count = 0;
