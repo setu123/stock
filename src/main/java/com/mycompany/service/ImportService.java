@@ -136,53 +136,6 @@ public class ImportService {
         }
 
     }
-
-    /**
-    public void importArchive(int day) {
-        SyncService syncService = new SyncService(context);
-
-        try {
-            Calendar processStartedAt = Calendar.getInstance();
-
-            List<Item> watchMatrix = syncService.getCodes();
-            Calendar startDate = Calendar.getInstance();
-            startDate.add(Calendar.DAY_OF_YEAR, -day);
-            Calendar endDate = Calendar.getInstance();
-            List<Crawler> crawlers = new ArrayList<>();
-
-            for (Item item : watchMatrix) {
-                ScraperConfiguration config = Crawler.getScraperConfig(context, Crawler.CrawlType.DATA_ARCHIVE);
-                Map params = new HashMap();
-                dateFormat = new SimpleDateFormat(DSE_DATA_ARCHIVE_DATE_FORMAT);
-                params.put("startDate", dateFormat.format(startDate.getTime()));
-                params.put("endDate", dateFormat.format(endDate.getTime()));
-                Crawler crawler = new Crawler(config, item, Crawler.CrawlType.DATA_ARCHIVE, params);
-                crawler.start();
-                crawlers.add(crawler);
-            }
-
-            int counter = 0;
-            for (Crawler craw : crawlers) {
-                craw.join();
-                List<Item> items = (List<Item>) craw.getParams().get("items");
-                if (items.size() > 0) {
-                    dao.open();
-                    dao.importItems(items);
-                    dao.close();
-                    System.out.println("[" + (++counter) + "]Import data archive finished for " + items.get(0).getCode());
-                }
-            }
-
-            Calendar processEndedAt = Calendar.getInstance();
-            long elapsedTime = (processEndedAt.getTimeInMillis() - processStartedAt.getTimeInMillis()) / 1000;
-            System.out.println("Time elapsed to sync " + day + " day archive for " + crawlers.size() + " item: " + (elapsedTime / 60) + " minutes " + (elapsedTime % 60) + " seconds");
-        } catch (IOException | InterruptedException | SQLException | ClassNotFoundException ex) {
-            Logger.getLogger(ImportService.class.getName()).log(Level.SEVERE, null, ex);
-            ex.printStackTrace();
-        }
-
-    }
-    **/
     
     public void importArchive(int day) {
         SyncService syncService = new SyncService(context);
@@ -229,27 +182,6 @@ public class ImportService {
         }
 
     }
-    
-    /**
-    private void filterOutUnneccessaryCodes(List<Item> items, List<Item> watchMatrix){
-        System.out.println("Before filter list size: " + items.size());
-        List<Item> toBeRemoved = new ArrayList<>();
-        for(Item item: items){
-            if(!isInWatchMatrix(item, watchMatrix))
-                toBeRemoved.add(item);
-        }
-        items.removeAll(toBeRemoved);
-        System.out.println("After filter list size: " + items.size());
-    }
-    
-    private boolean isInWatchMatrix(Item item, List<Item> watchMatrix){
-        for(Item anItem: watchMatrix){
-            if(item.getCode().equals(anItem.getCode()))
-                return true;
-        }
-        return false;
-    }
-    * **/
 
     @Deprecated
     public void importSingleCode(String code, InputStream inputStream) throws IOException, ParseException, SQLException, ClassNotFoundException {

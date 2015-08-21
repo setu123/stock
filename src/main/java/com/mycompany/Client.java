@@ -173,7 +173,7 @@ public class Client {
                     totalVolume += items.get(j).getAdjustedVolume();
                     itemSubList.add(items.get(j));
                 }
-                float averageVolumePerTrade = (float) (totalVolume / totalTrade);
+                float averageVolumePerTrade =  (totalVolume / totalTrade);
                 float todayVolumePerTrade = today.getAdjustedVolume() / today.getTrade();
                 float volumePerTradeChange = todayVolumePerTrade / averageVolumePerTrade;
 

@@ -1,6 +1,7 @@
 package com.mycompany.service;
 
 import com.mycompany.model.Item;
+import com.mycompany.model.SharePercentage;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -152,7 +153,7 @@ public class Crawler extends Thread {
             }
         } catch (Exception ex) {
             System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem());
-            //ex.printStackTrace();
+            ex.printStackTrace();
             //this.interrupt();
         }
     }
@@ -269,13 +270,82 @@ public class Crawler extends Thread {
         }
 
         ListVariable variable = (ListVariable) scraper.getContext().get("range");
-        String range = variable.toString();
-        //System.out.println("range: " + range + ", item: " + item.getCode());
-        String[] lowHigh = range.split("-");
+        String str = variable.toString();
+        System.out.println("str: " + str);
+        String[] lowHigh = str.split("-");
+        System.out.println("lowHigh: " + lowHigh);
         float low = Float.parseFloat(lowHigh[0].trim());
         float high = Float.parseFloat(lowHigh[1].trim());
-        getItem().setLow(low);
-        getItem().setHigh(high);
+        
+        variable = (ListVariable) scraper.getContext().get("sector");
+        String sector = variable.toString().trim();
+        
+        variable = (ListVariable) scraper.getContext().get("faceValue");
+        str = variable.toString().trim();
+        int faceValue = Integer.parseInt(str);
+        
+        variable = (ListVariable) scraper.getContext().get("totalSecurity");
+        str = variable.toString().trim().replace(",", "");
+        int totalSecurity = Integer.parseInt(str);
+        
+        variable = (ListVariable) scraper.getContext().get("authorizedCapital");
+        str = variable.toString().trim().replace(",", "");
+        float authorizedCapital = Float.parseFloat(str);
+        
+        variable = (ListVariable) scraper.getContext().get("paidUpCapital");
+        str = variable.toString().trim().replace(",", "");
+        float paidUpCapital = Float.parseFloat(str);
+        
+        variable = (ListVariable) scraper.getContext().get("yearEnd");
+        String yearEnd = variable.toString().trim();
+        
+        variable = (ListVariable) scraper.getContext().get("reserve");
+        str = variable.toString().trim().replace(",", "");
+        float reserve = Float.parseFloat(str);
+        
+        variable = (ListVariable) scraper.getContext().get("PE");
+        str = variable.toString().trim();
+        float PE = Float.parseFloat(str);
+        
+        variable = (ListVariable) scraper.getContext().get("category");
+        String category = variable.toString().trim();
+        
+        variable = (ListVariable) scraper.getContext().get("director");
+        str = variable.toString().trim().split(" ")[1];
+        float director = Float.parseFloat(str);
+        
+        variable = (ListVariable) scraper.getContext().get("government");
+        str = variable.toString().trim().split(" ")[1];
+        float government = Float.parseFloat(str);
+        
+        variable = (ListVariable) scraper.getContext().get("institute");
+        str = variable.toString().trim().split(" ")[1];
+        float institute = Float.parseFloat(str);
+        
+        variable = (ListVariable) scraper.getContext().get("foreign");
+        str = variable.toString().trim().split(" ")[1];
+        float foreign = Float.parseFloat(str);
+        
+        variable = (ListVariable) scraper.getContext().get("public");
+        str = variable.toString().trim().split(" ")[1];
+        float publics = Float.parseFloat(str);
+        
+        
+        
+        item.setLow(low);
+        item.setHigh(high);
+        item.setSector(sector);
+        item.setFaceValue(faceValue);
+        item.setTotalSecurity(totalSecurity);
+        item.setAuthorizedCapital(authorizedCapital);
+        item.setPaidUpCapital(paidUpCapital);
+        item.setYearEnd(yearEnd);
+        item.setReserve(reserve);
+        item.setPE(PE);
+        item.setCategory(category);
+        SharePercentage percentage = new SharePercentage(director, government, institute, foreign, publics);
+        item.setSharePercentage(percentage);
+        
         //System.out.println("Item: " + item);
     }
 

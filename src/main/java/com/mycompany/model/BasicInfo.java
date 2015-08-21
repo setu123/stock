@@ -11,6 +11,16 @@ public class BasicInfo {
     private String code;
     private float low;
     private float high;
+    private String sector;
+    private int faceValue;
+    private int totalSecurity;
+    private float authorizedCapital;
+    private float paidUpCapital;
+    private String yearEnd;
+    private float reserve;
+    private float PE;
+    private String category;
+    private SharePercentage sharePercentage;
 
     public BasicInfo() {
     }
@@ -76,6 +86,86 @@ public class BasicInfo {
     @Override
     public String toString() {
         return "YearStatistics{" + "code=" + code + ", low=" + low + ", high=" + high + '}';
+    }
+
+    public String getSector() {
+        return sector;
+    }
+
+    public void setSector(String sector) {
+        this.sector = sector;
+    }
+
+    public int getFaceValue() {
+        return faceValue;
+    }
+
+    public void setFaceValue(int faceValue) {
+        this.faceValue = faceValue;
+    }
+
+    public int getTotalSecurity() {
+        return totalSecurity;
+    }
+
+    public void setTotalSecurity(int totalSecurity) {
+        this.totalSecurity = totalSecurity;
+    }
+
+    public float getAuthorizedCapital() {
+        return authorizedCapital;
+    }
+
+    public void setAuthorizedCapital(float authorizedCapital) {
+        this.authorizedCapital = authorizedCapital;
+    }
+
+    public float getPaidUpCapital() {
+        return paidUpCapital;
+    }
+
+    public void setPaidUpCapital(float paidUpCapital) {
+        this.paidUpCapital = paidUpCapital;
+    }
+
+    public String getYearEnd() {
+        return yearEnd;
+    }
+
+    public void setYearEnd(String yearEnd) {
+        this.yearEnd = yearEnd;
+    }
+
+    public float getReserve() {
+        return reserve;
+    }
+
+    public void setReserve(float reserve) {
+        this.reserve = reserve;
+    }
+
+    public float getPE() {
+        return PE;
+    }
+
+    public void setPE(float PE) {
+        this.PE = PE;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public SharePercentage getSharePercentage() {
+        return sharePercentage;
+    }
+
+    public void setSharePercentage(SharePercentage sharePercentage) {
+        this.sharePercentage = sharePercentage;
     }
 
 }

@@ -91,10 +91,15 @@ public class SyncService implements Job {
     public void fetchYearStatistics(List<Item> items) throws MalformedURLException, IOException, InterruptedException {
         List<Crawler> crawlers = new ArrayList<>();
         ScraperConfiguration config = Crawler.getScraperConfig(context, Crawler.CrawlType.ITEM_YEAR_STATISTICS);
+        int counter = 0;
         for (Item item : items) {
             Crawler crawler = new Crawler(config, item, Crawler.CrawlType.ITEM_YEAR_STATISTICS, null);
             crawler.start();
             crawlers.add(crawler);
+            System.gc();
+            ++counter;
+            if(counter==2)
+                break;
         }
 
         for (Crawler crawler : crawlers) {

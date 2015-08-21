@@ -1,12 +1,117 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <config>
-	<var-def name="range">
+    <var-def name="page">
         <text>
-            <xpath expression="/html/body/table[2]/tbody/tr/td[2]/table/tbody/tr[3]/td[1]/table[2]/tbody/tr/td/table/tbody/tr[3]/td[4]/font/text()">
+            <xpath expression="/html/body/table[2]/tbody/tr/td[2]/table/tbody/tr[3]/td[1]">
                 <html-to-xml>
                     <http url="${url}"/>
                 </html-to-xml>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="range">
+        <text>
+            <xpath expression="/p[1]/table[2]/tbody/tr/td/table/tbody/tr[3]/td[4]/font/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="sector">
+        <text>
+            <xpath expression="/p[1]/table[2]/tbody/tr/td/table/tbody/tr[8]/td[4]/font/b/font/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="faceValue">
+        <text>
+            <xpath expression="/p[1]/table[2]/tbody/tr/td/table/tbody/tr[6]/td[2]/font/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="totalSecurity">
+        <text>
+            <xpath expression="/p[1]/table[2]/tbody/tr/td/table/tbody/tr[8]/td[2]/font/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="authorizedCapital">
+        <text>
+            <xpath expression="/p[1]/table[2]/tbody/tr/td/table/tbody/tr[3]/td[2]/font/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="paidUpCapital">
+        <text>
+            <xpath expression="/p[1]/table[2]/tbody/tr/td/table/tbody/tr[6]/td[2]/font/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="yearEnd">
+        <text>
+            <xpath expression="/table[2]/tbody/tr[2]/td/table/tbody/tr[5]/td[2]/font/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="reserve">
+        <text>
+            <xpath expression="/table[2]/tbody/tr[2]/td/table/tbody/tr[7]/td[2]/font/font/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="PE">
+        <text>
+            <xpath expression="/table[3]/tbody/tr[2]/td[2]/div/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="category">
+        <text>
+            <xpath expression="/table[11]/tbody/tr[2]/td/table/tbody/tr[3]/td[2]/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="director">
+        <text>
+            <xpath expression="/table[11]/tbody/tr[2]/td/table/tbody/tr[7]/td[2]/table/tbody/tr/td[1]/font/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="government">
+        <text>
+            <xpath expression="/table[11]/tbody/tr[2]/td/table/tbody/tr[7]/td[2]/table/tbody/tr/td[2]/font/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="institute">
+        <text>
+            <xpath expression="/table[11]/tbody/tr[2]/td/table/tbody/tr[7]/td[2]/table/tbody/tr/td[3]/font/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="foreign">
+        <text>
+            <xpath expression="/table[11]/tbody/tr[2]/td/table/tbody/tr[7]/td[2]/table/tbody/tr/td[4]/font/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    <var-def name="public">
+        <text>
+            <xpath expression="/table[11]/tbody/tr[2]/td/table/tbody/tr[7]/td[2]/table/tbody/tr/td[5]/font/text()">
+                <var name="page"/>
             </xpath>
         </text>
     </var-def>

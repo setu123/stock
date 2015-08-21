@@ -916,10 +916,10 @@ public class ScannerService {
         float avgTrade = Math.round(totalTrade / count);
         //System.out.println("code: " + items.get(0).getCode() + ", totalVolume: " + totalVolume + ", avgVolume: " + avgVolume);
         float ratio = (items.get(items.size() - 1).getTrade()) / avgTrade;
-        DecimalFormat df = new DecimalFormat("#.#");
-        String ratioString = df.format(ratio);
+        //DecimalFormat df = new DecimalFormat("#.#");
+        //String ratioString = df.format(ratio);
         //System.out.println("code: " + items.get(items.size()-1).getCode() + ", totalTrade: " + totalTrade + ", avgTrade: " + avgTrade + ", ratio: " + ratio + ", ratioString: " + ratioString);
-        return Float.parseFloat(ratioString);
+        return ratio;
     }
 
     private class SignalLineEMAWithMACDMax {
