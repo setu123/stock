@@ -246,7 +246,7 @@ public class ScannerService {
                 && (volumeChange > 2 && tradeChange >= 1.6)
                 && (volumeChangeWithYesterday > 1.5))
                 )
-                && diffWithPreviousLow < 10
+                && diffWithPreviousLow < 12
                 && divergence < 20
                 && trade >= 50) {
             System.out.println("Date: " + today.getDate() + ", code: " + today.getCode() + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + todayVolumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow);
