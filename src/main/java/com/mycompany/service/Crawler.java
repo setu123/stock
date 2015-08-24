@@ -152,8 +152,8 @@ public class Crawler extends Thread {
                 crawlCodeNames();
             }
         } catch (Exception ex) {
-            System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem());
-            ex.printStackTrace();
+            //System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem());
+            //ex.printStackTrace();
             //this.interrupt();
         }
     }
@@ -271,18 +271,21 @@ public class Crawler extends Thread {
 
         ListVariable variable = (ListVariable) scraper.getContext().get("range");
         String str = variable.toString();
-        System.out.println("str: " + str);
         String[] lowHigh = str.split("-");
-        System.out.println("lowHigh: " + lowHigh);
-        float low = Float.parseFloat(lowHigh[0].trim());
-        float high = Float.parseFloat(lowHigh[1].trim());
+        float low =0;
+        float high = 0;
+        
+        if(str.length() >= 2){
+            low = Float.parseFloat(lowHigh[0].trim());
+            high = Float.parseFloat(lowHigh[1].trim());
+        }
         
         variable = (ListVariable) scraper.getContext().get("sector");
         String sector = variable.toString().trim();
         
         variable = (ListVariable) scraper.getContext().get("faceValue");
         str = variable.toString().trim();
-        int faceValue = Integer.parseInt(str);
+        int faceValue = (int)Float.parseFloat(str);
         
         variable = (ListVariable) scraper.getContext().get("totalSecurity");
         str = variable.toString().trim().replace(",", "");
@@ -304,8 +307,13 @@ public class Crawler extends Thread {
         float reserve = Float.parseFloat(str);
         
         variable = (ListVariable) scraper.getContext().get("PE");
-        str = variable.toString().trim();
-        float PE = Float.parseFloat(str);
+        char amp = (char)160;
+        str = variable.toString().trim().replace(""+amp, "");
+        float PE = 0;
+        if(str.isEmpty() || str.equals("n/a"))
+            PE = 0;
+        else
+            PE = Float.parseFloat(str);
         
         variable = (ListVariable) scraper.getContext().get("category");
         String category = variable.toString().trim();
@@ -315,7 +323,7 @@ public class Crawler extends Thread {
         float director = Float.parseFloat(str);
         
         variable = (ListVariable) scraper.getContext().get("government");
-        str = variable.toString().trim().split(" ")[1];
+        str = variable.toString().trim().split("Govt.")[1];
         float government = Float.parseFloat(str);
         
         variable = (ListVariable) scraper.getContext().get("institute");
@@ -351,7 +359,7 @@ public class Crawler extends Thread {
 
     private void crawlPrice() throws Exception {
         //ScraperConfiguration config = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + "volume.xml");
-        Scraper scraper = new Scraper(scraperConfig, "d:/expekt");
+        Scraper scraper = new Scraper(scraperConfig, "/home/setu/expekt");
         String url = PRICE_URL + getItem().getCode();
         scraper.addVariableToContext("url", url);
         scraper.setDebug(true);

@@ -81,11 +81,9 @@ public class BasicInfo {
         return true;
     }
 
-    
-
     @Override
     public String toString() {
-        return "YearStatistics{" + "code=" + code + ", low=" + low + ", high=" + high + '}';
+        return "BasicInfo{" + "code=" + code + ", low=" + low + ", high=" + high + ", sector=" + sector + ", faceValue=" + faceValue + ", totalSecurity=" + totalSecurity + ", authorizedCapital=" + authorizedCapital + ", paidUpCapital=" + paidUpCapital + ", yearEnd=" + yearEnd + ", reserve=" + reserve + ", PE=" + PE + ", category=" + category + ", sharePercentage=" + sharePercentage + '}';
     }
 
     public String getSector() {
