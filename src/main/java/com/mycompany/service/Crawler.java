@@ -153,7 +153,7 @@ public class Crawler extends Thread {
             }
         } catch (Exception ex) {
             System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem());
-            ex.printStackTrace();
+            //ex.printStackTrace();
             //this.interrupt();
         }
     }
