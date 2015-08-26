@@ -28,7 +28,7 @@ public class ItemDaoImpl {
     static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
     static final String DB_URL = "jdbc:mysql://localhost:3306/stock";
     static final String USER = "root";
-    static final String PASS = "root";
+    static final String PASS = "";
     static final int FACE_VALUE = 10;
     //private final String DATE_FORMAT = "dd/MM/yyyy";
     //private final DateFormat dateFormat = new SimpleDateFormat(DATE_FORMAT);
@@ -382,7 +382,7 @@ public class ItemDaoImpl {
         //Insert codes
         insertCodesToYearStatistics(getCodes(items));
 
-        String sql = "UPDATE year_statistics SET LOW=?, HIGH=?, DATE=?, SECTOR=?, FACEVALUE=?, TOTALSECURITY=?, AUTHORIZEDCAPITAL=?, PAIDUPCAPITAL=?, YEAREND=?, RESERVE=?, PE=?, CATEGORY=?, DIRECTOR=?, GOVERNMENT=?, INSTITUTE=?, FOREIN=?, PUBLIC=? WHERE CODE=?";
+        String sql = "UPDATE year_statistics SET LOW=?, HIGH=?, DATE=?, SECTOR=?, FACEVALUE=?, TOTALSECURITY=?, AUTHORIZEDCAPITAL=?, PAIDUPCAPITAL=?, YEAREND=?, RESERVE=?, PE=?, CATEGORY=?, DIRECTOR=?, GOVERNMENT=?, INSTITUTE=?, FOREIGN=?, PUBLIC=? WHERE CODE=?";
         PreparedStatement preparedStatement;
         Date today = new Date(new java.util.Date().getTime());
 
@@ -391,23 +391,24 @@ public class ItemDaoImpl {
             for (BasicInfo item : items) {
                 preparedStatement.setFloat(1, item.getLow());
                 preparedStatement.setFloat(2, item.getHigh());
+                preparedStatement.setString(3, item.getSector());
+                preparedStatement.setInt(4, item.getFaceValue());
+                preparedStatement.setInt(5, item.getTotalSecurity());
+                preparedStatement.setFloat(6, item.getAuthorizedCapital());
+                preparedStatement.setFloat(7, item.getPaidUpCapital());
+                preparedStatement.setString(8, item.getYearEnd());
+                preparedStatement.setFloat(9, item.getReserve());
+                preparedStatement.setFloat(10, item.getPE());
+                preparedStatement.setString(11, item.getCategory());
+                preparedStatement.setFloat(12, item.getSharePercentage().getDirector());
+                preparedStatement.setFloat(13, item.getSharePercentage().getGovernment());
+                preparedStatement.setFloat(14, item.getSharePercentage().getInstitute());
+                preparedStatement.setFloat(15, item.getSharePercentage().getForeign());
+                preparedStatement.setFloat(16, item.getSharePercentage().getPublics());
+                
+                
                 preparedStatement.setDate(3, today);
-                preparedStatement.setString(4, item.getSector());
-                preparedStatement.setInt(5, item.getFaceValue());
-                preparedStatement.setInt(6, item.getTotalSecurity());
-                preparedStatement.setFloat(7, item.getAuthorizedCapital());
-                preparedStatement.setFloat(8, item.getPaidUpCapital());
-                preparedStatement.setString(9, item.getYearEnd());
-                preparedStatement.setFloat(10, item.getReserve());
-                preparedStatement.setFloat(11, item.getPE());
-                preparedStatement.setString(12, item.getCategory());
-                preparedStatement.setFloat(13, item.getSharePercentage().getDirector());
-                preparedStatement.setFloat(14, item.getSharePercentage().getGovernment());
-                preparedStatement.setFloat(15, item.getSharePercentage().getInstitute());
-                preparedStatement.setFloat(16, item.getSharePercentage().getForeign());
-                preparedStatement.setFloat(17, item.getSharePercentage().getPublics());
-                preparedStatement.setString(18, item.getCode());
-                //System.out.println("code: " + item.getCode() + "governament: " + item.getSharePercentage().getGovernment() + ", insti: " + item.getSharePercentage().getInstitute() + ", foreign: " + item.getSharePercentage().getForeign());
+                preparedStatement.setString(4, item.getCode());
                 preparedStatement.addBatch();
             }
             preparedStatement.executeBatch();
