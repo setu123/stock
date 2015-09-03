@@ -40,6 +40,7 @@ public class Item extends BasicInfo implements Comparable<Item>{
     private float vtcRatio;
     private SignalType vtcSignal;
     private Date date;
+    private float volumePerTradeChange;
 
     public SignalType getSignal() {
         return signal;
@@ -63,6 +64,20 @@ public class Item extends BasicInfo implements Comparable<Item>{
 
     public void setVtcSignal(SignalType vtcSignal) {
         this.vtcSignal = vtcSignal;
+    }
+
+    /**
+     * @return the volumePerTradeChange
+     */
+    public float getVolumePerTradeChange() {
+        return volumePerTradeChange;
+    }
+
+    /**
+     * @param volumePerTradeChange the volumePerTradeChange to set
+     */
+    public void setVolumePerTradeChange(float volumePerTradeChange) {
+        this.volumePerTradeChange = volumePerTradeChange;
     }
     public enum SignalType{
         BUY, SELL, HOLD
