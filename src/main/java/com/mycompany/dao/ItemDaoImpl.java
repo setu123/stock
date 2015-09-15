@@ -214,7 +214,7 @@ public class ItemDaoImpl {
     }
 
     public List<Item> getHammer() throws SQLException, ClassNotFoundException {
-        String sql = "SELECT CODE, HAMMERVALUE(DAY_HIGH, OPEN_PRICE, CLOSE_PRICE, DAY_LOW) AS HAMMER FROM bs_pressure WHERE DATE = (SELECT MAX(DATE) FROM bs_pressure) ";
+        String sql = "SELECT CODE, HAMMERVALUE(DAY_HIGH, OPEN_PRICE, closeprice(LAST_PRICE,CLOSE_PRICE), DAY_LOW) AS HAMMER FROM bs_pressure WHERE DATE = (SELECT MAX(DATE) FROM bs_pressure) ";
         List<Item> items = new ArrayList<>();
 
         try (Statement stmt = connection.createStatement()) {

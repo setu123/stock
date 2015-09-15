@@ -60,7 +60,7 @@ public class ScannerService {
         //System.out.println("up to divergence time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
         mergeItems(items, getVolumeChange(dataArchive), VOLUME_CHANGE);
         //System.out.println("up to volume change time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
-        mergeItems(items, getSignal(items, dataArchive), SIGNAL);
+        mergeItems(items, getDivergenceAndRSIBasedSignal(items, dataArchive), SIGNAL);
         //System.out.println("up to volume change time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
         mergeItems(items, getVolumePerTradeChangeBasedSignal(items, dataArchive), VTC_SIGNAL);
 
@@ -140,6 +140,40 @@ public class ScannerService {
             item.setSignal(signal);
             distinctItems.add(item);
 
+        }
+
+        return distinctItems;
+    }
+    
+    private List<Item> getDivergenceAndRSIBasedSignal(List<Item> calculatedItems, CustomHashMap oneYearData) throws SQLException, ClassNotFoundException {
+        List<Item> distinctItems = new ArrayList<>();
+        
+        for (String code : oneYearData.keySet()) {
+            List<Item> items = oneYearData.getItems(code);
+            Collections.sort(items);
+            Item item = new Item();
+            item.setCode(code);
+            Item calculatedItem = getItemByCode(calculatedItems, code);
+            if(calculatedItem == null)
+                continue;
+            
+            Item today = items.get(items.size() - 1);
+            float divergence = calculatedItem.getDivergence();
+            float rsi = calculatedItem.getRSI();
+            float vChange = calculatedItem.getVolumeChange();
+            int trade = today.getTrade();
+            float value = today.getValue();
+            
+            float priceGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
+            float priceChange = ((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) / today.getYesterdayClosePrice()) * 100;
+            
+            //System.out.println("divergence: " + divergence + ", rsi: " + rsi + ", vChange: " + vChange + ", trade: " + trade + ", value: " + value);
+            if((divergence+rsi)<=40 && vChange>=0.4 && trade>=50 && value>=1 && (priceGap>=1 || priceChange>=1) && items.size()>TRADING_DAYS_IN_2_MONTH)
+                item.setSignal(Item.SignalType.BUY);
+            else
+                item.setSignal(Item.SignalType.HOLD);
+            
+            distinctItems.add(item);
         }
 
         return distinctItems;
@@ -1056,6 +1090,17 @@ public class ScannerService {
         }
         
         return updaysCount;
+    }
+    
+    public float calculateTradeChange(List<Item> items, int head, int days){
+        List<Item> itemSubList = new ArrayList();
+        for(int i=head; (head-i)<=days+1 && i>=0 ;i--){
+            itemSubList.add(items.get(i));
+        }
+        
+        Collections.sort(itemSubList);
+        
+        return calculateTradeChange(itemSubList, days);
     }
 
     public float calculateTradeChange(List<Item> items, int days) {
