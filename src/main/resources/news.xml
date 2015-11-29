@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+	<var-def name="newses">
+            <xpath expression="/html/body/table[2]/tbody/tr/td[2]/table/tbody/tr[2]/td[1]/table/tbody/tr/td/table/tbody">
+                <html-to-xml>
+                    <http method="POST" url="${url}">
+                    	<http-param name="year">2014</http-param>
+                    	<http-param name="month">07</http-param>
+                    	<http-param name="day">01</http-param>
+                    	<http-param name="year1">2015</http-param>
+                    	<http-param name="month1">01</http-param>
+                    	<http-param name="day1">31</http-param>
+                    </http>
+                </html-to-xml>
+            </xpath>
+    </var-def> 
+    
+    
+    <!--
+    <var-def name="codes">
+            <xpath expression="//a[@class='ab1']/text()">
+                <html-to-xml>
+                    <http url="${url}"/>
+                </html-to-xml>
+            </xpath>
+    </var-def>
+    -->
+</config>

@@ -65,12 +65,17 @@ public class ItemDaoImpl {
 
     public void setItems(List<Item> items) throws SQLException, ClassNotFoundException {
         //Insert codes
+        //System.out.println("check 1");
         insertCodes(getCodes(items));
+        //System.out.println("check 2");
 
         if (items.get(0).getPressure() == 0) {
             setItemsWithoutBSPressure(items);
+            //System.out.println("check 4");
         } else {
+            //System.out.println("check 5");
             setItemsWithBSPressure(items);
+            //System.out.println("check 6");
         }
 
         System.out.println("Finished updating " + items.size() + " items");
@@ -349,12 +354,15 @@ public class ItemDaoImpl {
             stmt.setDate(1, getSqlDate(Utils.today));
             stmt.setDate(2, getSqlDate(Utils.yesterday));
             ResultSet rs = stmt.executeQuery();
+            //System.out.print("CGreen: " + ", today: " + getSqlDate(Utils.today) + ", yesterday: " + getSqlDate(Utils.yesterday));
             while (rs.next()) {
                 String code = rs.getString("code");
+                //System.out.print(code + " " );
                 Item item = new Item();
                 item.setCode(code);
                 items.add(item);
             }
+            //System.out.println("");
         }
 
         return items;
@@ -419,6 +427,7 @@ public class ItemDaoImpl {
     }
 
     public List<Item> getBSPressure() throws SQLException, ClassNotFoundException {
+        //String sql = "SELECT * FROM bs_pressure WHERE DATE = (SELECT MAX(DATE) FROM bs_pressure) ORDER BY PRESSURE DESC";
         String sql = "SELECT * FROM bs_pressure WHERE DATE = (SELECT MAX(DATE) FROM bs_pressure) ORDER BY PRESSURE DESC";
         List<Item> items;
         try (Statement stmt = connection.createStatement()) {
@@ -523,7 +532,7 @@ public class ItemDaoImpl {
 
         return cMap;
     }
-
+    
     private CustomHashMap getItemizedData(List<Item> items) {
         CustomHashMap cMap = new CustomHashMap();
         for (Item item : items) {

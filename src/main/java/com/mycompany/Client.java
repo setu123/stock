@@ -1,23 +1,23 @@
 package com.mycompany;
 
-import bsh.util.Util;
 import com.mycompany.dao.ItemDaoImpl;
-import com.mycompany.model.ChangesInVolumePerTrade;
+import com.mycompany.model.EPSList;
 import com.mycompany.model.Item;
+import com.mycompany.model.ItemNews;
+import com.mycompany.service.Crawler;
 import com.mycompany.service.CustomHashMap;
 import com.mycompany.service.ImportService;
 import com.mycompany.service.ScannerService;
-import com.mycompany.service.SyncService;
 import com.mycompany.service.Utils;
-import java.io.IOException;
+import java.io.FileNotFoundException;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
+import org.webharvest.definition.ScraperConfiguration;
 
 /**
  * @date May 13, 2015
@@ -28,28 +28,129 @@ public class Client {
     private final static String DATE_PATTERN = "dd-MM-yyyy";
     static DateFormat dateFormat = new SimpleDateFormat(DATE_PATTERN);
 
-    public static void main(String[] args) throws SQLException, ClassNotFoundException, IOException, ParseException {
+    public static void main(String[] args) {
 
-        //checkByDate();
-        //checkByScript();
-
-        //checkByScript2();
-        
-        tradeGTVolume();
-        //hammer();
+        try {
+            //checkByDate();
+            //checkByScript();
+            //checkByScript2();
+            //tradeGTVolume();
+            //hammer();
+            //checkByScript3();
+            //parseEPS();
+            //checkByScript4();
+            //checkByScript3_4_5();
+            //isTailFound();
+            //checkByScript3_4_5();
+            importDsexArchive();
+        } catch (Exception ex) {
+            System.err.println("Error caught: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+    
+    private static void importDsexArchive(){
+        ImportService importService = new ImportService();
+        importService.importDSEXArchive(7);
     }
 
-    private static void checkByScript() throws SQLException, ClassNotFoundException, ParseException {
+    private static void getNews() throws InterruptedException {
+        String path = Utils.getConfigFilesPath();
+        ScraperConfiguration config = null;
+        try {
+            config = Crawler.getScraperConfig(path, Crawler.CrawlType.NEWS);
+        } catch (FileNotFoundException ex) {
+            System.err.println("Config file for news not found");;
+        }
+        Crawler crawler = new Crawler(config, null, Crawler.CrawlType.NEWS, null);
+        crawler.start();
+        crawler.join();
+
+        List<ItemNews> newses = (List<ItemNews>) crawler.getParams().get("newses");
+        Collections.reverse(newses);
+        System.out.println("Size: " + newses.size());
+        mergeNewses(newses);
+        System.out.println("After merge size: " + newses.size());
+        for (ItemNews itemNews : newses) {
+            EPSList epsList = null;
+            try {
+                epsList = parseEPS(itemNews.getNews());
+            } catch (NumberFormatException ex) {
+                System.err.println("NumberFormatException: " + ex.getMessage());
+                System.out.println("message: " + itemNews);
+                throw ex;
+            }
+            if (epsList != null) {
+                boolean goodEps = isGoodEps(epsList);
+                if (goodEps) {
+                    System.out.println("Date: " + itemNews.getDate() + ", code: " + itemNews.getCode() + ", " + epsList + ", goodEps: " + goodEps);
+                }
+            }
+        }
+    }
+
+    private static void mergeNewses(List<ItemNews> newses) {
+        List<ItemNews> toBeRemove = new ArrayList<>();
+        for (int i = 0; i < newses.size(); i++) {
+            ItemNews itemNews1 = newses.get(i);
+            for (int j = i + 1; j < newses.size(); j++) {
+                ItemNews itemNews2 = newses.get(j);
+                if (itemNews1.getDate().equals(itemNews2.getDate()) && itemNews1.getCode().equals(itemNews2.getCode())) {
+                    String mergedNews = itemNews1.getNews() + "\n" + itemNews2.getNews();
+                    itemNews1.setNews(mergedNews);
+                    toBeRemove.add(itemNews2);
+                }
+            }
+        }
+
+        newses.removeAll(toBeRemove);
+    }
+
+    private static boolean isGoodEps(EPSList epsList) {
+        float ratio1 = -1;
+        float ratio2 = -1;
+        float change = -1;
+
+        if (epsList.getFirst() != 0 && epsList.getSecond() != 0) {
+            ratio1 = getRatio(epsList.getFirst(), epsList.getSecond());
+            change = ratio1;
+        }
+
+        if (epsList.getThird() != 0 && epsList.getFourth() != 0) {
+            ratio2 = getRatio(epsList.getThird(), epsList.getFourth());
+            change = Math.min(ratio1, ratio2);
+        }
+
+        //System.out.println("change: " + change);
+        if (change >= 2) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static float getRatio(float value1, float value2) {
+        float diff = value1 - value2;
+        float result = Math.abs(diff / value2) + 1;
+        if (diff < 0) {
+            result = -result;
+        }
+        return result;
+    }
+
+    private static void isTailFound() throws SQLException, ClassNotFoundException, ParseException {
         ItemDaoImpl dao = new ItemDaoImpl();
         dao.open();
         CustomHashMap oneYearData = dao.getData(365);
         ScannerService scanerService = new ScannerService();
         String script = "PREMIERCEM";
         //List<Item> codes = Utils.getCodes();
+        System.out.println("today: " + new java.sql.Date(Utils.today.getTime()));
+        System.out.println("yesterday: " + new java.sql.Date(Utils.yesterday.getTime()));
         for (String code : oneYearData.keySet()) {
-            if (!code.equals(script)) {
-                continue;
-            }
+//            if (!code.equals(script)) {
+//                continue;
+//            }
 
             List<Item> items = oneYearData.getItems(code);
             scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
@@ -79,7 +180,787 @@ public class Client {
                 float vtcRatioToday = vcToday / tcToday;
                 float todayGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
                 //priceGap is tuned for higher price stocks
-                todayGap = todayGap + today.getAdjustedClosePrice()/1000;
+                todayGap = todayGap + today.getAdjustedClosePrice() / 1000;
+                float todaychange = ((today.getAdjustedClosePrice() - yesterday.getAdjustedClosePrice()) / yesterday.getAdjustedClosePrice()) * 100;
+                float todayTrade = today.getTrade();
+                float todayValue = today.getValue();
+
+                List<Item> itemSubList = new ArrayList();
+                int counter = 0;
+                for (int j = i; j >= 0; j--) {
+                    itemSubList.add(items.get(j));
+                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
+                        break;
+                    }
+                    ++counter;
+                }
+                Collections.sort(itemSubList);
+
+                float volumePerTradeChange = today.getVolumePerTradeChange();
+                float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float rsi = scanerService.calculateRSI(itemSubList);
+                boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
+                float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
+                float volumeChangeWithYesterday = ((float) today.getVolume() / (float) yesterday.getVolume());
+                boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
+                float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
+                float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float hammer = getHammer(today);
+                scanerService.calculateDivergence(itemSubList);
+                int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
+                boolean consecutive3DaysGreen = scanerService.isConsecutive3DaysGreen(itemSubList);
+                float lastFiewDaysVariation = scanerService.getLastFiewDaysVariation(itemSubList, ScannerService.TRADING_DAYS_IN_A_WEEK);
+                int upDayCount7 = scanerService.getUpDayCount(items, i, 7);
+                int upDayCount4 = scanerService.getUpDayCount(items, i, 4);
+
+                Item calculatedItem = new Item(today.getCode());
+                calculatedItem.setDivergence(divergence);
+                calculatedItem.setRSI(rsi);
+
+                if (scanerService.isTailFoundYesterday(calculatedItem, itemSubList)) {
+                    System.out.println("tDate: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange());
+                }
+            }
+        }
+    }
+
+    private static EPSList parseEPS(String news) {
+        //String news1 = "(Q2 Un-audited): EPS for April-June, 2015 was Tk. 0.78 as against Tk. 0.49 for April-June, 2014, EPS for Jan-June, 2015 was Tk. 1.61 as against Tk. 1.11 for Jan-June, 2014. NOCFPS was Tk. 2.65 for Jan-June, 2015 as against Tk. 1.34 for Jan-June, 2014. NAV per share was Tk. 23.87 as of June 30, 2015 and Tk. 27.09 as of June 30, 2014.";
+
+        //System.out.println("news: " + news);
+        int index = news.indexOf("EPS");
+        if (index < 0) {
+            return null;
+        }
+
+        EPSList epsList = new EPSList();
+
+        index = news.indexOf("Tk.", index);
+        if(index < 0){
+            return null;
+        }
+        
+        String eps1 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+        epsList.setFirst(getFloatEPS(eps1));
+        //System.out.println("eps1: " + eps1);
+
+        index = news.indexOf("as against");
+        if (index < 0) {
+            return epsList;
+        }
+        index = news.indexOf("Tk.", index);
+        int millionIndex = news.indexOf("million", index + 9);
+        if (millionIndex < 0) {
+            millionIndex = news.indexOf("m.", index + 9);
+        }
+
+        //System.out.println("index:: " + index + ", millionIndex: " + millionIndex + ", news: " + news);
+        String eps2 = "0.0";
+
+        if (millionIndex > 0 && millionIndex < index + 16) {
+            index = news.indexOf("Tk.", millionIndex);
+            eps2 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+        } else {
+            eps2 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+        }
+        epsList.setSecond(getFloatEPS(eps2));
+
+        if (news.indexOf("considering proposed bonus") > 0) {
+            index = news.indexOf("EPS", index);
+            index = news.indexOf("Tk.", index);
+            eps1 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+
+            index = news.indexOf("and", index);
+            index = news.indexOf("Tk.", index);
+            millionIndex = news.indexOf("million", index + 9);
+            if (millionIndex < 0) {
+                millionIndex = news.indexOf("m.", index + 9);
+            }
+
+            //System.out.println("index: " + index + ", millionIndex: " + millionIndex + ", news: " + news);
+            eps2 = "0.0";
+
+            if (millionIndex > 0 && millionIndex < index + 14) {
+                index = news.indexOf("Tk.", millionIndex);
+                eps2 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            } else {
+                eps2 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            }
+            epsList.setSecond(getFloatEPS(eps2));
+        }
+
+        //System.out.println("eps1: " + eps1 + ", eps2: " + eps2);
+        if (news.indexOf("Whereas", index) > 0) {
+            index = news.indexOf("EPS", index);
+            index = news.indexOf("Tk.", index);
+            String eps3 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            epsList.setThird(getFloatEPS(eps3));
+
+            index = news.indexOf("as against", index);
+            index = news.indexOf("Tk.", index);
+            millionIndex = news.indexOf("million", index + 9);
+            if (millionIndex < 0) {
+                millionIndex = news.indexOf("m.", index + 9);
+            }
+
+            //System.out.println(">> index: " + index + ", millionIndex: " + millionIndex);
+            String eps4 = "0.0";
+
+            if (millionIndex > 0 && millionIndex < index + 16) {
+                index = news.indexOf("Tk.", millionIndex);
+                eps4 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            } else {
+                eps4 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            }
+            epsList.setFourth(getFloatEPS(eps4));
+            //System.out.println("eps3: " + eps3 + ", eps4: " + eps4);
+        } else if (news.indexOf("EPS", index) > 0) {
+            index = news.indexOf("EPS", index);
+            index = news.indexOf("Tk.", index);
+            if (index < 0) {
+                return epsList;
+            }
+            String eps3 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            epsList.setThird(getFloatEPS(eps3));
+
+            index = news.indexOf("as against", index);
+            //System.out.println("here index: " + index);
+            index = news.indexOf("Tk.", index);
+            millionIndex = news.indexOf("million", index + 9);
+            if (millionIndex < 0) {
+                millionIndex = news.indexOf("m.", index + 9);
+            }
+
+            //System.out.println(">> index: " + index + ", millionIndex: " + millionIndex);
+            String eps4 = "0.0";
+
+            if (millionIndex > 0 && millionIndex < index + 14) {
+                index = news.indexOf("Tk.", millionIndex);
+                eps4 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            } else {
+                eps4 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            }
+            epsList.setFourth(getFloatEPS(eps4));
+            //System.out.println("eps3: " + eps3 + ", eps4: " + eps4);
+        }
+
+        return epsList;
+    }
+
+    private static float getFloatEPS(String eps) {
+        String epsString = eps;
+        //System.out.println("eps:: " + eps);
+        float actualEps;
+        try{
+        eps = eps.trim();
+        eps = eps.split(",")[0].trim();
+        if (eps.endsWith(".")) {
+            eps = eps.substring(0, eps.length() - 1);
+        }
+
+        if (eps.startsWith("(") && eps.endsWith(")")) {
+            eps = eps.substring(1);
+            eps = eps.substring(0, eps.length() - 1);
+            eps = eps.trim();
+            actualEps = Float.parseFloat(eps);
+            actualEps = -actualEps;
+        } else {
+            actualEps = Float.parseFloat(eps);
+        }
+        }catch(NumberFormatException ex){
+            System.out.println("eps: " + epsString);
+            throw ex;
+        }
+        return actualEps;
+    }
+
+    private static void parseEPS() {
+        String news1 = "(Q2 Un-audited): EPS for April-June, 2015 was Tk. 0.78 as against Tk. 0.49 for April-June, 2014, EPS for Jan-June, 2015 was Tk. 1.61 as against Tk. 1.11 for Jan-June, 2014. NOCFPS was Tk. 2.65 for Jan-June, 2015 as against Tk. 1.34 for Jan-June, 2014. NAV per share was Tk. 23.87 as of June 30, 2015 and Tk. 27.09 as of June 30, 2014.";
+        String news2 = "(Q3): As per un-audited quarterly accounts for the 3rd quarter ended on 30th September 2014 (July'14 to Sep'14), the Company has reported net profit after tax of Tk. 81.49 million with EPS of Tk. 0.98 as against Tk. 90.00 million and Tk. 1.09 respectively for the same period of the previous year. Whereas net profit after tax was Tk. 218.12 million with EPS of Tk. 2.63 for the period of nine months (Jan'14 to Sep'14) ended on 30.09.2014 as against Tk. 271.97 million and Tk. 3.28 respectively for the same period of the previous year.";
+        String news3 = "(Q1): As per un-audited quarterly accounts for the 1st quarter ended on 31st March 2014 (Jan'14 to March'14), the Company has reported net profit after tax of Tk. 76.91 million with basic EPS of Tk. 1.11 as against Tk. 90.54 million and Tk. 1.31 (restated) respectively for the same period of the previous year. However, considering proposed bonus share @ 20% for the year 2013, restated basic EPS will be Tk. 0.93 as on 31.03.2014 and Tk. 1.09 as on 31.03.2013.";
+        String news4 = "(Q3-Unaudited): Net Profit/(Loss) after tax from Jan15 to March15 was Tk. (7.57) million with EPS of Tk. (1.33) as against Tk. 2.76 million and Tk. 0.48 respectively for the same period of the previous year. Whereas Net Profit after tax from July14 to March15 was Tk. 1.55 million with EPS of Tk. 0.27 as against Tk. 12.91 million and Tk. 2.26 respectively for the same period of the previous year.";
+        String news5 = "(H/Y Un-audited): Net Profit after tax from July14 to Dec14 was Tk. 9.12 million with EPS Tk. 1.60 as against Tk. 10.15 million and Tk. 1.78 respectively for the same period of the previous year. Whereas net profit after tax from Oct14 to Dec14 was Tk. 3.95 million with EPS Tk. 0.69 as against Tk. 4.52 million and Tk. 0.79 respectively for the same period of the previous year.";
+        String news6 = "(Q2 Un-audited): EPS for April-June, 2015 was Tk. 0.09 as against Tk. 0.25 for April-June, 2014, EPS for Jan-June, 2015 was Tk. 0.47 as against Tk. 0.69 for Jan-June, 2014. NOCFPS was Tk. 0.09 for Jan-June, 2015 as against Tk. 9.60 for Jan-June, 2014. NAV per share was Tk. 13.46 as of June 30, 2015 and Tk. 13.64 as of December 31, 2014.";
+        String news7 = "(Q3): As per un-audited quarterly accounts for the 3rd quarter ended on 30th September 2014 (July'14 to Sep'14), the Company has reported net profit after tax of Tk. 28.66 million with EPS of Tk. 0.26 as against Tk. 74.55 million and Tk. 0.67 (restated) respectively for the same period of the previous year. Whereas net profit after tax was Tk. 105.15 million with EPS of Tk. 0.95 for the period of nine months (Jan'14 to Sep'14) ended on 30.09.2014 as against Tk. 155.64 million and Tk. 1.41 (restated) respectively for the same period of the previous year.";
+        String news8 = "(Q3-Unaudited): Consolidated Net Profit after tax (excluding non-controlling interest) from Jan15-Mar15 was Tk. 33.51 m. with consolidated EPS of Tk. 0.41 as against Tk. 29.02 m. and Tk. 0.35 respectively for the same period of the previous year. Whereas consolidated Net Profit after tax from (excluding non-controlling interest) July14-Mar15 was Tk. 81.30 m. with consolidated EPS of Tk. 0.99 as against Tk. 94.95 m. and Tk. 1.16 respectively for the same period of the previous year.";
+        String news9 = "(H/Y Un-audited): Consolidated net profit after tax (excluding non controlling interests) from July14 to Dec14 was Tk. 48.16 m. with consolidated EPS of Tk. 0.59 as against Tk. 66.06 m. and Tk. 0.81 respectively for the same period of the previous year. Whereas consolidated net profit after tax (excluding non controlling interests) from Oct14 to Dec14 was Tk. 13.88 m. with consolidated EPS of Tk. 0.17 as against Tk. 22.89 m. and Tk. 0.28 respectively for the same period of the previous year.";
+        String news10 = "(Q3): As per un-audited quarterly accounts for the 3rd quarter ended on 31st March 2014 (Jan'14 to March'14), the Company has reported consolidated net profit after tax (excluding non-controlling interest) of Tk. 29.02 million with consolidated EPS of Tk. 0.35 as against Tk. 57.76 million and Tk. 0.71 (restated) respectively for the same period of the previous year. Whereas consolidated net profit after tax (excluding non-controlling interest) was Tk. 94.95 million with consolidated EPS of Tk. 1.16 for the period of nine months (July'13 to March'14) ended on 31.03.2014 as against Tk. 143.69 million and Tk. 1.75 (restated) respectively for the same period of the previous year.";
+        String news11 = "(H/Y Un-audited): Profit after tax from Jan-15 to June-15 was Tk. 846.13 million with EPS of Tk. 14.97 as against Tk. 817.07 million and Tk. 14.46 respectively for the same period of the previous year. Whereas Profit after tax from April-15 to June-15 was Tk. 353.93 million with EPS of Tk. 6.26 as against Tk. 412.54 million and Tk. 7.30 respectively for the same period of the previous year.";
+        String news12 = "(Q3): As per un-audited quarterly accounts for the 3rd quarter ended on 30th September 2014 (July'14 to Sep'14), the Company has reported profit after tax of Tk. 195.51 million with EPS of Tk. 3.46 as against Tk. 373.95 million and Tk. 6.62 respectively for the same period of the previous year. Whereas profit after tax was Tk. 1,012.58 million with EPS of Tk. 17.92 for the period of nine months (Jan'14 to Sep'14) ended on 30.09.2014 as against Tk. 1,236.73 million and Tk. 21.89 respectively for the same period of the previous year.";
+        String news13 = "(Q2 Un-audited): EPS for April-June, 2015 was Tk. 1.31 as against Tk. 1.00 for April-June, 2014, EPS for Jan-June, 2015 was Tk. 2.41 as against Tk. 1.68 for Jan-June, 2014. NOCFPS was Tk. 2.24 for Jan-June, 2015 as against Tk. 3.85 for Jan-June, 2014. NAV per share was Tk. 26.89 as of June 30, 2015 and Tk. 29.40 as of June 30, 2014.";
+        String news14 = "(Q1 Un-audited): Net Profit after tax from Jan15 to March15 was Tk. 24.50 million with basic EPS of Tk. 1.15 as against Tk. 16.77 million and Tk. 0.78 respectively for the same period of the previous year. However, considering proposed bonus share 5% for the year 2014, restated basic EPS will be Tk. 1.09 as on 31.03.2015 and Tk. 0.75 as on 31.03.2014.";
+        String news15 = "(Q3 Un-audited): Consolidated EPS was Tk. (0.14) for Jan-Mar, 2015 as against Tk. 0.23 for July 2014-March, 2015; Consolidated NOCFPS was Tk. 0.22 for January-March, 2015. Consolidated NAV per share was Tk. 19.77 as of March 31, 2015 and Tk. 19.80 as of February 28, 2015.";
+        String news16 = "(Q3-Unaudited): Net Profit after tax from Jan15 to March15 was Tk. 22.77 million with EPS of Tk. 0.41 as against Tk. 37.37 million and Tk. 0.98 respectively for the same period of the previous year. Whereas Net Profit after tax from July14 to March15 was Tk. 97.41 million with EPS of Tk. 1.74 as against Tk. 125.71 million and Tk. 3.44 respectively for the same period of the previous year.";
+        String news17 = "(H/Y Un-audited): Consolidated Net Profit after tax (excluding non-controlling interests) from Jan-15 to June-15 was Tk. 3,395.24 m. with consolidated EPS of Tk. 2.11 as against Tk. 974.06 m. and Tk. 0.61 respectively for the same period of the previous year. Whereas consolidated Net Profit after tax (excluding non-controlling interests) from April-15 to June-15 was Tk. 2,994.46 m. with consolidated EPS of Tk. 1.86 as against Tk. 590.01 m. and Tk. 0.37 respectively for the same period of the previous year.";
+
+        String news = news17;
+        int index = news.indexOf("EPS");
+        index = news.indexOf("Tk.", index);
+        String eps1 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+        //System.out.println("eps1: " + eps1);
+
+        index = news.indexOf("as against");
+        index = news.indexOf("Tk.", index);
+        int millionIndex = news.indexOf("million", index + 9);
+        if (millionIndex < 0) {
+            millionIndex = news.indexOf("m.", index + 9);
+        }
+
+        System.out.println("index: " + index + ", millionIndex: " + millionIndex);
+        String eps2 = "0.0";
+
+        if (millionIndex > 0 && millionIndex < index + 14) {
+            index = news.indexOf("Tk.", millionIndex);
+            eps2 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+        } else {
+            eps2 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+        }
+
+        if (news.indexOf("considering proposed bonus") > 0) {
+            index = news.indexOf("EPS", index);
+            index = news.indexOf("Tk.", index);
+            eps1 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+
+            index = news.indexOf("and", index);
+            index = news.indexOf("Tk.", index);
+            millionIndex = news.indexOf("million", index + 9);
+            if (millionIndex < 0) {
+                millionIndex = news.indexOf("m.", index + 9);
+            }
+
+            System.out.println("index: " + index + ", millionIndex: " + millionIndex);
+            eps2 = "0.0";
+
+            if (millionIndex > 0 && millionIndex < index + 14) {
+                index = news.indexOf("Tk.", millionIndex);
+                eps2 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            } else {
+                eps2 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            }
+        }
+
+        System.out.println("eps1: " + eps1 + ", eps2: " + eps2);
+
+        if (news.indexOf("Whereas", index) > 0) {
+            index = news.indexOf("EPS", index);
+            index = news.indexOf("Tk.", index);
+            String eps3 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+
+            index = news.indexOf("as against", index);
+            index = news.indexOf("Tk.", index);
+            millionIndex = news.indexOf("million", index + 9);
+            if (millionIndex < 0) {
+                millionIndex = news.indexOf("m.", index + 9);
+            }
+
+            System.out.println(">> index: " + index + ", millionIndex: " + millionIndex);
+            String eps4 = "0.0";
+
+            if (millionIndex > 0 && millionIndex < index + 14) {
+                index = news.indexOf("Tk.", millionIndex);
+                eps4 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            } else {
+                eps4 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            }
+            System.out.println("eps3: " + eps3 + ", eps4: " + eps4);
+        } else if (news.indexOf("EPS", index) > 0) {
+            index = news.indexOf("EPS", index);
+            index = news.indexOf("Tk.", index);
+            String eps3 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+
+            index = news.indexOf("as against", index);
+            //System.out.println("here index: " + index);
+            index = news.indexOf("Tk.", index);
+            millionIndex = news.indexOf("million", index + 9);
+            if (millionIndex < 0) {
+                millionIndex = news.indexOf("m.", index + 9);
+            }
+
+            System.out.println(">> index: " + index + ", millionIndex: " + millionIndex);
+            String eps4 = "0.0";
+
+            if (millionIndex > 0 && millionIndex < index + 14) {
+                index = news.indexOf("Tk.", millionIndex);
+                eps4 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            } else {
+                eps4 = news.substring(index + 4, news.indexOf(" ", index + 5)).trim();
+            }
+            System.out.println("eps3: " + eps3 + ", eps4: " + eps4);
+        }
+    }
+
+    private static void checkByScript3_4_5() throws SQLException, ClassNotFoundException, ParseException {
+        ItemDaoImpl dao = new ItemDaoImpl();
+        dao.open();
+        CustomHashMap oneYearData = dao.getData(365);
+        ScannerService scanerService = new ScannerService();
+        String script = "ICB";
+        //List<Item> codes = Utils.getCodes();
+        for (String code : oneYearData.keySet()) {
+//            if (!code.equals(script)) {
+//                continue;
+//            }
+
+            List<Item> items = oneYearData.getItems(code);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            Collections.sort(items);
+
+            float previousVolumeChange = 0;
+            float previousTradeChange = 0;
+            float previousYesterdayVolumePerTradeChange = 0;
+
+            for (int i = 50; i < items.size(); i++) {
+                Item today = items.get(i);
+                Item yesterday = items.get(i - 1);
+                Item dayBeforeYesterday = items.get(i - 2);
+                Item towDayBeforeYesterday = items.get(i - 3);
+                Item oneWeekAgo = items.get(i - ScannerService.TRADING_DAYS_IN_A_WEEK);
+                Item twoWeekAgo = items.get(i - ScannerService.TRADING_DAYS_IN_A_WEEK * 2);
+
+                float tcYesterday = (float) yesterday.getTrade() / (float) dayBeforeYesterday.getTrade();
+                float vcYesterday = (float) yesterday.getVolume() / (float) dayBeforeYesterday.getVolume();
+                float vtcRatioYesterday = vcYesterday / tcYesterday;
+                float yesterdayGap = ((yesterday.getAdjustedClosePrice() - yesterday.getOpenPrice()) / yesterday.getOpenPrice()) * 100;
+                float yesterdaychange = ((yesterday.getAdjustedClosePrice() - dayBeforeYesterday.getAdjustedClosePrice()) / dayBeforeYesterday.getAdjustedClosePrice()) * 100;
+                float dayBeforeYesterdayGap = ((dayBeforeYesterday.getAdjustedClosePrice() - dayBeforeYesterday.getOpenPrice()) / dayBeforeYesterday.getOpenPrice()) * 100;
+                float dayBeforeYesterdayChange = ((dayBeforeYesterday.getAdjustedClosePrice() - towDayBeforeYesterday.getAdjustedClosePrice()) / towDayBeforeYesterday.getAdjustedClosePrice()) * 100;
+                float yesterdayTrade = yesterday.getTrade();
+
+                float tcToday = (float) today.getTrade() / (float) yesterday.getTrade();
+                float vcToday = (float) today.getVolume() / (float) yesterday.getVolume();
+                float vtcRatioToday = vcToday / tcToday;
+                float todayGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
+                //priceGap is tuned for higher price stocks
+                todayGap = todayGap + today.getAdjustedClosePrice() / 1000;
+                float todaychange = ((today.getAdjustedClosePrice() - yesterday.getAdjustedClosePrice()) / yesterday.getAdjustedClosePrice()) * 100;
+                float todayTrade = today.getTrade();
+                float todayValue = today.getValue();
+
+                List<Item> itemSubList = new ArrayList();
+                int counter = 0;
+                for (int j = i; j >= 0; j--) {
+                    itemSubList.add(items.get(j));
+//                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
+//                        break;
+//                    }
+                    ++counter;
+                }
+                Collections.sort(itemSubList);
+
+                float volumePerTradeChange = today.getVolumePerTradeChange();
+                float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float rsi = scanerService.calculateRSI(itemSubList);
+                boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
+                float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
+                float volumeChangeWithYesterday = ((float) today.getVolume() / (float) yesterday.getVolume());
+                boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
+                float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
+                float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float hammer = getHammer(today);
+                scanerService.calculateDivergence(itemSubList);
+                int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
+
+                float todaySignalLine = 0;
+                Object todaySignalLineObject = itemSubList.get(itemSubList.size() - 1).getEmaList().get(9);
+                if (todaySignalLineObject != null) {
+                    todaySignalLine = (float) todaySignalLineObject;
+                }
+
+                float dayBeforeYesterdaySignalLine = 0;
+                Object dayBeforeYesterdaySignalLineObject = dayBeforeYesterday.getEmaList().get(9);
+                if (dayBeforeYesterdaySignalLineObject != null) {
+                    dayBeforeYesterdaySignalLine = (float) dayBeforeYesterdaySignalLineObject;
+                }
+
+                float oneWeekAgoSignalLine = 0;
+                Object oneWeekAgoSignalLineObject = itemSubList.get(itemSubList.size() - ScannerService.TRADING_DAYS_IN_A_WEEK).getEmaList().get(9);
+                if (oneWeekAgoSignalLineObject != null) {
+                    oneWeekAgoSignalLine = (float) oneWeekAgoSignalLineObject;
+                }
+
+                //float twoWeekAgoSignalLine = itemSubList.get(itemSubList.size() - ScannerService.TRADING_DAYS_IN_A_WEEK*2).getEmaList().get(9);
+                boolean consecutive3DaysGreen = scanerService.isConsecutive3DaysGreen(itemSubList);
+                float lastFiewDaysVariation = scanerService.getLastFiewDaysVariation(itemSubList, ScannerService.TRADING_DAYS_IN_A_WEEK);
+                int upDayCount7 = scanerService.getUpDayCount(items, i, 7);
+                int upDayCount4 = scanerService.getUpDayCount(items, i, 4);
+                int subListSize = itemSubList.size();
+                float todayDiv = (itemSubList.get(subListSize - 1).getEmaList().get(12) - itemSubList.get(subListSize - 1).getEmaList().get(26)) - itemSubList.get(subListSize - 1).getEmaList().get(9);
+                float yesterdayDiv = (itemSubList.get(subListSize - 2).getEmaList().get(12) - itemSubList.get(subListSize - 2).getEmaList().get(26)) - itemSubList.get(subListSize - 2).getEmaList().get(9);
+                float dayBeforeYesterdayDiv = (itemSubList.get(subListSize - 3).getEmaList().get(12) - itemSubList.get(subListSize - 3).getEmaList().get(26)) - itemSubList.get(subListSize - 3).getEmaList().get(9);
+                Item test = itemSubList.get(itemSubList.size() - 1);
+                float macd = test.getEmaList().get(12) - test.getEmaList().get(26);
+                float signalLine = test.getEmaList().get(9);
+
+                Item calculatedItem = new Item(today.getCode());
+                calculatedItem.setDivergence(divergence);
+                calculatedItem.setRSI(rsi);
+
+                //boolean tailFound = scanerService.isTailFoundYesterday(calculatedItem, itemSubList);
+                float difference = Math.abs(yesterday.getOpenPrice() - yesterday.getAdjustedClosePrice());
+                float smallest = (yesterday.getOpenPrice() + yesterday.getAdjustedClosePrice() - difference) / 2;
+                float tail = ((smallest - yesterday.getLow()) / smallest) * 100;
+                float sma10 = scanerService.calculateSMA(itemSubList, 10);
+                float sma25 = scanerService.calculateSMA(itemSubList, 25);
+
+                if (((todaychange >= 1 && todayGap >= 0.5) && (yesterdaychange >= 1 || yesterdayGap >= 0.5) && (todaychange + yesterdaychange) > 1)
+                    && divergence < 0
+                    && rsi <= 45
+                    && todayValue >= 1
+                    && todayTrade >= 50
+                    && volumeChange >= 0.3
+                    && volumePerTradeChange < 1.8
+                    && Math.min(todayGap, yesterdayGap) > -3
+                    && diffWithPreviousLow10 <= 10 //&& Math.max(todayGap, yesterdayGap) >= 0.5
+                    && hammer <4
+                    && !(today.getAdjustedClosePrice()<sma10 && today.getAdjustedClosePrice()<sma25)
+                    ) {
+                //System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange());                    
+                System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange() + ", sma10: " + sma10);
+            } else if ((todaychange >= 1 && todayGap >= 0.5) && (yesterdaychange >= 1 || yesterdayGap >= 0.5)
+                    && todayDiv > yesterdayDiv
+                    && yesterdayDiv > dayBeforeYesterdayDiv
+                    && todaySignalLine <= 0
+                    && macd <= todaySignalLine
+                    && diffWithPreviousLow10 <= 10
+                    && todayValue >= 1
+                    && todayTrade >= 50
+                    && volumeChange >= 0.3
+                    && hammer <4
+                    && !(today.getAdjustedClosePrice()<sma10 && today.getAdjustedClosePrice()<sma25)
+                    ) {
+                //System.out.println("divchange:: Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange());
+                System.out.println("Macd0000000-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange() + ", sma10: " + sma10);
+            } else if ((todayGap >= 1 && todaychange >= 0.5)
+                    && tail >= 3 && (yesterdayGap>(-tail/2))
+                    && calculatedItem.getRSI() <= 40
+                    && calculatedItem.getDivergence() <= 5
+                    && todayValue >= 1
+                    && todayTrade >= 50
+                    && volumeChange >= 0.3
+                    && hammer <4
+                    && !(today.getAdjustedClosePrice()<sma10 && today.getAdjustedClosePrice()<sma25)
+                    ) {
+                System.out.println("Tail0000000-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange() + ", sma10: " + sma10);
+            }else if (((todaychange >= 1 && todayGap >= 0.5) && (yesterdayGap > 0 && dayBeforeYesterdayGap>0) && (todaychange + yesterdaychange) > 1)
+                    && divergence < 0
+                    && rsi <= 45
+                    && todayValue >= 1
+                    && todayTrade >= 50
+                    && volumeChange >= 0.3
+                    && volumePerTradeChange < 1.8
+                    && Math.min(todayGap, yesterdayGap) > -3
+                    && diffWithPreviousLow10 <= 10 //&& Math.max(todayGap, yesterdayGap) >= 0.5
+                    && hammer <4
+                    && !(today.getAdjustedClosePrice()<sma10 && today.getAdjustedClosePrice()<sma25)
+                    ) {
+                //System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange());                    
+                System.out.println("Three000-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange() + ", sma10: " + sma10);
+            }
+            }
+        }
+    }
+
+    private static void checkByScript4() throws SQLException, ClassNotFoundException, ParseException {
+        ItemDaoImpl dao = new ItemDaoImpl();
+        dao.open();
+        CustomHashMap oneYearData = dao.getData(365);
+        ScannerService scanerService = new ScannerService();
+        String script = "ICB";
+        //List<Item> codes = Utils.getCodes();
+        for (String code : oneYearData.keySet()) {
+//            if (!code.equals(script)) {
+//                continue;
+//            }
+
+            List<Item> items = oneYearData.getItems(code);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            Collections.sort(items);
+
+            float previousVolumeChange = 0;
+            float previousTradeChange = 0;
+            float previousYesterdayVolumePerTradeChange = 0;
+
+            for (int i = 50; i < items.size(); i++) {
+                Item today = items.get(i);
+                Item yesterday = items.get(i - 1);
+                Item dayBeforeYesterday = items.get(i - 2);
+                Item towDayBeforeYesterday = items.get(i - 3);
+                Item oneWeekAgo = items.get(i - ScannerService.TRADING_DAYS_IN_A_WEEK);
+                Item twoWeekAgo = items.get(i - ScannerService.TRADING_DAYS_IN_A_WEEK * 2);
+
+                float tcYesterday = (float) yesterday.getTrade() / (float) dayBeforeYesterday.getTrade();
+                float vcYesterday = (float) yesterday.getVolume() / (float) dayBeforeYesterday.getVolume();
+                float vtcRatioYesterday = vcYesterday / tcYesterday;
+                float yesterdayGap = ((yesterday.getAdjustedClosePrice() - yesterday.getOpenPrice()) / yesterday.getOpenPrice()) * 100;
+                float yesterdaychange = ((yesterday.getAdjustedClosePrice() - dayBeforeYesterday.getAdjustedClosePrice()) / dayBeforeYesterday.getAdjustedClosePrice()) * 100;
+                float dayBeforeYesterdayGap = ((dayBeforeYesterday.getAdjustedClosePrice() - dayBeforeYesterday.getOpenPrice()) / dayBeforeYesterday.getOpenPrice()) * 100;
+                float dayBeforeYesterdayChange = ((dayBeforeYesterday.getAdjustedClosePrice() - towDayBeforeYesterday.getAdjustedClosePrice()) / towDayBeforeYesterday.getAdjustedClosePrice()) * 100;
+                float yesterdayTrade = yesterday.getTrade();
+
+                float tcToday = (float) today.getTrade() / (float) yesterday.getTrade();
+                float vcToday = (float) today.getVolume() / (float) yesterday.getVolume();
+                float vtcRatioToday = vcToday / tcToday;
+                float todayGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
+                //priceGap is tuned for higher price stocks
+                todayGap = todayGap + today.getAdjustedClosePrice() / 1000;
+                float todaychange = ((today.getAdjustedClosePrice() - yesterday.getAdjustedClosePrice()) / yesterday.getAdjustedClosePrice()) * 100;
+                float todayTrade = today.getTrade();
+                float todayValue = today.getValue();
+
+                List<Item> itemSubList = new ArrayList();
+                int counter = 0;
+                for (int j = i; j >= 0; j--) {
+                    itemSubList.add(items.get(j));
+//                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
+//                        break;
+//                    }
+                    ++counter;
+                }
+                Collections.sort(itemSubList);
+
+                float volumePerTradeChange = today.getVolumePerTradeChange();
+                float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float rsi = scanerService.calculateRSI(itemSubList);
+                boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
+                float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
+                float volumeChangeWithYesterday = ((float) today.getVolume() / (float) yesterday.getVolume());
+                boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
+                float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
+                float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float hammer = getHammer(today);
+                scanerService.calculateDivergence(itemSubList);
+                int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
+
+                float todaySignalLine = 0;
+                Object todaySignalLineObject = itemSubList.get(itemSubList.size() - 1).getEmaList().get(9);
+                if (todaySignalLineObject != null) {
+                    todaySignalLine = (float) todaySignalLineObject;
+                }
+
+                float dayBeforeYesterdaySignalLine = 0;
+                Object dayBeforeYesterdaySignalLineObject = dayBeforeYesterday.getEmaList().get(9);
+                if (dayBeforeYesterdaySignalLineObject != null) {
+                    dayBeforeYesterdaySignalLine = (float) dayBeforeYesterdaySignalLineObject;
+                }
+
+                float oneWeekAgoSignalLine = 0;
+                Object oneWeekAgoSignalLineObject = itemSubList.get(itemSubList.size() - ScannerService.TRADING_DAYS_IN_A_WEEK).getEmaList().get(9);
+                if (oneWeekAgoSignalLineObject != null) {
+                    oneWeekAgoSignalLine = (float) oneWeekAgoSignalLineObject;
+                }
+
+                //float twoWeekAgoSignalLine = itemSubList.get(itemSubList.size() - ScannerService.TRADING_DAYS_IN_A_WEEK*2).getEmaList().get(9);
+                boolean consecutive3DaysGreen = scanerService.isConsecutive3DaysGreen(itemSubList);
+                float lastFiewDaysVariation = scanerService.getLastFiewDaysVariation(itemSubList, ScannerService.TRADING_DAYS_IN_A_WEEK);
+                int upDayCount7 = scanerService.getUpDayCount(items, i, 7);
+                int upDayCount4 = scanerService.getUpDayCount(items, i, 4);
+                int subListSize = itemSubList.size();
+                float todayDiv = (itemSubList.get(subListSize - 1).getEmaList().get(12) - itemSubList.get(subListSize - 1).getEmaList().get(26)) - itemSubList.get(subListSize - 1).getEmaList().get(9);
+                float yesterdayDiv = (itemSubList.get(subListSize - 2).getEmaList().get(12) - itemSubList.get(subListSize - 2).getEmaList().get(26)) - itemSubList.get(subListSize - 2).getEmaList().get(9);
+                float dayBeforeYesterdayDiv = (itemSubList.get(subListSize - 3).getEmaList().get(12) - itemSubList.get(subListSize - 3).getEmaList().get(26)) - itemSubList.get(subListSize - 3).getEmaList().get(9);
+                Item test = itemSubList.get(itemSubList.size() - 1);
+                float macd = test.getEmaList().get(12) - test.getEmaList().get(26);
+                float signalLine = test.getEmaList().get(9);
+
+                if ((todaychange >= 0.5 && todayGap >= 0.5) && (yesterdaychange >= 1 || yesterdayGap >= 0.5)
+                        && todayDiv > yesterdayDiv
+                        && yesterdayDiv > dayBeforeYesterdayDiv
+                        && todaySignalLine <= 0
+                        && macd <= todaySignalLine
+                        && diffWithPreviousLow10 < 9
+                        && todayValue >= 1
+                        && todayTrade >= 50
+                        && volumeChange >= 0.3) {
+                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange());
+                }
+            }
+        }
+    }
+    
+    private static void checkByScript6() throws SQLException, ClassNotFoundException, ParseException {
+        ItemDaoImpl dao = new ItemDaoImpl();
+        dao.open();
+        CustomHashMap oneYearData = dao.getData(365);
+        ScannerService scanerService = new ScannerService();
+        String script = "CVOPRL";
+        //List<Item> codes = Utils.getCodes();
+        for (String code : oneYearData.keySet()) {
+//            if (!code.equals(script)) {
+//                continue;
+//            }
+
+            List<Item> items = oneYearData.getItems(code);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            Collections.sort(items);
+
+            float previousVolumeChange = 0;
+            float previousTradeChange = 0;
+            float previousYesterdayVolumePerTradeChange = 0;
+
+            for (int i = 50; i < items.size(); i++) {
+                Item today = items.get(i);
+                Item yesterday = items.get(i - 1);
+                Item dayBeforeYesterday = items.get(i - 2);
+                Item towDayBeforeYesterday = items.get(i - 3);
+                Item oneWeekAgo = items.get(i - ScannerService.TRADING_DAYS_IN_A_WEEK);
+                Item twoWeekAgo = items.get(i - ScannerService.TRADING_DAYS_IN_A_WEEK * 2);
+
+                float tcYesterday = (float) yesterday.getTrade() / (float) dayBeforeYesterday.getTrade();
+                float vcYesterday = (float) yesterday.getVolume() / (float) dayBeforeYesterday.getVolume();
+                float vtcRatioYesterday = vcYesterday / tcYesterday;
+                float yesterdayGap = ((yesterday.getAdjustedClosePrice() - yesterday.getOpenPrice()) / yesterday.getOpenPrice()) * 100;
+                float yesterdaychange = ((yesterday.getAdjustedClosePrice() - dayBeforeYesterday.getAdjustedClosePrice()) / dayBeforeYesterday.getAdjustedClosePrice()) * 100;
+                float dayBeforeYesterdayGap = ((dayBeforeYesterday.getAdjustedClosePrice() - dayBeforeYesterday.getOpenPrice()) / dayBeforeYesterday.getOpenPrice()) * 100;
+                float dayBeforeYesterdayChange = ((dayBeforeYesterday.getAdjustedClosePrice() - towDayBeforeYesterday.getAdjustedClosePrice()) / towDayBeforeYesterday.getAdjustedClosePrice()) * 100;
+                float yesterdayTrade = yesterday.getTrade();
+
+                float tcToday = (float) today.getTrade() / (float) yesterday.getTrade();
+                float vcToday = (float) today.getVolume() / (float) yesterday.getVolume();
+                float vtcRatioToday = vcToday / tcToday;
+                float todayGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
+                //priceGap is tuned for higher price stocks
+                todayGap = todayGap + today.getAdjustedClosePrice() / 1000;
+                float todaychange = ((today.getAdjustedClosePrice() - yesterday.getAdjustedClosePrice()) / yesterday.getAdjustedClosePrice()) * 100;
+                float todayTrade = today.getTrade();
+                float todayValue = today.getValue();
+
+                List<Item> itemSubList = new ArrayList();
+                int counter = 0;
+                for (int j = i; j >= 0; j--) {
+                    itemSubList.add(items.get(j));
+//                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
+//                        break;
+//                    }
+                    ++counter;
+                }
+                Collections.sort(itemSubList);
+
+                float volumePerTradeChange = today.getVolumePerTradeChange();
+                float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float rsi = scanerService.calculateRSI(itemSubList);
+                boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
+                float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
+                float volumeChangeWithYesterday = ((float) today.getVolume() / (float) yesterday.getVolume());
+                boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
+                float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
+                float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float hammer = getHammer(today);
+                
+                scanerService.calculateDivergence(itemSubList);
+                float sma25 = scanerService.calculateSMA(itemSubList, 25);
+                //System.out.println("today: " + today.getDate() + ", sma25: " + sma25);
+                
+                int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
+
+                float todaySignalLine = 0;
+                Object todaySignalLineObject = itemSubList.get(itemSubList.size() - 1).getEmaList().get(9);
+                if (todaySignalLineObject != null) {
+                    todaySignalLine = (float) todaySignalLineObject;
+                }
+
+                float dayBeforeYesterdaySignalLine = 0;
+                Object dayBeforeYesterdaySignalLineObject = dayBeforeYesterday.getEmaList().get(9);
+                if (dayBeforeYesterdaySignalLineObject != null) {
+                    dayBeforeYesterdaySignalLine = (float) dayBeforeYesterdaySignalLineObject;
+                }
+
+                float oneWeekAgoSignalLine = 0;
+                Object oneWeekAgoSignalLineObject = itemSubList.get(itemSubList.size() - ScannerService.TRADING_DAYS_IN_A_WEEK).getEmaList().get(9);
+                if (oneWeekAgoSignalLineObject != null) {
+                    oneWeekAgoSignalLine = (float) oneWeekAgoSignalLineObject;
+                }
+
+                //float twoWeekAgoSignalLine = itemSubList.get(itemSubList.size() - ScannerService.TRADING_DAYS_IN_A_WEEK*2).getEmaList().get(9);
+                boolean consecutive3DaysGreen = scanerService.isConsecutive3DaysGreen(itemSubList);
+                float lastFiewDaysVariation = scanerService.getLastFiewDaysVariation(itemSubList, ScannerService.TRADING_DAYS_IN_A_WEEK);
+                int upDayCount7 = scanerService.getUpDayCount(items, i, 7);
+                int upDayCount4 = scanerService.getUpDayCount(items, i, 4);
+                int subListSize = itemSubList.size();
+                float todayDiv = (itemSubList.get(subListSize - 1).getEmaList().get(12) - itemSubList.get(subListSize - 1).getEmaList().get(26)) - itemSubList.get(subListSize - 1).getEmaList().get(9);
+                float yesterdayDiv = (itemSubList.get(subListSize - 2).getEmaList().get(12) - itemSubList.get(subListSize - 2).getEmaList().get(26)) - itemSubList.get(subListSize - 2).getEmaList().get(9);
+                float dayBeforeYesterdayDiv = (itemSubList.get(subListSize - 3).getEmaList().get(12) - itemSubList.get(subListSize - 3).getEmaList().get(26)) - itemSubList.get(subListSize - 3).getEmaList().get(9);
+                Item test = itemSubList.get(itemSubList.size() - 1);
+                float macd = test.getEmaList().get(12) - test.getEmaList().get(26);
+                float signalLine = test.getEmaList().get(9);
+
+                if ((todaychange >= 0.5 && todayGap >= 0.5)
+                        //&& todayDiv > yesterdayDiv
+                        //&& yesterdayDiv > dayBeforeYesterdayDiv
+                        //&& todaySignalLine <= 0
+                        //&& macd <= todaySignalLine
+                        //&& diffWithPreviousLow10 < 9
+                        && todayValue >= 1
+                        && todayTrade >= 50
+                        && volumeChange >= 0.4
+                        && today.getOpenPrice()<=sma25 && today.getAdjustedClosePrice()>sma25
+                        ) {
+                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange());
+                }
+            }
+        }
+    }
+
+    private static void checkByScript3() throws SQLException, ClassNotFoundException, ParseException {
+        ItemDaoImpl dao = new ItemDaoImpl();
+        dao.open();
+        CustomHashMap oneYearData = dao.getData(365);
+        ScannerService scanerService = new ScannerService();
+        String script = "PREMIERCEM";
+        //List<Item> codes = Utils.getCodes();
+        for (String code : oneYearData.keySet()) {
+//            if (!code.equals(script)) {
+//                continue;
+//            }
+
+            List<Item> items = oneYearData.getItems(code);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            Collections.sort(items);
+
+            float previousVolumeChange = 0;
+            float previousTradeChange = 0;
+            float previousYesterdayVolumePerTradeChange = 0;
+
+            for (int i = 3; i < items.size(); i++) {
+                Item today = items.get(i);
+                Item yesterday = items.get(i - 1);
+                Item dayBeforeYesterday = items.get(i - 2);
+                Item towDayBeforeYesterday = items.get(i - 3);
+
+                float tcYesterday = (float) yesterday.getTrade() / (float) dayBeforeYesterday.getTrade();
+                float vcYesterday = (float) yesterday.getVolume() / (float) dayBeforeYesterday.getVolume();
+                float vtcRatioYesterday = vcYesterday / tcYesterday;
+                float yesterdayGap = ((yesterday.getAdjustedClosePrice() - yesterday.getOpenPrice()) / yesterday.getOpenPrice()) * 100;
+                float yesterdaychange = ((yesterday.getAdjustedClosePrice() - dayBeforeYesterday.getAdjustedClosePrice()) / dayBeforeYesterday.getAdjustedClosePrice()) * 100;
+                float dayBeforeYesterdayGap = ((dayBeforeYesterday.getAdjustedClosePrice() - dayBeforeYesterday.getOpenPrice()) / dayBeforeYesterday.getOpenPrice()) * 100;
+                float dayBeforeYesterdayChange = ((dayBeforeYesterday.getAdjustedClosePrice() - towDayBeforeYesterday.getAdjustedClosePrice()) / towDayBeforeYesterday.getAdjustedClosePrice()) * 100;
+                float yesterdayTrade = yesterday.getTrade();
+
+                float tcToday = (float) today.getTrade() / (float) yesterday.getTrade();
+                float vcToday = (float) today.getVolume() / (float) yesterday.getVolume();
+                float vtcRatioToday = vcToday / tcToday;
+                float todayGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
+                //priceGap is tuned for higher price stocks
+                todayGap = todayGap + today.getAdjustedClosePrice() / 1000;
                 float todaychange = ((today.getAdjustedClosePrice() - yesterday.getAdjustedClosePrice()) / yesterday.getAdjustedClosePrice()) * 100;
                 float todayTrade = today.getTrade();
                 float todayValue = today.getValue();
@@ -98,32 +979,28 @@ public class Client {
 //                    totalVolume += items.get(j).getAdjustedVolume();
 //                    itemSubList.add(items.get(j));
 //                }
-                
-                
                 List<Item> itemSubList = new ArrayList();
                 int counter = 0;
-                for(int j=i; j>=0; j--){
+                for (int j = i; j >= 0; j--) {
                     itemSubList.add(items.get(j));
-                    if(counter >= ScannerService.TRADING_DAYS_IN_2_MONTH)
+                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
                         break;
+                    }
                     ++counter;
                 }
                 Collections.sort(itemSubList);
-                
+
 //                float averageVolumePerTrade = (totalVolume / totalTrade);
 //                float todayVolumePerTrade = today.getAdjustedVolume() / today.getTrade();
 //                float volumePerTradeChange = todayVolumePerTrade / averageVolumePerTrade;
-                
                 //if(today.getCode().equals("WATACHEM"))
                 //    System.out.println("i: " + i + ", todayHead: " + today.getDate() + ", subitemHead: " + itemSubList.get(itemSubList.size()-1).getDate());
-                
 //                ChangesInVolumePerTrade changes = ChangesInVolumePerTrade.getChangesInVolumePerTrade(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
 //                float volumePerTradeChange = changes.getTodayChange();
 //                float yesterdayVolumePerTradeChange = changes.getYesterdayChange();
-                
                 float volumePerTradeChange = today.getVolumePerTradeChange();
                 float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
-                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i-1, ScannerService.TRADING_DAYS_IN_2_MONTH/2);
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
 
                 float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
                 float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
@@ -134,15 +1011,132 @@ public class Client {
                 boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
                 float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
                 float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
-                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH/2);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
                 float hammer = getHammer(today);
                 scanerService.calculateDivergence(itemSubList);
-                int divergence = itemSubList.get(itemSubList.size()-1).getDivergence();
+                int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
                 boolean consecutive3DaysGreen = scanerService.isConsecutive3DaysGreen(itemSubList);
                 float lastFiewDaysVariation = scanerService.getLastFiewDaysVariation(itemSubList, ScannerService.TRADING_DAYS_IN_A_WEEK);
                 int upDayCount7 = scanerService.getUpDayCount(items, i, 7);
                 int upDayCount4 = scanerService.getUpDayCount(items, i, 4);
+                if (((todaychange >= 0.5 && todayGap >= 0.5) && (yesterdaychange >= 1 || yesterdayGap >= 0.5) && (todaychange + yesterdaychange) > 1)
+                        && divergence <= -5
+                        && rsi <= 45
+                        && todayValue >= 1
+                        && todayTrade >= 50
+                        && volumePerTradeChange < 1.8
+                        && Math.min(todayGap, yesterdayGap) > -3
+                        && diffWithPreviousLow10 < 9 //&& Math.max(todayGap, yesterdayGap) >= 0.5
+                        ) {
+                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange());
+                }
+            }
+        }
+    }
 
+    private static void checkByScript() throws SQLException, ClassNotFoundException, ParseException {
+        ItemDaoImpl dao = new ItemDaoImpl();
+        dao.open();
+        CustomHashMap oneYearData = dao.getData(365);
+        ScannerService scanerService = new ScannerService();
+        String script = "MARICO";
+        //List<Item> codes = Utils.getCodes();
+        for (String code : oneYearData.keySet()) {
+//            if (!code.equals(script)) {
+//                continue;
+//            }
+
+            List<Item> items = oneYearData.getItems(code);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            Collections.sort(items);
+
+            float previousVolumeChange = 0;
+            float previousTradeChange = 0;
+            float previousYesterdayVolumePerTradeChange = 0;
+
+            for (int i = 50; i < items.size(); i++) {
+                Item today = items.get(i);
+                Item yesterday = items.get(i - 1);
+                Item dayBeforeYesterday = items.get(i - 2);
+                Item towDayBeforeYesterday = items.get(i - 3);
+
+                float tcYesterday = (float) yesterday.getTrade() / (float) dayBeforeYesterday.getTrade();
+                float vcYesterday = (float) yesterday.getVolume() / (float) dayBeforeYesterday.getVolume();
+                float vtcRatioYesterday = vcYesterday / tcYesterday;
+                float yesterdayGap = ((yesterday.getAdjustedClosePrice() - yesterday.getOpenPrice()) / yesterday.getOpenPrice()) * 100;
+                float yesterdaychange = ((yesterday.getAdjustedClosePrice() - dayBeforeYesterday.getAdjustedClosePrice()) / dayBeforeYesterday.getAdjustedClosePrice()) * 100;
+                float dayBeforeYesterdayGap = ((dayBeforeYesterday.getAdjustedClosePrice() - dayBeforeYesterday.getOpenPrice()) / dayBeforeYesterday.getOpenPrice()) * 100;
+                float dayBeforeYesterdayChange = ((dayBeforeYesterday.getAdjustedClosePrice() - towDayBeforeYesterday.getAdjustedClosePrice()) / towDayBeforeYesterday.getAdjustedClosePrice()) * 100;
+                float yesterdayTrade = yesterday.getTrade();
+
+                float tcToday = (float) today.getTrade() / (float) yesterday.getTrade();
+                float vcToday = (float) today.getVolume() / (float) yesterday.getVolume();
+                float vtcRatioToday = vcToday / tcToday;
+                float todayGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
+                //priceGap is tuned for higher price stocks
+                float sign = todayGap / Math.abs(todayGap);
+                todayGap = todayGap + (today.getAdjustedClosePrice() / 1000) * sign;
+                float todaychange = ((today.getAdjustedClosePrice() - yesterday.getAdjustedClosePrice()) / yesterday.getAdjustedClosePrice()) * 100;
+                float todayTrade = today.getTrade();
+                float todayValue = today.getValue();
+
+//                List<Item> itemSubList = new ArrayList();
+//                long totalTrade = 0;
+//                long totalVolume = 0;
+//                float yesterdayVolumePerTradeChange = 0;
+//                for (int j = 0; j <= i; j++) {
+//                    if (j == i) {
+//                        float averageVolumePerTrade = (float) (totalVolume / totalTrade);
+//                        float yesterdayVolumePerTrade = yesterday.getAdjustedVolume() / yesterday.getTrade();
+//                        yesterdayVolumePerTradeChange = yesterdayVolumePerTrade / averageVolumePerTrade;
+//                    }
+//                    totalTrade += items.get(j).getTrade();
+//                    totalVolume += items.get(j).getAdjustedVolume();
+//                    itemSubList.add(items.get(j));
+//                }
+                List<Item> itemSubList = new ArrayList();
+                int counter = 0;
+                for (int j = i; j >= 0; j--) {
+                    itemSubList.add(items.get(j));
+                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
+                        break;
+                    }
+                    ++counter;
+                }
+                Collections.sort(itemSubList);
+
+//                float averageVolumePerTrade = (totalVolume / totalTrade);
+//                float todayVolumePerTrade = today.getAdjustedVolume() / today.getTrade();
+//                float volumePerTradeChange = todayVolumePerTrade / averageVolumePerTrade;
+                //if(today.getCode().equals("WATACHEM"))
+                //    System.out.println("i: " + i + ", todayHead: " + today.getDate() + ", subitemHead: " + itemSubList.get(itemSubList.size()-1).getDate());
+//                ChangesInVolumePerTrade changes = ChangesInVolumePerTrade.getChangesInVolumePerTrade(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+//                float volumePerTradeChange = changes.getTodayChange();
+//                float yesterdayVolumePerTradeChange = changes.getYesterdayChange();
+                float volumePerTradeChange = today.getVolumePerTradeChange();
+                float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float rsi = scanerService.calculateRSI(itemSubList);
+                boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
+                float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
+                float volumeChangeWithYesterday = ((float) today.getVolume() / (float) yesterday.getVolume());
+                boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
+                float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
+                float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float hammer = getHammer(today);
+                scanerService.calculateDivergence(itemSubList);
+                int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
+                boolean consecutive3DaysGreen = scanerService.isConsecutive3DaysGreen(itemSubList);
+                float lastFiewDaysVariation = scanerService.getLastFiewDaysVariation(itemSubList, ScannerService.TRADING_DAYS_IN_A_WEEK);
+                int upDayCount7 = scanerService.getUpDayCount(items, i, 7);
+                int upDayCount4 = scanerService.getUpDayCount(items, i, 4);
+                int subListSize = itemSubList.size();
+                float todayDiv = (itemSubList.get(subListSize - 1).getEmaList().get(12) - itemSubList.get(subListSize - 1).getEmaList().get(26)) - itemSubList.get(subListSize - 1).getEmaList().get(9);
+                float divValue = (todayDiv / today.getAdjustedClosePrice()) * 1000;
 //                if ((todaychange > 0.5 && todayGap >= 0)
 //                        && !(yesterdayVolumePerTradeChange > 1 && previousYesterdayVolumePerTradeChange > 1)
 //                        && ((volumePerTradeChange < 1.2
@@ -152,32 +1146,18 @@ public class Client {
 //                        && diffWithPreviousLow < 12) {
 //                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow);
 //                }
-                
-//                if ((todaychange>0.5 && todayGap >= 0)
-////                        && !(yesterdayVolumePerTradeChange>1 && previousYesterdayVolumePerTradeChange>1)
-//                        && (volumePerTradeChange > 1.2 && volumePerTradeChange < 2)
-//                        //&& (vtcRatioToday>0.95 && (vtcRatioToday-vtcRatioYesterday)>-0.3 )
-//                        && ( tradeChange>1.2 && tradeChange<3 )
-//                        && (volumeChangeWithYesterday > 1)
-//                        
-//                        && (diffWithPreviousLow10<9 && diffWithPreviousLow3<7)
-//                        && todayTrade > 70
-//                        && todayValue > 1.5
-//                        && (hammer <= 2 && todayGap >= hammer )
-//                        && divergence < 20
-//                        && rsi < 75
-//                        && todayGap <6
-//                        && today.getAdjustedClosePrice() >8
-//                        && diffWithPreviousHighVolume > 1
-//                        && !consecutive3DaysGreen
-//                        //&& volumeChange/lastFiewDaysVariation >0.6
-//                        //&& upDayCount7 < 5
-//                        //&& upDayCount4 < 3
-////                        && !(maximumVolumePerTradeChange.getVolumePerTradeChange()>1.1 && maximumVolumePerTradeChange.getTradeChange()>1.1)
-//                   ) {
-                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange()) ;
-                    //System.out.println("volumePerTradeChange: " + volumePerTradeChange + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", changeToday: " + today.getVolumePerTradeChange() + ", changeYesterday: " + yesterday.getVolumePerTradeChange());
-//                }
+                if (((todaychange >= 0.5 && todayGap >= 0.5) && (yesterdaychange >= 1 || yesterdayGap >= 0.5) && (todaychange + yesterdaychange) > 1)
+                        && divergence <= 15
+                        && rsi <= 50
+                        && yesterday.getAdjustedClosePrice() < today.getOpenPrice()
+                        && todayValue >= 1
+                        && todayTrade >= 50
+                        && volumePerTradeChange < 1.8
+                        && Math.min(todayGap, yesterdayGap) > -3
+                        && diffWithPreviousLow10 < 9 //&& Math.max(todayGap, yesterdayGap) >= 0.5
+                        ) {
+                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange());
+                }
 
                 //previousVolumeChange = volumeChange;
                 //previousTradeChange = tradeChange;
@@ -185,8 +1165,7 @@ public class Client {
             }
         }
     }
-    
-    
+
     private static void checkByScript2() throws SQLException, ClassNotFoundException, ParseException {
         ItemDaoImpl dao = new ItemDaoImpl();
         dao.open();
@@ -227,24 +1206,25 @@ public class Client {
                 float vtcRatioToday = vcToday / tcToday;
                 float todayGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
                 //priceGap is tuned for higher price stocks
-                todayGap = todayGap + today.getAdjustedClosePrice()/1000;
+                todayGap = todayGap + today.getAdjustedClosePrice() / 1000;
                 float todaychange = ((today.getAdjustedClosePrice() - yesterday.getAdjustedClosePrice()) / yesterday.getAdjustedClosePrice()) * 100;
                 float todayTrade = today.getTrade();
                 float todayValue = today.getValue();
-                
+
                 List<Item> itemSubList = new ArrayList();
                 int counter = 0;
-                for(int j=i; j>=0; j--){
+                for (int j = i; j >= 0; j--) {
                     itemSubList.add(items.get(j));
-                    if(counter >= ScannerService.TRADING_DAYS_IN_2_MONTH)
+                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
                         break;
+                    }
                     ++counter;
                 }
                 Collections.sort(itemSubList);
-                
+
                 float volumePerTradeChange = today.getVolumePerTradeChange();
                 float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
-                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i-1, ScannerService.TRADING_DAYS_IN_2_MONTH/2);
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
 
                 float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
                 float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
@@ -255,16 +1235,16 @@ public class Client {
                 boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
                 float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
                 float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
-                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH/2);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
                 float hammer = getHammer(today);
                 scanerService.calculateDivergence(itemSubList);
-                int divergence = itemSubList.get(itemSubList.size()-1).getDivergence();
+                int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
                 boolean consecutive3DaysGreen = scanerService.isConsecutive3DaysGreen(itemSubList);
                 float lastFiewDaysVariation = scanerService.getLastFiewDaysVariation(itemSubList, ScannerService.TRADING_DAYS_IN_A_WEEK);
                 int upDayCount7 = scanerService.getUpDayCount(items, i, 7);
                 int upDayCount4 = scanerService.getUpDayCount(items, i, 4);
-                boolean happenedInLastFewDays = happenedInLastFewDays(items, i, ScannerService.TRADING_DAYS_IN_A_WEEK*2, 1.2f, 1.2f);
-                
+                boolean happenedInLastFewDays = happenedInLastFewDays(items, i, ScannerService.TRADING_DAYS_IN_A_WEEK * 2, 1.2f, 1.2f);
+
 //                if ((todaychange>0.5 && todayGap >= 0)
 //                        && tradeChange>1.2 && volumePerTradeChange>1.2 & !happenedInLastFewDays
 ////                        && !(yesterdayVolumePerTradeChange>1 && previousYesterdayVolumePerTradeChange>1)
@@ -288,13 +1268,12 @@ public class Client {
 //                        //&& upDayCount4 < 3
 ////                        && !(maximumVolumePerTradeChange.getVolumePerTradeChange()>1.1 && maximumVolumePerTradeChange.getTradeChange()>1.1)
 //                   ) {
-                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange()) ;
+                System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange());
 //                }
             }
         }
     }
-    
-    
+
     private static void tradeGTVolume() throws SQLException, ClassNotFoundException, ParseException {
         ItemDaoImpl dao = new ItemDaoImpl();
         dao.open();
@@ -335,24 +1314,25 @@ public class Client {
                 float vtcRatioToday = vcToday / tcToday;
                 float todayGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
                 //priceGap is tuned for higher price stocks
-                todayGap = todayGap + today.getAdjustedClosePrice()/1000;
+                todayGap = todayGap + today.getAdjustedClosePrice() / 1000;
                 float todaychange = ((today.getAdjustedClosePrice() - yesterday.getAdjustedClosePrice()) / yesterday.getAdjustedClosePrice()) * 100;
                 float todayTrade = today.getTrade();
                 float todayValue = today.getValue();
-                
+
                 List<Item> itemSubList = new ArrayList();
                 int counter = 0;
-                for(int j=i; j>=0; j--){
+                for (int j = i; j >= 0; j--) {
                     itemSubList.add(items.get(j));
-                    if(counter >= ScannerService.TRADING_DAYS_IN_2_MONTH)
+                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
                         break;
+                    }
                     ++counter;
                 }
                 Collections.sort(itemSubList);
-                
+
                 float volumePerTradeChange = today.getVolumePerTradeChange();
                 float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
-                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i-1, ScannerService.TRADING_DAYS_IN_2_MONTH/2);
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
 
                 float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
                 float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
@@ -363,73 +1343,73 @@ public class Client {
                 boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
                 float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
                 float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
-                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH/2);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
                 float hammer = getHammer(today);
                 scanerService.calculateDivergence(itemSubList);
-                int divergence = itemSubList.get(itemSubList.size()-1).getDivergence();
+                int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
                 boolean consecutive3DaysGreen = scanerService.isConsecutive3DaysGreen(itemSubList);
                 float lastFiewDaysVariation = scanerService.getLastFiewDaysVariation(itemSubList, ScannerService.TRADING_DAYS_IN_A_WEEK);
                 int upDayCount7 = scanerService.getUpDayCount(items, i, 7);
                 int upDayCount4 = scanerService.getUpDayCount(items, i, 4);
-                boolean happenedInLastFewDays = happenedInLastFewDays(items, i, ScannerService.TRADING_DAYS_IN_A_WEEK*2, 1.2f, 1.2f);
-                
-                if ((todaychange>0.5 && todayGap >= 0)
-//                        && tradeChange<2 && volumePerTradeChange<0.85 && volumeChange>0.7
-                        && volumePerTradeChange<0.8 && volumeChange>1
-//                        && !(yesterdayVolumePerTradeChange>1 && previousYesterdayVolumePerTradeChange>1)
+                boolean happenedInLastFewDays = happenedInLastFewDays(items, i, ScannerService.TRADING_DAYS_IN_A_WEEK * 2, 1.2f, 1.2f);
+
+                if ((todaychange > 0.5 && todayGap >= 0)
+                        //                        && tradeChange<2 && volumePerTradeChange<0.85 && volumeChange>0.7
+                        && volumePerTradeChange < 0.8 && volumeChange > 1
+                        //                        && !(yesterdayVolumePerTradeChange>1 && previousYesterdayVolumePerTradeChange>1)
                         //&& (volumePerTradeChange > 1.2 && volumePerTradeChange < 2)
                         //&& (vtcRatioToday>0.95 && (vtcRatioToday-vtcRatioYesterday)>-0.3 )
                         //&& ( tradeChange>1.2 && tradeChange<3 )
                         //&& (volumeChangeWithYesterday > 1)
-                        
-//                        && (diffWithPreviousLow10<12 && diffWithPreviousLow3<8)
+
+                        //                        && (diffWithPreviousLow10<12 && diffWithPreviousLow3<8)
                         //&& todayTrade > 70
                         //&& todayValue > 1.5
-//                        && (hammer <= 2 && todayGap >= hammer )
+                        //                        && (hammer <= 2 && todayGap >= hammer )
                         && divergence < 20
                         //&& rsi < 75
-                        && todayGap <6
-                        && today.getAdjustedClosePrice() >8
-                        //&& diffWithPreviousHighVolume > 1
+                        && todayGap < 6
+                        && today.getAdjustedClosePrice() > 8 //&& diffWithPreviousHighVolume > 1
                         //&& !consecutive3DaysGreen
                         //&& volumeChange/lastFiewDaysVariation >0.6
                         //&& upDayCount7 < 5
                         //&& upDayCount4 < 3
-//                        && !(maximumVolumePerTradeChange.getVolumePerTradeChange()>1.1 && maximumVolumePerTradeChange.getTradeChange()>1.1)
-                   ) {
-                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange()) ;
+                        //                        && !(maximumVolumePerTradeChange.getVolumePerTradeChange()>1.1 && maximumVolumePerTradeChange.getTradeChange()>1.1)
+                        ) {
+                    System.out.println("Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", vtcRatioYesterday: " + vtcRatioYesterday + ", vtcRatioToday: " + vtcRatioToday + ", yesterdayVolumePerTradeChange: " + yesterdayVolumePerTradeChange + ", volumePerTradeChange: " + volumePerTradeChange + ", tradeChangeWithYesterday: " + tradeChangeWithYesterday + ", volumeChangeWithYesterday: " + volumeChangeWithYesterday + ", diffWithPreviousLow: " + diffWithPreviousLow10 + ", rsi: " + rsi + ", hammer: " + hammer + ", divergence: " + divergence + ", diffWithPreviousHighVolume: " + diffWithPreviousHighVolume + ", lastFiewDaysVariation: " + lastFiewDaysVariation + ", maximumVolumePerTradeChange: " + maximumVolumePerTradeChange.getVolumePerTradeChange());
                 }
             }
         }
     }
-    
-    
-    private static boolean happenedInLastFewDays(List<Item> items, int head, int days, float tradeChange, float volumePerTradeChange){
-        if(head>=items.size() || days>=items.size() || head<=days)
+
+    private static boolean happenedInLastFewDays(List<Item> items, int head, int days, float tradeChange, float volumePerTradeChange) {
+        if (head >= items.size() || days >= items.size() || head <= days) {
             return false;
-        
+        }
+
         ScannerService scanerService = new ScannerService();
 //        if(items.get(items.size()-1).getCode().equals("BGIC"))
 //            System.out.println("Calculating happened for " + items.get(head).getDate());
-        
-        for(int i=head-1; (head-i)<=(days); i--){
+
+        for (int i = head - 1; (head - i) <= (days); i--) {
             Item item = items.get(i);
             float calculatedTradeChange = scanerService.calculateTradeChange(items, i, ScannerService.TRADING_DAYS_IN_2_MONTH);
 //            if(item.getCode().equals("BGIC"))
 //                System.out.println("Date: " + item.getDate() + ", calculatedTradeChange: " + calculatedTradeChange + ", vc: " + item.getVolumePerTradeChange());
-            if(calculatedTradeChange>=tradeChange && item.getVolumePerTradeChange()>=volumePerTradeChange)
+            if (calculatedTradeChange >= tradeChange && item.getVolumePerTradeChange() >= volumePerTradeChange) {
                 return true;
+            }
         }
-        
+
         return false;
     }
-    
-    private static float getHammer(Item item){
+
+    private static float getHammer(Item item) {
         float difference = Math.abs(item.getOpenPrice() - item.getAdjustedClosePrice());
         float largest = Math.max(item.getOpenPrice(), item.getClosePrice());
         //float smallest  = (item.getOpenPrice() + item.getAdjustedClosePrice() - difference)/2;
         //float hammer = (((smallest-item.getLow())-(item.getHigh()-largest))/item.getAdjustedClosePrice())*100;
-        float hammer = ((item.getHigh()-largest)/largest)*100;
+        float hammer = ((item.getHigh() - largest) / largest) * 100;
         return hammer;
     }
 }

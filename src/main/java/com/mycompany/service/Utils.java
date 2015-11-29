@@ -1,6 +1,7 @@
 package com.mycompany.service;
 
 import com.mycompany.dao.ItemDaoImpl;
+import com.mycompany.model.BasicInfo;
 import com.mycompany.model.DividentHistory;
 import com.mycompany.model.Item;
 import java.io.FileNotFoundException;
@@ -48,12 +49,18 @@ public class Utils {
         return dividentHistory;
     }
 
+    public static String getConfigFilesPath() {
+        Utils utils = new Utils();
+        String splitter = "com/";
+        String path = utils.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+        path = path.split(splitter)[0];
+        return path;
+    }
+
     public static List<Item> getCodes() {
         if (allItems == null) {
-            Utils utils = new Utils();
-            String splitter = "com/";
-            String path = utils.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
-            path = path.split(splitter)[0];
+            String path = getConfigFilesPath();
+            
             try {
                 ScraperConfiguration config = Crawler.getScraperConfig(path, Crawler.CrawlType.CODE_NAMES);
                 Crawler crawler = new Crawler(config, null, Crawler.CrawlType.CODE_NAMES, null);
@@ -65,6 +72,15 @@ public class Utils {
             }
         }
         return allItems;
+    }
+    
+    public static List<String> getCodes(List items) {
+        List<String> codes = new ArrayList<>();
+        for (Object item : items) {
+            codes.add(((BasicInfo) item).getCode());
+        }
+
+        return codes;
     }
 
     private static List<DividentHistory> getHistory(String code) {
@@ -86,11 +102,15 @@ public class Utils {
         return dividentMap.get(code);
     }
 
+    public static void updateDates(ItemDaoImpl itemDao) throws SQLException {
+        today = itemDao.getToday();
+        yesterday = itemDao.getYesterday();
+    }
+
     static {
         try {
             dao.open();
-            today = dao.getToday();
-            yesterday = dao.getYesterday();
+            updateDates(dao);
             dao.close();
         } catch (SQLException | ClassNotFoundException ex) {
             Logger.getLogger(Utils.class.getName()).log(Level.SEVERE, null, ex);

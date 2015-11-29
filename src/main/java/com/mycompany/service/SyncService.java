@@ -7,6 +7,7 @@ import java.net.MalformedURLException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -49,6 +50,7 @@ public class SyncService implements Job {
 //    }
     public void sync() throws IOException {
         Calendar start = Calendar.getInstance();
+        ItemDaoImpl dao = null;
         
         try {
             List<Item> items = Utils.getCodes();
@@ -56,19 +58,25 @@ public class SyncService implements Job {
             selectTopItems(items);
             fetchBSVolume(items);
             items = getValidItems(items);
-            System.out.println("Fetching completed, going to update database");
 
             if (items.isEmpty()) {
                 System.out.println("Skipping update");
                 return;
             }
+            
+            //Get dse item
+            ImportService importService = new ImportService(dao);
+            List<Item> dsexItem = importService.importDSEXArchive(1);
+            items.addAll(dsexItem);
+            System.out.println("Fetching completed, going to update database..");
 
-            ItemDaoImpl dao = new ItemDaoImpl();
+            dao = new ItemDaoImpl();
             dao.open();
             dao.setItems(items);
             dao.close();
         } catch (MalformedURLException | InterruptedException | ClassNotFoundException | SQLException ex) {
             Logger.getLogger(SyncService.class.getName()).log(Level.SEVERE, null, ex);
+            ex.printStackTrace();
         }
         
         Calendar end = Calendar.getInstance();
@@ -79,7 +87,25 @@ public class SyncService implements Job {
     public void syncYearStatistics() throws IOException {
         try {
             List<Item> items = Utils.getCodes();
-            fetchYearStatistics(items);
+            //System.out.println("total item size: " + items.size());
+            
+            int chunkSize = items.size()/4;
+            List<Item> itemSublist = new ArrayList<>();
+            
+            for (int i = 0; i < items.size(); i++) {
+                if(i%chunkSize == 0){
+                    if(itemSublist.size()>0){
+                        System.out.println("going to fetch items untill: " + i);
+                        fetchYearStatistics(itemSublist);
+                    }
+                    
+                    itemSublist = new ArrayList<>();
+                }
+                
+                itemSublist.add(items.get(i));
+            }
+            
+            fetchYearStatistics(itemSublist);
 
             ItemDaoImpl itemDao = new ItemDaoImpl();
             itemDao.open();
@@ -92,6 +118,8 @@ public class SyncService implements Job {
     }
 
     public void fetchYearStatistics(List<Item> items) throws MalformedURLException, IOException, InterruptedException {
+        System.out.println("subitem size: " + items.size());
+        
         List<Crawler> crawlers = new ArrayList<>();
         ScraperConfiguration config = Crawler.getScraperConfig(context, Crawler.CrawlType.ITEM_YEAR_STATISTICS);
         //int counter = 0;
@@ -107,11 +135,11 @@ public class SyncService implements Job {
 
         for (Crawler crawler : crawlers) {
             crawler.join();
-        }
-        
-        //System.out.println("percentage: " + items.get(0).getSharePercentage());
+            }
+            
+        System.out.println("fetch completed: " + items.size());
     }
-
+        
     private List<Item> getValidItems(List<Item> items) {
         List<Item> validItems = new ArrayList();
         for (Item item : items) {
@@ -174,8 +202,11 @@ public class SyncService implements Job {
             crawlers.add(crawler);
         }
 
+        int counter = 0;
         for (Crawler crawler : crawlers) {
             crawler.join();
+            ++counter;
+            //System.out.println((crawlers.size()-counter) + " to be finished yet");
         }
     }
 
@@ -184,7 +215,7 @@ public class SyncService implements Job {
         try {
             JobDataMap data = jec.getJobDetail().getJobDataMap();
             this.context = (ServletContext) data.get("context");
-            System.out.println("This is job from SyncService");
+            System.out.println("This is job from SyncService at " + new Date());
             sync();
 
         } catch (Exception ex) {

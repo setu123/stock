@@ -44,6 +44,10 @@ public class ImportService {
     public ImportService() {
         dao = new ItemDaoImpl();
     }
+    
+    public ImportService(ItemDaoImpl daoImpl) {
+        dao = daoImpl;
+    }
 
     public ImportService(ServletContext context) {
         this.context = context;
@@ -116,11 +120,11 @@ public class ImportService {
             for (Crawler craw : crawlers) {
                 craw.join();
                 List<Item> items = (List<Item>) craw.getParams().get("items");
-                if(items.size() == 0){
+                if (items.size() == 0) {
                     System.out.println("Could not update for item: " + craw.getItem().getCode());
                     continue;
                 }
-                    
+
                 dao.open();
                 dao.importItems(items);
                 dao.close();
@@ -136,42 +140,39 @@ public class ImportService {
         }
 
     }
-    
-    public void importArchive(int day) {
-        SyncService syncService = new SyncService(context);
 
+    public void importArchive(int day) {
         try {
             Calendar processStartedAt = Calendar.getInstance();
-
-            List<Item> watchMatrix = syncService.getCodes();
             Calendar startDate = Calendar.getInstance();
             startDate.add(Calendar.DAY_OF_YEAR, -day);
             Calendar endDate = Calendar.getInstance();
             //List<Crawler> crawlers = new ArrayList<>();
 
-                ScraperConfiguration config = Crawler.getScraperConfig(context, Crawler.CrawlType.DATA_ARCHIVE);
-                Map params = new HashMap();
-                dateFormat = new SimpleDateFormat(DSE_DATA_ARCHIVE_DATE_FORMAT);
-                params.put("startDate", dateFormat.format(startDate.getTime()));
-                params.put("endDate", dateFormat.format(endDate.getTime()));
-                Item item = new Item("All Instrument");
-                Crawler crawler = new Crawler(config, item, Crawler.CrawlType.DATA_ARCHIVE, params);
-                crawler.start();
+            ScraperConfiguration config = Crawler.getScraperConfig(context, Crawler.CrawlType.DATA_ARCHIVE);
+            Map params = new HashMap();
+            dateFormat = new SimpleDateFormat(DSE_DATA_ARCHIVE_DATE_FORMAT);
+            params.put("startDate", dateFormat.format(startDate.getTime()));
+            params.put("endDate", dateFormat.format(endDate.getTime()));
+            Item item = new Item("All Instrument");
+            Crawler crawler = new Crawler(config, item, Crawler.CrawlType.DATA_ARCHIVE, params);
+            crawler.start();
                 //crawlers.add(crawler);
 
-
             int counter = 0;
-                crawler.join();
-                List<Item> items = (List<Item>) crawler.getParams().get("items");
+            crawler.join();
+            List<Item> items = (List<Item>) crawler.getParams().get("items");
+            List<Item> dsexItems = importDSEXArchive(day);
+            System.out.println("dsex items: " + dsexItems.size());
+            items.addAll(dsexItems);
                 //filterOutUnneccessaryCodes(items, watchMatrix);
-                
-                if (items.size() > 0) {
-                    dao.open();
-                    dao.importItems(items);
-                    dao.close();
-                    //System.out.println("[" + (++counter) + "]Import data archive finished for " + items.get(0).getCode());
-                }
 
+            if (items.size() > 0) {
+                dao.open();
+                dao.importItems(items);
+                dao.close();
+                //System.out.println("[" + (++counter) + "]Import data archive finished for " + items.get(0).getCode());
+            }
 
             Calendar processEndedAt = Calendar.getInstance();
             long elapsedTime = (processEndedAt.getTimeInMillis() - processStartedAt.getTimeInMillis()) / 1000;
@@ -180,7 +181,37 @@ public class ImportService {
             Logger.getLogger(ImportService.class.getName()).log(Level.SEVERE, null, ex);
             ex.printStackTrace();
         }
+    }
 
+    public List<Item> importDSEXArchive(int day) {
+        List<Item> items = new ArrayList<>();
+
+        try {
+            Calendar processStartedAt = Calendar.getInstance();
+            Calendar startDate = Calendar.getInstance();
+            startDate.add(Calendar.DAY_OF_YEAR, -day);
+            Calendar endDate = Calendar.getInstance();
+
+            String path = Utils.getConfigFilesPath();
+            ScraperConfiguration config = Crawler.getScraperConfig(path, Crawler.CrawlType.DSEX_DATA_ARCHIVE);
+            Map params = new HashMap();
+            dateFormat = new SimpleDateFormat(DSE_DATA_ARCHIVE_DATE_FORMAT);
+            params.put("startDate", dateFormat.format(startDate.getTime()));
+            params.put("endDate", dateFormat.format(endDate.getTime()));
+            Item item = new Item("All Instrument");
+            Crawler crawler = new Crawler(config, item, Crawler.CrawlType.DSEX_DATA_ARCHIVE, params);
+            crawler.start();
+            crawler.join();
+            items = (List<Item>) crawler.getParams().get("items");
+            Calendar processEndedAt = Calendar.getInstance();
+            long elapsedTime = (processEndedAt.getTimeInMillis() - processStartedAt.getTimeInMillis()) / 1000;
+            System.out.println("Time elapsed to sync " + day + " day archive for " + items.size() + " item: " + (elapsedTime / 60) + " minutes " + (elapsedTime % 60) + " seconds");
+        } catch (IOException | InterruptedException ex) {
+            Logger.getLogger(ImportService.class.getName()).log(Level.SEVERE, null, ex);
+            ex.printStackTrace();
+        }
+
+        return items;
     }
 
     @Deprecated

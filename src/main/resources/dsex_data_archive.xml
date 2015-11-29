@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+    <var-def name="data">
+            <xpath expression="//table[@bgcolor='#808000']">
+                <html-to-xml>
+                    <http method="post" url="http://dsebd.org/market_summary.php">
+                        <http-param name="MktSumDate1" >
+                            <template>${startDate}</template>
+                        </http-param>
+                        <http-param name="MktSumDate2">
+                            <template>${endDate}</template>
+                        </http-param>
+                        <http-param name="ViewMktSum">
+                            <template>View+Market+Summary</template>
+                        </http-param>
+                    </http>
+                </html-to-xml>
+            </xpath>
+    </var-def> 
+    
+    
+    <var-def name="items">
+        <![CDATA[ <items> ]]>
+    <loop item="item" index="i">
+    	<list>
+    		<var name="data"/>
+    	</list>
+    	<body>
+    		<xquery>
+                    <xq-param name="item" type="node()"><var name="item"/></xq-param>
+                    <xq-expression><![CDATA[
+                            declare variable $item as node() external;
+                            let $date := $item//tbody/tr[1]/td[1]/font/text()
+                            let $close := $item//tbody/tr[2]/td[2]/font/text()
+                            let $trade := $item//tbody/tr[2]/td[4]/font/text()
+                            let $value := $item//tbody/tr[3]/td[4]/font/text()
+                                return
+                                    <data date="{$date}" close="{$close}" trade="{$trade}" value="{$value}"/>
+                    ]]></xq-expression>
+                </xquery>
+    		
+    	</body>
+    </loop>     
+    <![CDATA[ </items> ]]>
+    </var-def>
+    
+    
+    
+    
+</config>

@@ -1,6 +1,7 @@
 package com.mycompany.service;
 
 import com.mycompany.model.Item;
+import com.mycompany.model.ItemNews;
 import com.mycompany.model.SharePercentage;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
@@ -11,17 +12,21 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletContext;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
@@ -29,9 +34,7 @@ import org.w3c.dom.NodeList;
 import org.webharvest.definition.ScraperConfiguration;
 import org.webharvest.runtime.Scraper;
 import org.webharvest.runtime.variables.ListVariable;
-import org.webharvest.runtime.variables.NodeVariable;
 import org.xml.sax.SAXException;
-import sun.net.www.http.HttpClient;
 
 /**
  * @date Apr 18, 2015
@@ -40,8 +43,9 @@ import sun.net.www.http.HttpClient;
 public class Crawler extends Thread {
 
     public Map getParams() {
-        if(params == null)
+        if (params == null) {
             params = new HashMap();
+        }
         return params;
     }
 
@@ -51,13 +55,15 @@ public class Crawler extends Thread {
 
     public enum CrawlType {
 
-        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, CODE_NAMES
+        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, DSEX_DATA_ARCHIVE, CODE_NAMES, NEWS
     }
 
     private static ScraperConfiguration PRESSURE_CONFIG;
     private static ScraperConfiguration YEAR_STATISTIC_CONFIG;
     private static ScraperConfiguration DATA_ARCHIVE_CONFIG;
+    private static ScraperConfiguration DSEX_DATA_ARCHIVE_CONFIG;
     private static ScraperConfiguration CODE_NAMES_CONFIG;
+    private static ScraperConfiguration NEWS_CONFIG;
     private ScraperConfiguration scraperConfig = null;
 
     static final Logger logger = Logger.getLogger(Crawler.class.getName());
@@ -65,17 +71,22 @@ public class Crawler extends Thread {
     private final String PRICE_URL = "http://dsebd.org/bshis_new1_old.php?w=";
     private final String YEAR_STATISTICS_URL = "http://dsebd.org/displayCompany.php?name=";
     private final String DATA_ARCHIVE_URL = "http://www.dsebd.org/day_end_archive.php";
+    private final String DSEX_DATA_ARCHIVE_URL = "http://dsebd.org/market_summary.php";
     private final String CODE_NAMES_URL = "http://www.dsebd.org/company%20listing.php";
+    private final String NEWS_URL = "http://dsebd.org/old_news1.php";
     //private final ServletContext context;
     private final Item item;
     private final CrawlType crawlType;
     private final static String pressureConfigFile = "volume.xml";
     private final static String yearStatisticsFile = "yearStatistics.xml";
     private final static String dataArchiveFile = "data_archive.xml";
+    private final static String dsexDataArchiveFile = "dsex_data_archive.xml";
     private final static String codeNamesFile = "codes.xml";
+    private final static String newsFile = "news.xml";
     private final static String DATA_ARCHIVE_DATE_PATTERN = "yyyy-MM-dd";
+    private final static String DSEX_DATA_ARCHIVE_DATE_PATTERN = "MMM dd, yyyy";
     private final String SKIP_CODE_PATTERN = "(T\\d+Y\\d+|.*dse.*|DEB.*)";
-    private final long HTTP_TIMEOUT = 60000;
+    private final long HTTP_TIMEOUT_1_MINUTE = 60000;
     private Map params;
 
     public Crawler(ScraperConfiguration scraperConfig, Item item, CrawlType crawlType, Map params) {
@@ -102,16 +113,25 @@ public class Crawler extends Thread {
                     DATA_ARCHIVE_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + dataArchiveFile);
                 }
                 return DATA_ARCHIVE_CONFIG;
+            case DSEX_DATA_ARCHIVE:
+                if (DSEX_DATA_ARCHIVE_CONFIG == null) {
+                    DSEX_DATA_ARCHIVE_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + dsexDataArchiveFile);
+                }
+                return DATA_ARCHIVE_CONFIG;
             case CODE_NAMES:
                 if (CODE_NAMES_CONFIG == null) {
                     CODE_NAMES_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + codeNamesFile);
                 }
                 return CODE_NAMES_CONFIG;
+            case NEWS:
+                if (NEWS_CONFIG == null) {
+                    NEWS_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + newsFile);
+                }
         }
 
         return null;
     }
-    
+
     public static ScraperConfiguration getScraperConfig(String configPath, CrawlType crawlType) throws FileNotFoundException {
         switch (crawlType) {
             case ITEM_PRICE:
@@ -129,11 +149,21 @@ public class Crawler extends Thread {
                     DATA_ARCHIVE_CONFIG = new ScraperConfiguration(configPath + dataArchiveFile);
                 }
                 return DATA_ARCHIVE_CONFIG;
+            case DSEX_DATA_ARCHIVE:
+                if (DSEX_DATA_ARCHIVE_CONFIG == null) {
+                    DSEX_DATA_ARCHIVE_CONFIG = new ScraperConfiguration(configPath + dsexDataArchiveFile);
+                }
+                return DSEX_DATA_ARCHIVE_CONFIG;
             case CODE_NAMES:
                 if (CODE_NAMES_CONFIG == null) {
                     CODE_NAMES_CONFIG = new ScraperConfiguration(configPath + codeNamesFile);
                 }
                 return CODE_NAMES_CONFIG;
+            case NEWS:
+                if (NEWS_CONFIG == null) {
+                    NEWS_CONFIG = new ScraperConfiguration(configPath + newsFile);
+                }
+                return NEWS_CONFIG;
         }
 
         return null;
@@ -141,6 +171,7 @@ public class Crawler extends Thread {
 
     @Override
     public void run() {
+        //System.out.println("Thread started");
         try {
             if (crawlType.equals(CrawlType.ITEM_PRICE)) {
                 crawlPrice();
@@ -148,8 +179,12 @@ public class Crawler extends Thread {
                 crawlYearStatistics();
             } else if (crawlType.equals(CrawlType.DATA_ARCHIVE)) {
                 crawlDataArchive();
+            } else if (crawlType.equals(CrawlType.DSEX_DATA_ARCHIVE)) {
+                crawlDsexDataArchive();
             } else if (crawlType.equals(CrawlType.CODE_NAMES)) {
                 crawlCodeNames();
+            } else if (crawlType.equals(CrawlType.NEWS)) {
+                crawlNews();
             }
         } catch (Exception ex) {
             //System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem());
@@ -157,7 +192,36 @@ public class Crawler extends Thread {
             //this.interrupt();
         }
     }
-    
+
+    private void crawlNews() throws ParserConfigurationException, ParseException, XPathExpressionException, SAXException, IOException {
+        Scraper scraper = new Scraper(scraperConfig, "d:/expekt");
+        String url = NEWS_URL;
+        scraper.addVariableToContext("url", url);
+        scraper.setDebug(true);
+
+        synchronized (scraper) {
+            scraper.execute();
+        }
+
+        ListVariable variables = (ListVariable) scraper.getContext().get("newses");
+        System.out.println("size: " + variables.toList().size());
+
+        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+        XPath xPath = XPathFactory.newInstance().newXPath();
+        DateFormat dateFormat = new SimpleDateFormat(DATA_ARCHIVE_DATE_PATTERN);
+        
+        List<ItemNews> newses = new ArrayList<>();
+        for (Iterator it = variables.toList().iterator(); it.hasNext();) {
+            String newsNode =  it.next().toString();
+            ItemNews news = parseNews(newsNode, dBuilder, xPath, dateFormat);
+            if(news != null)
+                newses.add(news);
+        }
+        
+        getParams().put("newses", newses);
+    }
+
     private void crawlCodeNames() {
         Scraper scraper = new Scraper(scraperConfig, "d:/expekt");
         String url = CODE_NAMES_URL;
@@ -169,19 +233,19 @@ public class Crawler extends Thread {
 
         ListVariable variables = (ListVariable) scraper.getContext().get("codes");
         List<String> codes = new ArrayList<>();
-        for(Object code_name: variables.toList()){
+        for (Object code_name : variables.toList()) {
             codes.add(code_name.toString());
         }
         Collections.sort(codes);
-        
+
         List<Item> items = new ArrayList<>();
-        for(String code: codes){
-            if(!code.matches(SKIP_CODE_PATTERN)){
+        for (String code : codes) {
+            if (!code.matches(SKIP_CODE_PATTERN)) {
                 items.add(new Item(code));
                 //System.out.println("code: " + code);
             }
         }
-        
+
         System.out.println("list size: " + items.size());
         getParams().put("items", items);
     }
@@ -201,6 +265,92 @@ public class Crawler extends Thread {
         ListVariable variables = (ListVariable) scraper.getContext().get("items");
         List<Item> items = parseXML(variables.toString());
         getParams().put("items", items);
+    }
+    
+    private void crawlDsexDataArchive() {
+        Scraper scraper = new Scraper(scraperConfig, "d:/expekt");
+        String url = DSEX_DATA_ARCHIVE_URL;
+        scraper.addVariableToContext("url", url);
+        scraper.addVariableToContext("startDate", getParams().get("startDate"));
+        scraper.addVariableToContext("endDate", getParams().get("endDate"));
+        scraper.setDebug(true);
+        synchronized (scraper) {
+            scraper.execute();
+        }
+
+        ListVariable variables = (ListVariable) scraper.getContext().get("items");
+        List<Item> items = parseDsexXML(variables.toString());
+        getParams().put("items", items);
+    }
+
+    private ItemNews parseNews(String domStr, DocumentBuilder dBuilder, XPath xPath, DateFormat dateFormat) throws ParseException, XPathExpressionException, SAXException, IOException {
+        Document doc;
+        ItemNews itemNews = null;
+
+        InputStream is = new ByteArrayInputStream(domStr.getBytes());
+        doc = dBuilder.parse(is);
+        doc.normalizeDocument();
+        
+        NodeList codeNode = (NodeList) xPath.evaluate("/tbody/tr[1]/td[2]/text()", doc.getDocumentElement(), XPathConstants.NODESET);
+        String code = codeNode.item(0).getNodeValue();
+
+        NodeList newsNode = (NodeList) xPath.evaluate("/tbody/tr[2]/td[2]/text()", doc.getDocumentElement(), XPathConstants.NODESET);
+        String news = newsNode.item(0).getNodeValue();
+
+        NodeList dateNode = (NodeList) xPath.evaluate("/tbody/tr[3]/td[2]/text()", doc.getDocumentElement(), XPathConstants.NODESET);
+        String dateString = dateNode.item(0).getNodeValue();
+        Date date = dateFormat.parse(dateString);
+
+        if (Utils.getCodes(Utils.getCodes()).contains(code)) {
+            itemNews = new ItemNews();
+            itemNews.setCode(code);
+            itemNews.setDate(date);
+            itemNews.setNews(news);
+        }
+
+        return itemNews;
+    }
+    
+    private List<Item> parseDsexXML(String domStr) {
+        //System.out.println("domStr: " + domStr);
+        Document doc;
+        List<Item> items = new ArrayList<>();
+
+        try {
+            InputStream is = new ByteArrayInputStream(domStr.getBytes());
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            doc = dBuilder.parse(is);
+            doc.normalizeDocument();
+
+            NodeList nodeList = doc.getElementsByTagName("data");
+            DateFormat dateFormat = new SimpleDateFormat(DSEX_DATA_ARCHIVE_DATE_PATTERN);
+            System.out.println(getItem().getCode() + " size: " + nodeList.getLength());
+            for (int i = 0; i < nodeList.getLength(); i++) {
+                Node node = nodeList.item(i);
+                NamedNodeMap attributes = node.getAttributes();
+
+                String datePrefix = "Market Summary of ";
+                String dateStr = attributes.getNamedItem("date").getNodeValue().substring(datePrefix.length());
+                String closeStr = attributes.getNamedItem("close").getNodeValue().replace(",", "");
+                String tradeStr = attributes.getNamedItem("trade").getNodeValue().replace(",", "");
+                String valueStr = attributes.getNamedItem("value").getNodeValue().replace(",", "");
+
+                Item anItem = new Item();
+                anItem.setCode("DSEX");
+                anItem.setDate(dateFormat.parse(dateStr));
+                anItem.setClosePrice(Float.parseFloat(closeStr));
+                anItem.setTrade(Integer.parseInt(tradeStr));
+                anItem.setValue(Float.parseFloat(valueStr));
+                    items.add(anItem);
+            }
+        } catch (SAXException | IOException | ParserConfigurationException | ParseException ex) {
+            System.out.println("Exception caught in parsing xml: " + ex.getMessage() + ", code: " + getItem().getCode());
+            ex.printStackTrace();
+            return new ArrayList<>();
+        }
+
+        return items;
     }
 
     private List<Item> parseXML(String domStr) {
@@ -235,7 +385,7 @@ public class Crawler extends Thread {
 
                 Item anItem = new Item();
                 anItem.setCode(code);
-                
+
                 anItem.setDate(dateFormat.parse(dateStr));
                 anItem.setLastPrice(Float.parseFloat(lastPriceStr));
                 anItem.setDayHigh(Float.parseFloat(highStr));
@@ -246,16 +396,17 @@ public class Crawler extends Thread {
                 anItem.setTrade(Integer.parseInt(tradeStr));
                 anItem.setValue(Float.parseFloat(valueStr));
                 anItem.setVolume(Integer.parseInt(volumeStr));
-                
-                if(anItem.getLastPrice() != 0)
+
+                if (anItem.getLastPrice() != 0) {
                     items.add(anItem);
+                }
             }
         } catch (SAXException | IOException | ParserConfigurationException | ParseException ex) {
             System.out.println("Exception caught in parsing xml: " + ex.getMessage() + ", code: " + getItem().getCode());
             ex.printStackTrace();
             return new ArrayList<>();
         }
-        
+
         return items;
     }
 
@@ -265,81 +416,83 @@ public class Crawler extends Thread {
         String url = YEAR_STATISTICS_URL + getItem().getCode();
         scraper.addVariableToContext("url", url);
         scraper.setDebug(true);
+        scraper.getHttpClientManager().getHttpClient().getParams().setConnectionManagerTimeout(HTTP_TIMEOUT_1_MINUTE*3);
+        //System.out.println("Going to fetch " + item.getCode());
         synchronized (scraper) {
             scraper.execute();
         }
+       // System.out.println("Fetch completed " + item.getCode());
 
         ListVariable variable = (ListVariable) scraper.getContext().get("range");
         String str = variable.toString();
         String[] lowHigh = str.split("-");
-        float low =0;
+        float low = 0;
         float high = 0;
-        
-        if(str.length() >= 2){
+
+        if (str.length() >= 2) {
             low = Float.parseFloat(lowHigh[0].trim());
             high = Float.parseFloat(lowHigh[1].trim());
         }
-        
+
         variable = (ListVariable) scraper.getContext().get("sector");
         String sector = variable.toString().trim();
-        
+
         variable = (ListVariable) scraper.getContext().get("faceValue");
         str = variable.toString().trim();
-        int faceValue = (int)Float.parseFloat(str);
-        
+        int faceValue = (int) Float.parseFloat(str);
+
         variable = (ListVariable) scraper.getContext().get("totalSecurity");
         str = variable.toString().trim().replace(",", "");
         int totalSecurity = Integer.parseInt(str);
-        
+
         variable = (ListVariable) scraper.getContext().get("authorizedCapital");
         str = variable.toString().trim().replace(",", "");
         float authorizedCapital = Float.parseFloat(str);
-        
+
         variable = (ListVariable) scraper.getContext().get("paidUpCapital");
         str = variable.toString().trim().replace(",", "");
         float paidUpCapital = Float.parseFloat(str);
-        
+
         variable = (ListVariable) scraper.getContext().get("yearEnd");
         String yearEnd = variable.toString().trim();
-        
+
         variable = (ListVariable) scraper.getContext().get("reserve");
         str = variable.toString().trim().replace(",", "");
         float reserve = Float.parseFloat(str);
-        
+
         variable = (ListVariable) scraper.getContext().get("PE");
-        char amp = (char)160;
-        str = variable.toString().trim().replace(""+amp, "");
+        char amp = (char) 160;
+        str = variable.toString().trim().replace("" + amp, "");
         float PE = 0;
-        if(str.isEmpty() || str.equals("n/a"))
+        if (str.isEmpty() || str.equals("n/a")) {
             PE = 0;
-        else
+        } else {
             PE = Float.parseFloat(str);
-        
+        }
+
         variable = (ListVariable) scraper.getContext().get("category");
         String category = variable.toString().trim();
-        
+
         variable = (ListVariable) scraper.getContext().get("director");
         str = variable.toString().trim().split(" ")[1];
         float director = Float.parseFloat(str);
-        
+
         variable = (ListVariable) scraper.getContext().get("government");
         str = variable.toString().trim().split("Govt.")[1];
         float government = Float.parseFloat(str);
-        
+
         variable = (ListVariable) scraper.getContext().get("institute");
         str = variable.toString().trim().split(" ")[1];
         float institute = Float.parseFloat(str);
-        
+
         variable = (ListVariable) scraper.getContext().get("foreign");
         str = variable.toString().trim().split(" ")[1];
         float foreign = Float.parseFloat(str);
-        
+
         variable = (ListVariable) scraper.getContext().get("public");
         str = variable.toString().trim().split(" ")[1];
         float publics = Float.parseFloat(str);
-        
-        
-        
+
         item.setLow(low);
         item.setHigh(high);
         item.setSector(sector);
@@ -353,7 +506,7 @@ public class Crawler extends Thread {
         item.setCategory(category);
         SharePercentage percentage = new SharePercentage(director, government, institute, foreign, publics);
         item.setSharePercentage(percentage);
-        
+
         //System.out.println("Item: " + item);
     }
 
@@ -363,7 +516,7 @@ public class Crawler extends Thread {
         String url = PRICE_URL + getItem().getCode();
         scraper.addVariableToContext("url", url);
         scraper.setDebug(true);
-        scraper.getHttpClientManager().getHttpClient().getParams().setConnectionManagerTimeout(HTTP_TIMEOUT);
+        scraper.getHttpClientManager().getHttpClient().getParams().setConnectionManagerTimeout(HTTP_TIMEOUT_1_MINUTE);
         synchronized (scraper) {
             scraper.execute();
         }
@@ -404,6 +557,7 @@ public class Crawler extends Thread {
         getItem().setDayHigh(dayHigh);
         getItem().setDayLow(dayLow);
         getItem().setYesterdayClosePrice(yesterdayClosePrice);
+        //System.out.println(item.getCode() + " crawled");
     }
 
     private String parseValue(String text) throws ArrayIndexOutOfBoundsException {
@@ -428,14 +582,13 @@ public class Crawler extends Thread {
 //        int pressure = Math.round((difference * 100) / smallest);
 //        pressure = (sellVolume > buyVolume) ? -pressure : pressure;
 //        return pressure;
-        
         int difference = Math.abs(buyVolume - sellVolume);
         int smallest = ((buyVolume + sellVolume) - difference) / 2;
         int greatest = ((buyVolume + sellVolume) + difference) / 2;
         if (smallest == 0) {
             smallest = 1; //get rid of devide by zero error
         }
-        float pressure = ((float)greatest/(float)smallest);
+        float pressure = ((float) greatest / (float) smallest);
         pressure = (sellVolume > buyVolume) ? -pressure : pressure;
         DecimalFormat df = new DecimalFormat("#.#");
         String pressureString = df.format(pressure);

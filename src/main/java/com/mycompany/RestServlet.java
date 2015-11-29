@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -72,7 +73,7 @@ public class RestServlet extends HttpServlet {
         
         Calendar end = Calendar.getInstance();
         long elapsedTime = (end.getTimeInMillis() - start.getTimeInMillis())/1000;
-        System.out.println("Data given in " + elapsedTime + " seconds");
+        System.out.println("Data given in " + elapsedTime + " seconds. time: " + new Date());
     }
 
     // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
