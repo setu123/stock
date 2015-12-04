@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+    <var-def name="page">
+            <xpath expression="/html/body/div/div/div/div[1]/div[1]">
+                <html-to-xml>
+                    <http method="get" url="http://dsebd.org/"/>
+                </html-to-xml>
+            </xpath>
+    </var-def> 
+    
+    <var-def name="date">
+        <text>
+            <xpath expression="//h2/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="index">
+        <text>
+            <xpath expression="//div[1]/div[2]/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="change">
+        <text>
+            <xpath expression="//div[1]/div[3]/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="trade">
+        <text>
+            <xpath expression="//div[5]/div[1]/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+    
+    <var-def name="value">
+        <text>
+            <xpath expression="//div[5]/div[3]/text()">
+            	<var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
+</config>

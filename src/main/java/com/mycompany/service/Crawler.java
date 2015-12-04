@@ -55,13 +55,14 @@ public class Crawler extends Thread {
 
     public enum CrawlType {
 
-        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, DSEX_DATA_ARCHIVE, CODE_NAMES, NEWS
+        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, DSEX_DATA_ARCHIVE, DSEX_DATA_SYNC, CODE_NAMES, NEWS
     }
 
     private static ScraperConfiguration PRESSURE_CONFIG;
     private static ScraperConfiguration YEAR_STATISTIC_CONFIG;
     private static ScraperConfiguration DATA_ARCHIVE_CONFIG;
     private static ScraperConfiguration DSEX_DATA_ARCHIVE_CONFIG;
+    private static ScraperConfiguration DSEX_DATA_SYNC_CONFIG;
     private static ScraperConfiguration CODE_NAMES_CONFIG;
     private static ScraperConfiguration NEWS_CONFIG;
     private ScraperConfiguration scraperConfig = null;
@@ -81,10 +82,12 @@ public class Crawler extends Thread {
     private final static String yearStatisticsFile = "yearStatistics.xml";
     private final static String dataArchiveFile = "data_archive.xml";
     private final static String dsexDataArchiveFile = "dsex_data_archive.xml";
+    private final static String dsexDataSyncFile = "dsex_index_sync.xml";
     private final static String codeNamesFile = "codes.xml";
     private final static String newsFile = "news.xml";
     private final static String DATA_ARCHIVE_DATE_PATTERN = "yyyy-MM-dd";
     private final static String DSEX_DATA_ARCHIVE_DATE_PATTERN = "MMM dd, yyyy";
+    private final static String DSEX_DATA_SYNC_DATE_PATTERN = "MMM dd, yyyy";
     private final String SKIP_CODE_PATTERN = "(T\\d+Y\\d+|.*dse.*|DEB.*)";
     private final long HTTP_TIMEOUT_1_MINUTE = 60000;
     private Map params;
@@ -96,43 +99,53 @@ public class Crawler extends Thread {
         this.params = params;
     }
 
-    public static ScraperConfiguration getScraperConfig(ServletContext context, CrawlType crawlType) throws FileNotFoundException {
-        switch (crawlType) {
-            case ITEM_PRICE:
-                if (PRESSURE_CONFIG == null) {
-                    PRESSURE_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + pressureConfigFile);
-                }
-                return PRESSURE_CONFIG;
-            case ITEM_YEAR_STATISTICS:
-                if (YEAR_STATISTIC_CONFIG == null) {
-                    YEAR_STATISTIC_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + yearStatisticsFile);
-                }
-                return YEAR_STATISTIC_CONFIG;
-            case DATA_ARCHIVE:
-                if (DATA_ARCHIVE_CONFIG == null) {
-                    DATA_ARCHIVE_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + dataArchiveFile);
-                }
-                return DATA_ARCHIVE_CONFIG;
-            case DSEX_DATA_ARCHIVE:
-                if (DSEX_DATA_ARCHIVE_CONFIG == null) {
-                    DSEX_DATA_ARCHIVE_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + dsexDataArchiveFile);
-                }
-                return DATA_ARCHIVE_CONFIG;
-            case CODE_NAMES:
-                if (CODE_NAMES_CONFIG == null) {
-                    CODE_NAMES_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + codeNamesFile);
-                }
-                return CODE_NAMES_CONFIG;
-            case NEWS:
-                if (NEWS_CONFIG == null) {
-                    NEWS_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + newsFile);
-                }
+//    public static ScraperConfiguration getScraperConfig(ServletContext context, CrawlType crawlType) throws FileNotFoundException {
+//        switch (crawlType) {
+//            case ITEM_PRICE:
+//                if (PRESSURE_CONFIG == null) {
+//                    PRESSURE_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + pressureConfigFile);
+//                }
+//                return PRESSURE_CONFIG;
+//            case ITEM_YEAR_STATISTICS:
+//                if (YEAR_STATISTIC_CONFIG == null) {
+//                    YEAR_STATISTIC_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + yearStatisticsFile);
+//                }
+//                return YEAR_STATISTIC_CONFIG;
+//            case DATA_ARCHIVE:
+//                if (DATA_ARCHIVE_CONFIG == null) {
+//                    DATA_ARCHIVE_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + dataArchiveFile);
+//                }
+//                return DATA_ARCHIVE_CONFIG;
+//            case DSEX_DATA_ARCHIVE:
+//                if (DSEX_DATA_ARCHIVE_CONFIG == null) {
+//                    DSEX_DATA_ARCHIVE_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + dsexDataArchiveFile);
+//                }
+//                return DSEX_DATA_ARCHIVE_CONFIG;
+//            case DSEX_DATA_SYNC:
+//                if (DSEX_DATA_SYNC_CONFIG == null) {
+//                    DSEX_DATA_SYNC_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + dsexDataSyncFile);
+//                }
+//                return DSEX_DATA_SYNC_CONFIG;
+//            case CODE_NAMES:
+//                if (CODE_NAMES_CONFIG == null) {
+//                    CODE_NAMES_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + codeNamesFile);
+//                }
+//                return CODE_NAMES_CONFIG;
+//            case NEWS:
+//                if (NEWS_CONFIG == null) {
+//                    NEWS_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + newsFile);
+//                }
+//        }
+//
+//        return null;
+//    }
+
+    public static ScraperConfiguration getScraperConfig(ServletContext context, String configPath, CrawlType crawlType) throws FileNotFoundException {
+        
+        if(context!=null){
+            configPath = context.getRealPath("/") + "/WEB-INF/classes/";
         }
-
-        return null;
-    }
-
-    public static ScraperConfiguration getScraperConfig(String configPath, CrawlType crawlType) throws FileNotFoundException {
+        
         switch (crawlType) {
             case ITEM_PRICE:
                 if (PRESSURE_CONFIG == null) {
@@ -154,6 +167,11 @@ public class Crawler extends Thread {
                     DSEX_DATA_ARCHIVE_CONFIG = new ScraperConfiguration(configPath + dsexDataArchiveFile);
                 }
                 return DSEX_DATA_ARCHIVE_CONFIG;
+            case DSEX_DATA_SYNC:
+                if (DSEX_DATA_SYNC_CONFIG == null) {
+                    DSEX_DATA_SYNC_CONFIG = new ScraperConfiguration(configPath + dsexDataSyncFile);
+                }
+                return DSEX_DATA_SYNC_CONFIG;
             case CODE_NAMES:
                 if (CODE_NAMES_CONFIG == null) {
                     CODE_NAMES_CONFIG = new ScraperConfiguration(configPath + codeNamesFile);
@@ -171,7 +189,6 @@ public class Crawler extends Thread {
 
     @Override
     public void run() {
-        //System.out.println("Thread started");
         try {
             if (crawlType.equals(CrawlType.ITEM_PRICE)) {
                 crawlPrice();
@@ -181,6 +198,8 @@ public class Crawler extends Thread {
                 crawlDataArchive();
             } else if (crawlType.equals(CrawlType.DSEX_DATA_ARCHIVE)) {
                 crawlDsexDataArchive();
+            } else if (crawlType.equals(CrawlType.DSEX_DATA_SYNC)) {
+                crawlDsexDataSync();
             } else if (crawlType.equals(CrawlType.CODE_NAMES)) {
                 crawlCodeNames();
             } else if (crawlType.equals(CrawlType.NEWS)) {
@@ -204,7 +223,6 @@ public class Crawler extends Thread {
         }
 
         ListVariable variables = (ListVariable) scraper.getContext().get("newses");
-        System.out.println("size: " + variables.toList().size());
 
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
@@ -246,7 +264,7 @@ public class Crawler extends Thread {
             }
         }
 
-        System.out.println("list size: " + items.size());
+        System.out.println("code size: " + items.size());
         getParams().put("items", items);
     }
 
@@ -281,6 +299,37 @@ public class Crawler extends Thread {
         ListVariable variables = (ListVariable) scraper.getContext().get("items");
         List<Item> items = parseDsexXML(variables.toString());
         getParams().put("items", items);
+    }
+    
+    private void crawlDsexDataSync() throws ParseException {
+        Scraper scraper = new Scraper(scraperConfig, "d:/expekt");
+        scraper.setDebug(true);
+        synchronized (scraper) {
+            scraper.execute();
+        }
+
+        String dateStr = scraper.getContext().get("date").toString();
+        dateStr = dateStr.substring("Last update on".length());
+        dateStr = dateStr.substring(0, dateStr.indexOf("at")-1).trim();
+        DateFormat dateFormat = new SimpleDateFormat(DSEX_DATA_SYNC_DATE_PATTERN);
+        Date date = dateFormat.parse(dateStr);
+        String str = scraper.getContext().get("index").toString();
+        float index = Float.parseFloat(str);
+        str = scraper.getContext().get("change").toString();
+        float change = Float.parseFloat(str);
+        str = scraper.getContext().get("trade").toString();
+        int trade = Integer.parseInt(str);
+        str = scraper.getContext().get("value").toString();
+        float value = Float.parseFloat(str);
+        
+        item.setDate(date);
+        item.setClosePrice(index);
+        item.setLastPrice(index);
+        item.setAdjustedClosePrice(index);
+        item.setYesterdayClosePrice(index-change);
+        item.setAdjustedYesterdayClosePrice(index-change);
+        item.setTrade(trade);
+        item.setValue(value);
     }
 
     private ItemNews parseNews(String domStr, DocumentBuilder dBuilder, XPath xPath, DateFormat dateFormat) throws ParseException, XPathExpressionException, SAXException, IOException {
@@ -325,7 +374,6 @@ public class Crawler extends Thread {
 
             NodeList nodeList = doc.getElementsByTagName("data");
             DateFormat dateFormat = new SimpleDateFormat(DSEX_DATA_ARCHIVE_DATE_PATTERN);
-            System.out.println(getItem().getCode() + " size: " + nodeList.getLength());
             for (int i = 0; i < nodeList.getLength(); i++) {
                 Node node = nodeList.item(i);
                 NamedNodeMap attributes = node.getAttributes();
@@ -334,12 +382,18 @@ public class Crawler extends Thread {
                 String dateStr = attributes.getNamedItem("date").getNodeValue().substring(datePrefix.length());
                 String closeStr = attributes.getNamedItem("close").getNodeValue().replace(",", "");
                 String tradeStr = attributes.getNamedItem("trade").getNodeValue().replace(",", "");
+                String changeStr = attributes.getNamedItem("change").getNodeValue().replace(",", "");
                 String valueStr = attributes.getNamedItem("value").getNodeValue().replace(",", "");
 
                 Item anItem = new Item();
                 anItem.setCode("DSEX");
                 anItem.setDate(dateFormat.parse(dateStr));
-                anItem.setClosePrice(Float.parseFloat(closeStr));
+                float closePrice = Float.parseFloat(closeStr);
+                float change = Float.parseFloat(changeStr);
+                anItem.setClosePrice(closePrice);
+                anItem.setAdjustedClosePrice(closePrice);
+                anItem.setLastPrice(closePrice);
+                anItem.setYesterdayClosePrice(closePrice-change);
                 anItem.setTrade(Integer.parseInt(tradeStr));
                 anItem.setValue(Float.parseFloat(valueStr));
                     items.add(anItem);
@@ -366,7 +420,7 @@ public class Crawler extends Thread {
 
             NodeList nodeList = doc.getElementsByTagName("data");
             DateFormat dateFormat = new SimpleDateFormat(DATA_ARCHIVE_DATE_PATTERN);
-            System.out.println(getItem().getCode() + " size: " + nodeList.getLength());
+            //System.out.println(getItem().getCode() + " size: " + nodeList.getLength());
             for (int i = 0; i < nodeList.getLength(); i++) {
                 Node node = nodeList.item(i);
                 NamedNodeMap attributes = node.getAttributes();

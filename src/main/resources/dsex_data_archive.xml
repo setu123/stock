@@ -34,9 +34,10 @@
                             let $date := $item//tbody/tr[1]/td[1]/font/text()
                             let $close := $item//tbody/tr[2]/td[2]/font/text()
                             let $trade := $item//tbody/tr[2]/td[4]/font/text()
+                            let $change := $item//tbody/tr[3]/td[2]/font/text()
                             let $value := $item//tbody/tr[3]/td[4]/font/text()
                                 return
-                                    <data date="{$date}" close="{$close}" trade="{$trade}" value="{$value}"/>
+                                    <data date="{$date}" close="{$close}" change="{$change}" trade="{$trade}" value="{$value}"/>
                     ]]></xq-expression>
                 </xquery>
     		

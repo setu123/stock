@@ -66,8 +66,8 @@ public class SyncService implements Job {
             
             //Get dse item
             ImportService importService = new ImportService(dao);
-            List<Item> dsexItem = importService.importDSEXArchive(1);
-            items.addAll(dsexItem);
+            Item dsex = fetchDSEXIndex();
+            items.add(dsex);
             System.out.println("Fetching completed, going to update database..");
 
             dao = new ItemDaoImpl();
@@ -121,7 +121,7 @@ public class SyncService implements Job {
         System.out.println("subitem size: " + items.size());
         
         List<Crawler> crawlers = new ArrayList<>();
-        ScraperConfiguration config = Crawler.getScraperConfig(context, Crawler.CrawlType.ITEM_YEAR_STATISTICS);
+        ScraperConfiguration config = Crawler.getScraperConfig(context, null, Crawler.CrawlType.ITEM_YEAR_STATISTICS);
         //int counter = 0;
         for (Item item : items) {
             Crawler crawler = new Crawler(config, item, Crawler.CrawlType.ITEM_YEAR_STATISTICS, null);
@@ -178,7 +178,7 @@ public class SyncService implements Job {
     @Deprecated
     public List<Item> getCodes() throws MalformedURLException, IOException, InterruptedException {
         if (allItems == null) {
-            ScraperConfiguration config = Crawler.getScraperConfig(context, Crawler.CrawlType.CODE_NAMES);
+            ScraperConfiguration config = Crawler.getScraperConfig(context, null, Crawler.CrawlType.CODE_NAMES);
             Crawler crawler = new Crawler(config, null, Crawler.CrawlType.CODE_NAMES, null);
             crawler.start();
             crawler.join();
@@ -195,8 +195,10 @@ public class SyncService implements Job {
 
     public void fetchBSVolume(List<Item> items) throws MalformedURLException, IOException, InterruptedException {
         List<Crawler> crawlers = new ArrayList<>();
-        ScraperConfiguration config = Crawler.getScraperConfig(context, Crawler.CrawlType.ITEM_PRICE);
+        ScraperConfiguration config = Crawler.getScraperConfig(context, null, Crawler.CrawlType.ITEM_PRICE);
         for (Item item : items) {
+            if(item.getCode().equals("DSEX"))
+                continue;
             Crawler crawler = new Crawler(config, item, Crawler.CrawlType.ITEM_PRICE, null);
             crawler.start();
             crawlers.add(crawler);
@@ -208,6 +210,17 @@ public class SyncService implements Job {
             ++counter;
             //System.out.println((crawlers.size()-counter) + " to be finished yet");
         }
+    }
+    
+    public Item fetchDSEXIndex() throws MalformedURLException, IOException, InterruptedException {
+        //System.out.println("fetchDSEXIndex");
+        ScraperConfiguration config = Crawler.getScraperConfig(context, null, Crawler.CrawlType.DSEX_DATA_SYNC);
+        Item dsex = new Item("DSEX");
+        Crawler crawler = new Crawler(config, dsex, Crawler.CrawlType.DSEX_DATA_SYNC, null);
+        crawler.start();
+        crawler.join();
+        
+        return dsex;
     }
 
     @Override

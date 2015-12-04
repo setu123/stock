@@ -41,6 +41,9 @@ public class Item extends BasicInfo implements Comparable<Item>{
     private SignalType vtcSignal;
     private Date date;
     private float volumePerTradeChange;
+    private Map<Integer, Float> smaList;
+    private float yesterdayRSI;
+    private float dayBeforeYesterdayRSI;
 
     public SignalType getSignal() {
         return signal;
@@ -78,6 +81,50 @@ public class Item extends BasicInfo implements Comparable<Item>{
      */
     public void setVolumePerTradeChange(float volumePerTradeChange) {
         this.volumePerTradeChange = volumePerTradeChange;
+    }
+
+    /**
+     * @return the smaList
+     */
+    public Map<Integer, Float> getSmaList() {
+        if(smaList == null)
+            smaList = new HashMap<>();
+        return smaList;
+    }
+
+    /**
+     * @param smaList the smaList to set
+     */
+    public void setSmaList(Map<Integer, Float> smaList) {
+        this.smaList = smaList;
+    }
+
+    /**
+     * @return the yesterdayRSI
+     */
+    public float getYesterdayRSI() {
+        return yesterdayRSI;
+    }
+
+    /**
+     * @param yesterdayRSI the yesterdayRSI to set
+     */
+    public void setYesterdayRSI(float yesterdayRSI) {
+        this.yesterdayRSI = yesterdayRSI;
+    }
+
+    /**
+     * @return the dayBeforeYesterdayRSI
+     */
+    public float getDayBeforeYesterdayRSI() {
+        return dayBeforeYesterdayRSI;
+    }
+
+    /**
+     * @param dayBeforeYesterdayRSI the dayBeforeYesterdayRSI to set
+     */
+    public void setDayBeforeYesterdayRSI(float dayBeforeYesterdayRSI) {
+        this.dayBeforeYesterdayRSI = dayBeforeYesterdayRSI;
     }
     public enum SignalType{
         BUY, SELL, HOLD

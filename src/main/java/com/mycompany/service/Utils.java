@@ -62,7 +62,7 @@ public class Utils {
             String path = getConfigFilesPath();
             
             try {
-                ScraperConfiguration config = Crawler.getScraperConfig(path, Crawler.CrawlType.CODE_NAMES);
+                ScraperConfiguration config = Crawler.getScraperConfig(null, path, Crawler.CrawlType.CODE_NAMES);
                 Crawler crawler = new Crawler(config, null, Crawler.CrawlType.CODE_NAMES, null);
                 crawler.start();
                 crawler.join();

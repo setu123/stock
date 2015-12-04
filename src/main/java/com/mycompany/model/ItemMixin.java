@@ -72,4 +72,7 @@ public abstract class ItemMixin {
     
     @JsonIgnore 
     abstract float getAdjustedYesterdayClosePrice();
+    
+    @JsonIgnore
+    abstract Map<Integer, Float> getSmaList();
 }

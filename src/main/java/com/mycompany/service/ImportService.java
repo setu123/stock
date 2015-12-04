@@ -55,6 +55,11 @@ public class ImportService {
     }
 
     public void importArchive(String code, int day) {
+        if("DSEX".equals(code)){
+            importDSEXArchiveOnly(day);
+            return;
+        }
+        
         try {
             if (day < 1) {
                 day = 7;
@@ -66,12 +71,47 @@ public class ImportService {
             item.setCode(code);
 
             List<Crawler> crawlers = new ArrayList<>();
-            ScraperConfiguration config = Crawler.getScraperConfig(context, Crawler.CrawlType.DATA_ARCHIVE);
+            ScraperConfiguration config = Crawler.getScraperConfig(context, null, Crawler.CrawlType.DATA_ARCHIVE);
             Map params = new HashMap();
             dateFormat = new SimpleDateFormat(DSE_DATA_ARCHIVE_DATE_FORMAT);
             params.put("startDate", dateFormat.format(startDate.getTime()));
             params.put("endDate", dateFormat.format(endDate.getTime()));
             Crawler crawler = new Crawler(config, item, Crawler.CrawlType.DATA_ARCHIVE, params);
+            crawler.start();
+            crawlers.add(crawler);
+            for (Crawler craw : crawlers) {
+                craw.join();
+            }
+
+            List<Item> items = (List<Item>) params.get("items");
+            dao.open();
+            dao.importItems(items);
+            dao.close();
+        } catch (FileNotFoundException | InterruptedException | SQLException | ClassNotFoundException ex) {
+            Logger.getLogger(ImportService.class.getName()).log(Level.SEVERE, null, ex);
+            ex.printStackTrace();
+        }
+
+    }
+    
+    public void importDSEXArchiveOnly(int day) {
+        try {
+            if (day < 1) {
+                day = 7;
+            }
+            Calendar startDate = Calendar.getInstance();
+            startDate.add(Calendar.DAY_OF_YEAR, -day);
+            Calendar endDate = Calendar.getInstance();
+            Item item = new Item();
+            item.setCode("DSEX");
+
+            List<Crawler> crawlers = new ArrayList<>();
+            ScraperConfiguration config = Crawler.getScraperConfig(context, null, Crawler.CrawlType.DSEX_DATA_ARCHIVE);
+            Map params = new HashMap();
+            dateFormat = new SimpleDateFormat(DSE_DATA_ARCHIVE_DATE_FORMAT);
+            params.put("startDate", dateFormat.format(startDate.getTime()));
+            params.put("endDate", dateFormat.format(endDate.getTime()));
+            Crawler crawler = new Crawler(config, item, Crawler.CrawlType.DSEX_DATA_ARCHIVE, params);
             crawler.start();
             crawlers.add(crawler);
             for (Crawler craw : crawlers) {
@@ -106,7 +146,7 @@ public class ImportService {
                     continue;
                 }
 
-                ScraperConfiguration config = Crawler.getScraperConfig(context, Crawler.CrawlType.DATA_ARCHIVE);
+                ScraperConfiguration config = Crawler.getScraperConfig(context, null, Crawler.CrawlType.DATA_ARCHIVE);
                 Map params = new HashMap();
                 dateFormat = new SimpleDateFormat(DSE_DATA_ARCHIVE_DATE_FORMAT);
                 params.put("startDate", dateFormat.format(startDate.getTime()));
@@ -149,12 +189,12 @@ public class ImportService {
             Calendar endDate = Calendar.getInstance();
             //List<Crawler> crawlers = new ArrayList<>();
 
-            ScraperConfiguration config = Crawler.getScraperConfig(context, Crawler.CrawlType.DATA_ARCHIVE);
+            ScraperConfiguration config = Crawler.getScraperConfig(context, null, Crawler.CrawlType.DATA_ARCHIVE);
             Map params = new HashMap();
             dateFormat = new SimpleDateFormat(DSE_DATA_ARCHIVE_DATE_FORMAT);
             params.put("startDate", dateFormat.format(startDate.getTime()));
             params.put("endDate", dateFormat.format(endDate.getTime()));
-            Item item = new Item("All Instrument");
+            Item item = new Item(ALL_INSTRUMENT);
             Crawler crawler = new Crawler(config, item, Crawler.CrawlType.DATA_ARCHIVE, params);
             crawler.start();
                 //crawlers.add(crawler);
@@ -193,12 +233,12 @@ public class ImportService {
             Calendar endDate = Calendar.getInstance();
 
             String path = Utils.getConfigFilesPath();
-            ScraperConfiguration config = Crawler.getScraperConfig(path, Crawler.CrawlType.DSEX_DATA_ARCHIVE);
+            ScraperConfiguration config = Crawler.getScraperConfig(null, path, Crawler.CrawlType.DSEX_DATA_ARCHIVE);
             Map params = new HashMap();
             dateFormat = new SimpleDateFormat(DSE_DATA_ARCHIVE_DATE_FORMAT);
             params.put("startDate", dateFormat.format(startDate.getTime()));
             params.put("endDate", dateFormat.format(endDate.getTime()));
-            Item item = new Item("All Instrument");
+            Item item = new Item();
             Crawler crawler = new Crawler(config, item, Crawler.CrawlType.DSEX_DATA_ARCHIVE, params);
             crawler.start();
             crawler.join();
