@@ -578,6 +578,8 @@ public class ItemDaoImpl {
 
         float adjustedClosePrice = item.getClosePrice();
         float adjustedOpenPrice = item.getOpenPrice();
+        float adjustedHigh = item.getHigh();
+        float adjustedLow = item.getLow();
         float factor = 0;
         java.util.Date today = new java.util.Date();
         for (DividentHistory divident : history) {
@@ -586,21 +588,28 @@ public class ItemDaoImpl {
                     case CASH:
                         adjustedClosePrice = adjustedClosePrice - (FACE_VALUE * divident.getPercent()) / 100;
                         adjustedOpenPrice = adjustedOpenPrice - (FACE_VALUE * divident.getPercent()) / 100;
+                        adjustedHigh = adjustedHigh - (FACE_VALUE * divident.getPercent()) / 100;
+                        adjustedLow = adjustedLow - (FACE_VALUE * divident.getPercent()) / 100;
                         break;
                     case STOCK:
                         factor = 1 / (1 + (divident.getPercent() / 100));
                         adjustedClosePrice = adjustedClosePrice * factor;
                         adjustedOpenPrice = adjustedOpenPrice * factor;
+                        adjustedHigh = adjustedHigh * factor;
+                        adjustedLow = adjustedLow * factor;
                         break;
                     case RIGHT:
                         int baseQuantity = Math.round(100 / divident.getPercent());
                         adjustedClosePrice = ((adjustedClosePrice * baseQuantity) + item.getIssuePrice()) / (baseQuantity + 1);
-                        adjustedOpenPrice = ((adjustedOpenPrice * baseQuantity) + item.getIssuePrice()) / (baseQuantity + 1);
+                        adjustedHigh = ((adjustedHigh * baseQuantity) + item.getIssuePrice()) / (baseQuantity + 1);
+                        adjustedLow = ((adjustedLow * baseQuantity) + item.getIssuePrice()) / (baseQuantity + 1);
                         break;
                     case SPLIT:
                         factor = 1 / (1 + (divident.getPercent() / 100));
                         adjustedClosePrice = adjustedClosePrice * factor;
                         adjustedOpenPrice = adjustedOpenPrice * factor;
+                        adjustedHigh = adjustedHigh * factor;
+                        adjustedLow = adjustedLow * factor;
                         break;
                 }
             }
@@ -608,6 +617,8 @@ public class ItemDaoImpl {
 
         item.setAdjustedClosePrice(adjustedClosePrice);
         item.setOpenPrice(adjustedOpenPrice);
+        item.setHigh(adjustedHigh);
+        item.setLow(adjustedLow);
     }
 
     private void calculateAdjustedVolume(Item item) {

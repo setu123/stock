@@ -31,6 +31,7 @@ public class ScannerService {
     public static final int RSI_PERIOD = 14;
     public static final int TRADING_DAYS_IN_A_YEAR = 250;
     public static final int TRADING_DAYS_IN_2_MONTH = 44;
+    public static final int TRADING_DAYS_IN_A_MONTH = 22;
     public static final int TRADING_DAYS_IN_A_WEEK = 5;
     public static final int DAYS_IN_A_YEAR = 365;
     //private static float MACD_MAX = 0;
@@ -359,7 +360,7 @@ public class ScannerService {
     }
     
     private float getUpperTail(Item item) {
-        float largest = Math.max(item.getOpenPrice(), item.getClosePrice());
+        float largest = Math.max(item.getOpenPrice(), item.getAdjustedClosePrice());
         float upperTail = ((item.getHigh() - largest) / largest) * 100;
         return upperTail;
     }
@@ -921,27 +922,27 @@ public class ScannerService {
         return slemm;
     }
 
-    private List<Item> getUpDayItems(List<Item> items) {
-        List<Item> updays = new ArrayList<>();
-        for (Item item : items) {
-            float diff = item.getClosePrice() - item.getYesterdayClosePrice();
-            if (diff > 0) {
-                updays.add(item);
-            }
-        }
-        return updays;
-    }
+//    private List<Item> getUpDayItems(List<Item> items) {
+//        List<Item> updays = new ArrayList<>();
+//        for (Item item : items) {
+//            float diff = item.getClosePrice() - item.getYesterdayClosePrice();
+//            if (diff > 0) {
+//                updays.add(item);
+//            }
+//        }
+//        return updays;
+//    }
 
-    private List<Item> getDownDayItems(List<Item> items) {
-        List<Item> downdays = new ArrayList<>();
-        for (Item item : items) {
-            float diff = item.getClosePrice() - item.getYesterdayClosePrice();
-            if (diff < 0) {
-                downdays.add(item);
-            }
-        }
-        return downdays;
-    }
+//    private List<Item> getDownDayItems(List<Item> items) {
+//        List<Item> downdays = new ArrayList<>();
+//        for (Item item : items) {
+//            float diff = item.getClosePrice() - item.getYesterdayClosePrice();
+//            if (diff < 0) {
+//                downdays.add(item);
+//            }
+//        }
+//        return downdays;
+//    }
     
     public float calculateSMA(List<Item> items, int N){
         int limit = N;
@@ -1254,6 +1255,53 @@ public class ScannerService {
 //        if(today.getCode().equals("DESCO"))
 //            System.out.println("todayDate: " + today.getDate() + ", maximum: " + maximum + ", minimum: " + minimum + ", diff: " + diff);
         return diff;
+    }
+    
+    public float getLastFiewDaysMaximum(List<Item> items, int days) {
+        int size = items.size();
+        int counter = 0;
+        float maximum = 0;
+
+        for (int i = size - 2; i >= 0; i--) {
+            float openPrice = items.get(i).getOpenPrice();
+            float closePrice = items.get(i).getAdjustedClosePrice();
+            float dayHigh = Math.max(openPrice, closePrice);
+            //float dayLow = Math.min(openPrice, closePrice);
+
+            if (dayHigh > maximum) {
+                maximum = dayHigh;
+            }
+
+            ++counter;
+            if (counter >= days) {
+                break;
+            }
+        }
+
+        return maximum;
+    }
+    
+    public float getLastFiewDaysMinimum(List<Item> items, int days) {
+        int size = items.size();
+        int counter = 0;
+        float minimum = 100000;
+
+        for (int i = size - 2; i >= 0; i--) {
+            float openPrice = items.get(i).getOpenPrice();
+            float closePrice = items.get(i).getAdjustedClosePrice();
+            float dayLow = Math.min(openPrice, closePrice);
+
+            if (dayLow < minimum) {
+                minimum = dayLow;
+            }
+
+            ++counter;
+            if (counter >= days) {
+                break;
+            }
+        }
+
+        return minimum;
     }
 
     public boolean isConsecutive3DaysGreen(List<Item> items) {
