@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+	
+    <html-to-xml>
+                    <http url="http://www.stockbangladesh.com/users/login" method="post">
+                    	<http-param name="data[User][username]">khandakar</http-param>
+                    	<http-param name="data[User][password]">khandakar123</http-param>
+                    </http>
+                </html-to-xml>     
+                
+    <var-def name="portfolio">
+            <xpath expression="/html/body/div/table">
+                <html-to-xml>
+                    <http url="http://www.stockbangladesh.com/portfolios/performance/85556"/>
+                </html-to-xml>
+            </xpath>
+    </var-def>      
+     
+	<var-def name="scripts">
+            <xpath expression="//tbody[not(@style)]/tr[@bgcolor]">
+                <var name="portfolio"/>
+            </xpath>
+    </var-def>
+
+    <var-def name="portfolioDetails">
+        <![CDATA[ <items> ]]>
+    <loop item="script">
+       <list>
+           <var name="scripts"/>
+       </list>
+       <body>
+       		<xquery>
+                    <xq-param name="item" type="node()"><var name="script"/></xq-param>
+                    <xq-param name="portfolio" type="node()"><var name="portfolio"/></xq-param>
+                    <xq-expression><![CDATA[
+                            declare variable $item as node() external;
+                            declare variable $portfolio as node() external;
+                            let $code := $item/tr/td/a
+                            let $id := $item/tr/td/img/@id
+                            let $shares := $item/tr/td[6]/span
+                            let $buyPrice := $item/tr/td[7]/span
+                            let $buyDate := $item/tr/td[8]/span/text()
+                            let $className := fn:concat('expand-',$id)
+                            
+                            return
+                            if ($buyDate='Multiple') then  
+                            for $details in $portfolio//tbody[@id=$className]/tr                            
+                                return <data code="{$code}" shares="{$details/td[6]/span}" buyPrice="{$details/td[7]/span}" buyDate="{$details/td[8]/span}"/>
+                            else  <data code="{$code}" shares="{$shares}" buyPrice="{$buyPrice}" buyDate="{$buyDate}"/>
+                                
+                            
+                    ]]></xq-expression>
+                </xquery>
+       </body>
+   </loop>
+    <![CDATA[ </items> ]]>
+    </var-def>
+   
+   <!--
+    <file action="write" type="text" path="/home/setu/Downloads/expekt/portfolio.txt">
+                <var name="scripts"/>
+            </file>
+            -->
+    
+</config>

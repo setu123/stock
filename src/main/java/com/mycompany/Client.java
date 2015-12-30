@@ -1,14 +1,33 @@
 package com.mycompany;
 
 import com.mycompany.dao.ItemDaoImpl;
+import com.mycompany.dao.PortfolioDaoImpl;
 import com.mycompany.model.EPSList;
 import com.mycompany.model.Item;
 import com.mycompany.model.ItemNews;
+import com.mycompany.model.Portfolio;
+import com.mycompany.model.PortfolioItem;
 import com.mycompany.service.Crawler;
 import com.mycompany.service.CustomHashMap;
 import com.mycompany.service.ImportService;
 import com.mycompany.service.ScannerService;
+import com.mycompany.service.SyncService;
 import com.mycompany.service.Utils;
+import static com.mycompany.service.calculator.DecisionMaker.df;
+import com.mycompany.service.calculator.SignalCalculator;
+import com.mycompany.service.calculator.buy.BuySignalCalculator;
+import com.mycompany.service.calculator.buy.Consecutive1;
+import com.mycompany.service.calculator.buy.Consecutive15;
+import com.mycompany.service.calculator.buy.Consecutive2;
+import com.mycompany.service.calculator.buy.Consecutive3;
+import com.mycompany.service.calculator.buy.GreenAfterRsi30;
+import com.mycompany.service.calculator.buy.Macd;
+import com.mycompany.service.calculator.buy.Sma25;
+import com.mycompany.service.calculator.buy.SuddenHike;
+import com.mycompany.service.calculator.buy.Tail;
+import com.mycompany.service.calculator.buy.ThreeGreen;
+import com.mycompany.service.calculator.sell.ClusteredSellSignalCalculator;
+import com.mycompany.service.calculator.sell.SellSignalCalculator;
 import java.io.FileNotFoundException;
 import java.sql.SQLException;
 import java.text.DateFormat;
@@ -16,12 +35,15 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 import org.webharvest.definition.ScraperConfiguration;
 
 /**
@@ -45,14 +67,182 @@ public class Client {
             //checkByScript3();
             //parseEPS();
             //checkByScript4();
-            //checkByScript3_4_5();
             //isTailFound();
-            checkByScript3_4_5();
+            //checkByScript3_4_5();
             //importDsexArchive();
+            //getPortfolio();
+            calculateBuySell();
         } catch (Exception ex) {
             System.err.println("Error caught: " + ex.getMessage());
             ex.printStackTrace();
         }
+    }
+
+    private static void calculateBuySell() throws SQLException, ClassNotFoundException {
+        ItemDaoImpl dao = new ItemDaoImpl();
+        dao.open();
+        CustomHashMap oneYearData = dao.getData(365);
+        dao.close();
+
+        ScannerService scanerService = new ScannerService();
+        Portfolio portfolio = new Portfolio();
+        List<BuySignalCalculator> buyCalculators = new ArrayList<>();
+        //buyCalculators.add(new Consecutive1(scanerService, oneYearData, portfolio));
+        //buyCalculators.add(new Consecutive15(scanerService, oneYearData, portfolio));
+        //buyCalculators.add(new Consecutive2(scanerService, oneYearData, portfolio));
+        //buyCalculators.add(new Consecutive3(scanerService, oneYearData, portfolio));
+//        buyCalculators.add(new GreenAfterRsi30(scanerService, oneYearData, portfolio));
+        //buyCalculators.add(new Macd(scanerService, oneYearData, portfolio));
+        buyCalculators.add(new Sma25(scanerService, oneYearData, portfolio));
+//        buyCalculators.add(new SuddenHike(scanerService, oneYearData, portfolio));
+        //buyCalculators.add(new Tail(scanerService, oneYearData, portfolio));
+        //buyCalculators.add(new ThreeGreen(scanerService, oneYearData, portfolio));
+
+        List<SellSignalCalculator> sellCalculators = new ArrayList<>();
+        ClusteredSellSignalCalculator clusterSell = new ClusteredSellSignalCalculator();
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell1(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell2(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell3(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell4(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell5(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell55(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell6(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell7(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell8(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell9(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell10(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell11(scanerService, oneYearData, portfolio));
+        //sellCalculators.add(new ClusteredSellSignalCalculator.sell12(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.EOM(scanerService, oneYearData, portfolio));
+
+        String script = "RDFOOD";
+        profit = 0;
+        loss = 0;
+        totalBuy = 0;
+        summery = 0;
+        
+        Map<String, Integer> lossCounter = new HashMap<>();
+        Map<String, Integer> profitCounter = new HashMap<>();
+
+        for (String code : oneYearData.keySet()) {
+//            if (!code.equals(script)) {
+//                continue;
+//            }
+
+            List<Item> items = oneYearData.getItems(code);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
+
+            outerloop:
+            for (int i = 50; i < items.size(); i++) {
+                List<Item> itemSubList = new ArrayList();
+                int counter = 0;
+                for (int j = i; j >= 0; j--) {
+                    itemSubList.add(items.get(j));
+//                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
+//                        break;
+//                    }
+                    ++counter;
+                }
+                Collections.sort(itemSubList);
+                Item today = itemSubList.get(itemSubList.size() - 1);
+                PortfolioItem pItem = portfolio.getPortfolioItems().get(today.getCode());
+                
+                SignalCalculator aCalculator = buyCalculators.get(0);
+                //System.out.println("lastItems: " + itemSubList.get(itemSubList.size()-1).getDate() + ", items size: " + items.size());
+                //Item[] sublist = new Item[itemSubList.size()];
+                //sublist = itemSubList.toArray(sublist);
+                List<Item> copyOfSubList = new ArrayList<>(itemSubList);
+                aCalculator.intializeVariables(copyOfSubList, null);  
+                
+                //System.out.println("firstdate: " + copyOfSubList.get(0).getDate() + ", lastdate: " + copyOfSubList.get(copyOfSubList.size()-1).getDate() + ", size: " + copyOfSubList.size() + ", pItem= " + pItem + ", lasttradeday: " + SignalCalculator.lastTradingDay.getTime());
+                //String causeDetails = SignalCalculator.getCause() += "(t:" + df.format(aCalculator.t) + ", v:" + df.format(vChange) + ", vtc:" + df.format(volumePerTradeChange) + ")";
+                
+                for (BuySignalCalculator calculator : buyCalculators) {
+                    if (calculator.isBuyCandidate(copyOfSubList, null)) {
+                        //System.out.println("date: " + today.getDate() + ", buycause: " + calculator.getCause());
+                        if (pItem == null) {
+                            pItem = createPortfolioItem(today);
+                            portfolio.getPortfolioItems().put(today.getCode(), pItem);
+                            ++totalBuy;
+                            System.out.println("");
+                            System.out.print(today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + calculator.getCause());
+                        }
+                        
+                        //if(!today.getDate().after(SignalCalculator.lastTradingDay.getTime()))
+                        continue outerloop;
+                    }
+                }
+                
+                //No buy item, so not need to check sell
+                if (pItem == null) {
+                    continue;
+                }
+
+                copyOfSubList = new ArrayList<>(items);
+                for (SellSignalCalculator calculator : sellCalculators) {
+                    if (calculator.isSellCandidate(copyOfSubList, null)) {
+                        String cause = calculator.getClass().getName();
+                        cause = cause.substring(cause.indexOf("$") + 1);
+                        float gain = calculateGain(pItem, today);
+                        summery += gain;
+                        ++totalSell;
+                        if (gain > 0) {
+                            ++profit;
+                            Integer profitCountObject = profitCounter.get(pItem.getCause());
+                            if(profitCountObject == null)
+                                profitCountObject = 0;
+                            profitCounter.put(pItem.getCause(), profitCountObject+1);
+                        } else {
+                            ++loss;
+                            Integer lossCountObject = lossCounter.get(pItem.getCause());
+                            if(lossCountObject == null)
+                                lossCountObject = 0;
+                            lossCounter.put(pItem.getCause(), lossCountObject+1);
+                        }
+                        System.out.print("----sell " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + cause + ", gain: " + df.format(gain) + "%" );
+                        portfolio.getPortfolioItems().put(today.getCode(), null);
+                        continue outerloop;
+                    }
+                }
+            }
+        }
+
+        System.out.println("");
+        //float winPercentage = ((float)profit/(float)(profit+loss))*100;
+        //System.out.println("Profit: " + profit + ", loss: " + loss + ", percentage: " + df.format(winPercentage) + "%");
+        float gainPercent = ((float) profit / (float) (totalBuy)) * 100;
+        System.out.println("\nsummery: " + summery + ", totalBuy: " + totalBuy + ", totalSell: " + totalSell + ", profitRate: " + summery / totalBuy + ", profit:loss= " + profit + " : " + loss + " gainPercent: " + df.format(gainPercent));
+        System.out.println("losscounter: " + lossCounter);
+        System.out.println("proftcounter: " + profitCounter);
+    }
+
+    private static float calculateGain(PortfolioItem pItem, Item today) {
+        float gain = ((today.getAdjustedClosePrice() - pItem.getAverageBuyPrice()) / pItem.getAverageBuyPrice()) * 100;
+        gain -= 0.5; //Comission;
+        return gain;
+    }
+
+    private static PortfolioItem createPortfolioItem(Item item) {
+        PortfolioItem pItem = new PortfolioItem();
+        pItem.setCode(item.getCode());
+        pItem.setDate(item.getDate());
+        pItem.setAverageBuyPrice(item.getAdjustedClosePrice() * 1.005f);
+        pItem.setCause(SignalCalculator.getCause());
+        return pItem;
+    }
+
+    private static Portfolio getPortfolio() throws SQLException, ClassNotFoundException {
+        PortfolioDaoImpl dao = new PortfolioDaoImpl();
+        dao.open();
+        Portfolio portfolio = dao.getPortfolio(SyncService.PORTFOLIO_ID);
+        dao.close();
+
+        Map<String, PortfolioItem> portfolioItems = portfolio.getPortfolioItems();
+//        for (PortfolioItem portfolioItem : portfolioItems.values()) {
+//            System.out.println(portfolioItem);
+//        }
+
+        return portfolio;
     }
 
     private static void importDsexArchive() {
@@ -149,17 +339,17 @@ public class Client {
         dao.open();
         CustomHashMap oneYearData = dao.getData(365);
         ScannerService scanerService = new ScannerService();
-        String script = "PREMIERCEM";
+        String script = "BGIC";
         //List<Item> codes = Utils.getCodes();
         System.out.println("today: " + new java.sql.Date(Utils.today.getTime()));
         System.out.println("yesterday: " + new java.sql.Date(Utils.yesterday.getTime()));
         for (String code : oneYearData.keySet()) {
-//            if (!code.equals(script)) {
-//                continue;
-//            }
+            if (code.equals(script)) {
+                break;
+            }
 
             List<Item> items = oneYearData.getItems(code);
-            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
             Collections.sort(items);
 
             float previousVolumeChange = 0;
@@ -195,7 +385,7 @@ public class Client {
                 int counter = 0;
                 for (int j = i; j >= 0; j--) {
                     itemSubList.add(items.get(j));
-                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
+                    if (counter >= ScannerService.TRADING_DAYS_IN_A_MONTH) {
                         break;
                     }
                     ++counter;
@@ -203,11 +393,10 @@ public class Client {
                 Collections.sort(itemSubList);
 
                 float volumePerTradeChange = today.getVolumePerTradeChange();
-                float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
-                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_A_MONTH);
 
-                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
-                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float rsi = scanerService.calculateRSI(itemSubList);
                 boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
                 float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
@@ -215,7 +404,7 @@ public class Client {
                 boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
                 float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
                 float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
-                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float hammer = getHammer(today);
                 scanerService.calculateDivergence(itemSubList);
                 int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
@@ -505,7 +694,7 @@ public class Client {
         dao.open();
         CustomHashMap oneYearData = dao.getData(365);
         ScannerService scanerService = new ScannerService();
-        String script = "GEMINISEA";
+        String script = "LAFSURCEML";
         //List<Item> codes = Utils.getCodes();
         for (String code : oneYearData.keySet()) {
 //            if (!code.equals(script)) {
@@ -514,7 +703,7 @@ public class Client {
 
             buyItem = null;
             List<Item> items = oneYearData.getItems(code);
-            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
             Collections.sort(items);
 
             float previousVolumeChange = 0;
@@ -522,15 +711,17 @@ public class Client {
             float previousYesterdayVolumePerTradeChange = 0;
 
             for (int i = 50; i < items.size(); i++) {
-                
+
                 //Dont count stocks after Nov 10
-                Calendar upto = Calendar.getInstance();
                 upto.set(Calendar.YEAR, 2015);
                 upto.set(Calendar.MONTH, 11);
                 upto.set(Calendar.DAY_OF_MONTH, 9);
+                upto.set(Calendar.MINUTE, 0);
+                upto.set(Calendar.SECOND, 0);
+                upto.set(Calendar.MILLISECOND, 0);
+
 //                if(items.get(i).getDate().after(upto.getTime()))
 //                    continue;
-                
                 Item today = items.get(i);
                 Item yesterday = items.get(i - 1);
                 Item dayBeforeYesterday = items.get(i - 2);
@@ -577,10 +768,10 @@ public class Client {
 
                 float volumePerTradeChange = today.getVolumePerTradeChange();
                 float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
-                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_A_MONTH);
 
-                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH/2);
-                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH/2);
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float rsi = scanerService.calculateRSI(itemSubList);
                 boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
                 float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
@@ -588,7 +779,7 @@ public class Client {
                 boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
                 float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
                 float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
-                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float hammer = getHammer(today);
                 scanerService.calculateDivergence(itemSubList);
                 int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
@@ -641,29 +832,31 @@ public class Client {
 
                 float halfway = (today.getAdjustedClosePrice() - today.getOpenPrice()) / 2 + today.getOpenPrice();
                 float lastGreenMinimum = getLastGreenMinimum(itemSubList);
-                float todayDseIndexChange = ((dsex.getAdjustedClosePrice()-dsex.getYesterdayClosePrice())/dsex.getYesterdayClosePrice())*100;
+                float todayDseIndexChange = ((dsex.getAdjustedClosePrice() - dsex.getYesterdayClosePrice()) / dsex.getYesterdayClosePrice()) * 100;
 
                 itemSubList.remove(itemSubList.size() - 1);
                 float yesterdayRsi = scanerService.calculateRSI(itemSubList);
                 calculatedItem.setYesterdayRSI(yesterdayRsi);
-                float yesterdayVolumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH/2);
+                float yesterdayVolumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float yesterdaySma10 = scanerService.calculateSMA(itemSubList, 10);
                 lastMonthVariation = scanerService.getLastFiewDaysVariation(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float lastMonthMaximum = scanerService.getLastFiewDaysMaximum(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 itemSubList.remove(itemSubList.size() - 1);
+                //System.out.println("calculating daybeforersi from " + itemSubList.get(0).getDate() + " to " + items.get(itemSubList.size()-1).getDate());
                 float dayBeforeRsi = scanerService.calculateRSI(itemSubList);
                 calculatedItem.setDayBeforeYesterdayRSI(dayBeforeRsi);
                 float dayBeforeYesterdaySma10 = scanerService.calculateSMA(itemSubList, 10);
-                
+
                 boolean smaTrend = true;
-                if(sma10<yesterdaySma10 && yesterdaySma10<dayBeforeYesterdaySma10)
+                if (sma10 < yesterdaySma10 && yesterdaySma10 < dayBeforeYesterdaySma10) {
                     smaTrend = false;
+                }
 
                 boolean smapass = !(today.getAdjustedClosePrice() < sma10 && today.getAdjustedClosePrice() < sma25);
                 boolean final1 = Math.min(yesterdayRsi, dayBeforeRsi) <= 38 || smapass;
 
                 boolean dsexpass = !(dsex.getClosePrice() < dsex.getSmaList().get(10) && dsex.getClosePrice() < dsex.getSmaList().get(25));
-                boolean final2 = (Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()) <= 30 && todayDseIndexChange>0.9) || dsexpass;
+                boolean final2 = (Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()) <= 30 && todayDseIndexChange > 0.9) || dsexpass;
                 boolean marketWasDown = Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()) <= 30;
                 float dsexMaxRsiInLast2Days = Math.max(Math.max(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()), dsex.getRSI());
                 int maxDivergence = 10;
@@ -681,8 +874,7 @@ public class Client {
 //                if ((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice())) {
 //                    continue;
 //                }
-                //System.out.println("sma250000Date: " + today.getDate() + ", code: " + code + ", sma25: " + sma25 + ", low: " + today.getLow() + ", div: " + divergence + ", vchange: " + volumeChange + ", todayValue: " + todayValue + ", totalTrade: " + todayTrade + ", smaTrend: " + smaTrend + ", final1: " + final1 + ", final2: " + final2);
-
+                //System.out.println("All: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", sma25: " + sma25 + ", volumePerTradeChange: " + volumePerTradeChange);
                 if (((todaychange >= 1 && todayGap >= 1.2) && (yesterdaychange >= 1 || yesterdayGap >= 1) && (todaychange + yesterdaychange) > 1)
                         && divergence <= maxDivergence
                         && rsi <= maxRsi
@@ -694,43 +886,42 @@ public class Client {
                         && diffWithPreviousLow10 <= 10 //&& Math.max(todayGap, yesterdayGap) >= 0.5
                         && hammer < 4
                         && final1 && final2
-                        && dsexMaxRsiInLast2Days<maxAllowedDsexRsi
+                        && dsexMaxRsiInLast2Days < maxAllowedDsexRsi
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
-                        && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))
-                        ) {
+                        && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
-                    String cause = "Consecutive1: ";
-                    today.setSignal(Item.SignalType.BUY);today.setTradeChange(tradeChange);today.setVolumeChange(volumeChange);
+                    String cause = "Consecutive1: " + dayBeforeRsi;
+                    today.setSignal(Item.SignalType.BUY);
+                    today.setTradeChange(tradeChange);
+                    today.setVolumeChange(volumeChange);
                     doTrade(today, yesterday, cause, -1);
-                }
-                else if (((todaychange >= 1 && todayGap >= 1.2) && (yesterdaychange >= 1 || yesterdayGap >= 1) && (todaychange + yesterdaychange) > 1)
+                } else if (((todaychange >= 1 && todayGap >= 1.2) && (yesterdaychange >= 1 || yesterdayGap >= 1) && (todaychange + yesterdaychange) > 1)
                         && divergence <= maxDivergence
-                        && (rsi <= maxRsi ||(marketWasDown && rsi<=60))
+                        && (rsi <= maxRsi || (marketWasDown && rsi <= 60))
                         && todayValue >= 1
                         && todayTrade >= 50
                         && volumeChange >= 0.3 && (volumeChange <= 2)
                         //&& volumePerTradeChange < 1.8
                         && Math.min(todayGap, yesterdayGap) > -3
-                        && (diffWithPreviousLow10 <= 10||(marketWasDown && diffWithPreviousLow10<=16))
+                        && (diffWithPreviousLow10 <= 10 || (marketWasDown && diffWithPreviousLow10 <= 16))
                         && hammer < 4
                         && final1 && final2
-                        && dsexMaxRsiInLast2Days<maxAllowedDsexRsi
+                        && dsexMaxRsiInLast2Days < maxAllowedDsexRsi
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
-                        && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))
-                        ) {
+                        && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
                     String cause = "Consecutive1.5: ";
-                    today.setSignal(Item.SignalType.BUY);today.setTradeChange(tradeChange);today.setVolumeChange(volumeChange);
+                    today.setSignal(Item.SignalType.BUY);
+                    today.setTradeChange(tradeChange);
+                    today.setVolumeChange(volumeChange);
                     doTrade(today, yesterday, cause, -1);
-                } 
-                else if (((todaychange <= -1 && todayGap <= -1))
+                } else if (((todaychange <= -1 && todayGap <= -1))
                         && divergence <= maxDivergence
                         && rsi <= 22
                         && todayValue >= 1
                         && todayTrade >= 50
                         && volumeChange >= 5
-                        && dsexMaxRsiInLast2Days<maxAllowedDsexRsi
-                        //&& volumePerTradeChange < 1.8
+                        && dsexMaxRsiInLast2Days < maxAllowedDsexRsi //&& volumePerTradeChange < 1.8
                         //&& Math.min(todayGap, yesterdayGap) > -3
                         //&& (diffWithPreviousLow10 <= 10 || (marketWasDown && diffWithPreviousLow10<=15))
                         //&& hammer < 4
@@ -740,26 +931,31 @@ public class Client {
                         ) {
                     //System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
                     String cause = "Consecutive2: ";
-                    today.setSignal(Item.SignalType.BUY);today.setTradeChange(tradeChange);today.setVolumeChange(volumeChange);
-                    if(!today.getCode().equals("TITASGAS"))
+                    today.setSignal(Item.SignalType.BUY);
+                    today.setTradeChange(tradeChange);
+                    today.setVolumeChange(volumeChange);
+                    //if (!today.getCode().equals("TITASGAS")) {
                     doTrade(today, yesterday, cause, -1);
-                }else if (((todaychange >= 1 && todayGap >= 1.2) && (yesterdayGap >= 0) && (dayBeforeYesterdayGap>=1) && (todaychange + yesterdaychange) > 1)
+                    //}
+                } else if (((todaychange >= 1 && todayGap >= 1.2) && (yesterdayGap >= 0) && (dayBeforeYesterdayGap >= 1) && (todaychange + yesterdaychange) > 1)
                         && divergence <= maxDivergence
                         && rsi <= maxRsi
                         && todayValue >= 1
                         && todayTrade >= 50
-                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange<=2)
+                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange <= 2)
                         && volumePerTradeChange < 1.8
                         && Math.min(todayGap, yesterdayGap) > -3
                         && diffWithPreviousLow10 <= 10 //&& Math.max(todayGap, yesterdayGap) >= 0.5
                         && hammer < 4
                         && final1 && final2
-                        && dsexMaxRsiInLast2Days<maxAllowedDsexRsi
+                        && dsexMaxRsiInLast2Days < maxAllowedDsexRsi
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
                         && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
                     String cause = "Consecutive3: ";
-                    today.setSignal(Item.SignalType.BUY);today.setTradeChange(tradeChange);today.setVolumeChange(volumeChange);
+                    today.setSignal(Item.SignalType.BUY);
+                    today.setTradeChange(tradeChange);
+                    today.setVolumeChange(volumeChange);
                     doTrade(today, yesterday, cause, -1);
                 } else if ((todaychange >= 1 && todayGap >= 1.2) && (yesterdaychange >= 1 || yesterdayGap >= 1)
                         && todayDiv > yesterdayDiv
@@ -769,49 +965,55 @@ public class Client {
                         && diffWithPreviousLow10 <= 10
                         && todayValue >= 1
                         && todayTrade >= 50
-                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange<=2)
+                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange <= 2)
                         && hammer < 4
                         && final1 && final2
-                        && dsexMaxRsiInLast2Days<=maxAllowedDsexRsi
+                        && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
                         && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("Macd0000000-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
                     String cause = "Macd00-Date: ";
-                    today.setSignal(Item.SignalType.BUY);today.setTradeChange(tradeChange);today.setVolumeChange(volumeChange);
+                    today.setSignal(Item.SignalType.BUY);
+                    today.setTradeChange(tradeChange);
+                    today.setVolumeChange(volumeChange);
                     doTrade(today, yesterday, cause, -1);
                 } else if ((todayGap >= 1 && todaychange >= 0.5)
-                        && tail >= 3 
+                        && tail >= 3
                         && calculatedItem.getRSI() <= 40
                         && calculatedItem.getDivergence() <= maxDivergence
                         && todayValue >= 1
                         && todayTrade >= 50
-                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange<=2)
+                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange <= 2)
                         && hammer < 4
                         && final1 && final2
-                        && dsexMaxRsiInLast2Days<=maxAllowedDsexRsi
+                        && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
                         && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("Tail0000000-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
                     String cause = "Tail000-Date: ";
-                    today.setSignal(Item.SignalType.BUY);today.setTradeChange(tradeChange);today.setVolumeChange(volumeChange);
+                    today.setSignal(Item.SignalType.BUY);
+                    today.setTradeChange(tradeChange);
+                    today.setVolumeChange(volumeChange);
                     doTrade(today, yesterday, cause, -1);
                 } else if (((todaychange >= 1 && todayGap >= 1.2) && (yesterdayGap > 0 && dayBeforeYesterdayGap > 0) && (todaychange + yesterdaychange) > 1)
                         && divergence <= maxDivergence
                         && rsi <= maxRsi
                         && todayValue >= 1
                         && todayTrade >= 50
-                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange<=2)
+                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange <= 2)
                         && volumePerTradeChange < 1.8
                         && Math.min(todayGap, yesterdayGap) > -3
                         && diffWithPreviousLow10 <= 10 //&& Math.max(todayGap, yesterdayGap) >= 0.5
                         && hammer < 4
                         && final1 && final2
-                        && dsexMaxRsiInLast2Days<=maxAllowedDsexRsi
+                        && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
                         && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("Three000-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
                     String cause = "Three-Date: ";
-                    today.setSignal(Item.SignalType.BUY);today.setTradeChange(tradeChange);today.setVolumeChange(volumeChange);
+                    today.setSignal(Item.SignalType.BUY);
+                    today.setTradeChange(tradeChange);
+                    today.setVolumeChange(volumeChange);
                     doTrade(today, yesterday, cause, -1);
 //                } else if ((todayGap >= 1.2 && today.getAdjustedClosePrice() > last3DaysMax)
 //                        && divergence <= maxDivergence
@@ -831,72 +1033,75 @@ public class Client {
 //                    String cause = "Sudengren-Date: ";
 //                    today.setSignal(Item.SignalType.BUY);today.setTradeChange(tradeChange);today.setVolumeChange(volumeChange);
 //                    doTrade(today, yesterday, cause, -1);
-                } else if ((todayGap >= 1.2 && halfway > sma25 && today.getLow() <= (sma25*1.01))
+                } else if ((todayGap >= 1.2 && halfway > sma25 && today.getLow() <= (sma25 * 1.01))
                         && divergence <= maxDivergence
                         && todayValue >= 1
                         && todayTrade >= 50
-                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange<=2)
+                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange <= 2)
                         && volumePerTradeChange < 1.8
                         && Math.min(todayGap, yesterdayGap) > -3
                         && diffWithPreviousLow10 <= 10 //&& Math.max(todayGap, yesterdayGap) >= 0.5
                         && hammer < 4
                         && final1 && final2
-                        && dsexMaxRsiInLast2Days<=maxAllowedDsexRsi
+                        && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
                         && smaTrend
-                        && (lastMonthVariation<=7?lastMonthMaximum<today.getAdjustedClosePrice():true)
+                        && (lastMonthVariation <= 7 ? lastMonthMaximum < today.getAdjustedClosePrice() : true)
                         //&& lastGreenMinimum < today.getOpenPrice()
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
                         && !((today.getHigh() - today.getAdjustedClosePrice()) > (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
-                    //System.out.println("sma250000Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", sma25: " + sma25);
+                    //System.out.println("date: " + today.getDate() + ", sma10: " + sma10 + ", yesterdaySma10: " + yesterdaySma10 + ", dayBeforeYesterdaySma10: " + dayBeforeYesterdaySma10);
                     String cause = "sma25Date: " + lastMonthVariation + ", max: " + lastMonthMaximum;
-                    today.setSignal(Item.SignalType.BUY);today.setTradeChange(tradeChange);today.setVolumeChange(volumeChange);
+                    today.setSignal(Item.SignalType.BUY);
+                    today.setTradeChange(tradeChange);
+                    today.setVolumeChange(volumeChange);
                     doTrade(today, yesterday, cause, -1);
-                } 
-                else if ((todayGap >= 3 && yesterdaychange<-0.5 && dayBeforeYesterdayChange<-0.5 && twoDayBeforeYesterdayGap<-0.5 && today.getAdjustedClosePrice()>twoDayBeforeYesterday.getOpenPrice())
+                } else if ((todayGap >= 3 && yesterdaychange < -0.5 && dayBeforeYesterdayChange < -0.5 && twoDayBeforeYesterdayGap < -0.5 && today.getAdjustedClosePrice() > twoDayBeforeYesterday.getOpenPrice())
                         && divergence <= maxDivergence
                         && todayValue >= 1
                         && todayTrade >= 50
-                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange<=2)
+                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange <= 2)
                         && volumePerTradeChange < 1.8
                         && Math.min(todayGap, yesterdayGap) > -3
                         && diffWithPreviousLow10 <= 10 //&& Math.max(todayGap, yesterdayGap) >= 0.5
                         && hammer < 4
                         && final1 && final2
-                        && dsexMaxRsiInLast2Days<=maxAllowedDsexRsi
+                        && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
                         && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("sma250000Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", sma25: " + sma25);
                     String cause = "Suddenhike: ";
-                    today.setSignal(Item.SignalType.BUY);today.setTradeChange(tradeChange);today.setVolumeChange(volumeChange);
+                    today.setSignal(Item.SignalType.BUY);
+                    today.setTradeChange(tradeChange);
+                    today.setVolumeChange(volumeChange);
                     doTrade(today, yesterday, cause, -1);
-                } 
-                else if ((todayGap >= 3 && Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()) <= 30 && todayDseIndexChange>0.9)
+                } else if ((todayGap >= 3 && Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()) <= 30 && todayDseIndexChange > 0.9)
                         && divergence <= maxDivergence
                         && todayValue >= 1
                         && todayTrade >= 50
-                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange<=2)
+                        && volumeChange >= 0.3 && ((marketWasDown && volumeChange <= 4) || volumeChange <= 2)
                         && volumePerTradeChange < 1.8
                         && Math.min(todayGap, yesterdayGap) > -3
                         && diffWithPreviousLow10 <= 10 //&& Math.max(todayGap, yesterdayGap) >= 0.5
                         && hammer < 4
                         && final1 && final2
-                        && dsexMaxRsiInLast2Days<=maxAllowedDsexRsi
+                        && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
                         && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("sma250000Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", sma25: " + sma25);
                     String cause = "gAfterRsi30: ";
-                    today.setSignal(Item.SignalType.BUY);today.setTradeChange(tradeChange);today.setVolumeChange(volumeChange);
+                    today.setSignal(Item.SignalType.BUY);
+                    today.setTradeChange(tradeChange);
+                    today.setVolumeChange(volumeChange);
                     doTrade(today, yesterday, cause, -1);
-                }
-                else {
+                } else {
                     itemSubList = new ArrayList();
                     for (int j = i; j >= 0; j--) {
                         itemSubList.add(items.get(j));
                     }
                     Collections.sort(itemSubList);
-                    
+
                     boolean sellSignal = isSellSignal(scanerService, calculatedItem, itemSubList);
                 }
-                
-                if(today.getDate().after(upto.getTime())){
+
+                if (today.getDate().after(upto.getTime())) {
                     //System.out.println("today: " + today.getDate() + ", code: " + today.getCode());
                     today.getSmaList().put(10, sma10);
                     today.getSmaList().put(25, sma25);
@@ -904,110 +1109,122 @@ public class Client {
                     doTrade(today, yesterday, "EOM", lastGreenMinimum);
                     break;
                 }
-                    
+
             }
         }
-        
+
         System.out.println("\n");
-        float gainPercent = ((float)profit/(float)(totalBuy))*100;
-        System.out.println("summery: " + summery + ", totalBuy: " + totalBuy + ", profitRate: " + summery/totalBuy + ", profit:loss= " + profit + " : " + loss + " gainPercent: " + df.format(gainPercent));
+        float gainPercent = ((float) profit / (float) (totalBuy)) * 100;
+        System.out.println("summery: " + summery + ", totalBuy: " + totalBuy + ", profitRate: " + summery / totalBuy + ", profit:loss= " + profit + " : " + loss + " gainPercent: " + df.format(gainPercent));
     }
-    
+
     private static Item buyItem;
     static DecimalFormat df = new DecimalFormat("#.#");
     static float summery = 0;
-    static int counter = 0; 
+    static int counter = 0;
     static int profit = 0;
     static int loss = 0;
     static int totalBuy = 0;
-    static float lastMonthVariation=0;
-    private static void doTrade(Item item, Item yesterDayItem, String cause, float lastGreenMinimum){
-        
-        float todayGap = ((item.getAdjustedClosePrice()-item.getOpenPrice())/item.getOpenPrice())*100;
-        
-        if(item.getSignal().equals(Item.SignalType.BUY)){
-            if(buyItem!=null && buyItem.getCode().equals(item.getCode()))
-                return; 
-            
-            
+    static int totalSell = 0;
+    float TotalGain = 0;
+    static float lastMonthVariation = 0;
+    static Calendar upto = Calendar.getInstance();
+
+    private static void doTrade(Item item, Item yesterDayItem, String cause, float lastGreenMinimum) {
+
+        float todayGap = ((item.getAdjustedClosePrice() - item.getOpenPrice()) / item.getOpenPrice()) * 100;
+        todayGap = todayGap + item.getAdjustedClosePrice() / 1000;
+
+        if (item.getSignal().equals(Item.SignalType.BUY) && !item.getDate().after(upto.getTime())) {
+
+            if (buyItem != null && buyItem.getCode().equals(item.getCode())) {
+                return;
+            }
+
             buyItem = item;
+            buyItem.setAdjustedClosePrice(buyItem.getAdjustedClosePrice() * 1.005f);
             ++totalBuy;
             System.out.println("");
-            System.out.print(item.getCode() + " on " + item.getDate() + ", price: " + item.getAdjustedClosePrice() + ", cause: " + cause + "(t:"+df.format(item.getTradeChange())+", v:"+df.format(item.getVolumeChange())+")" + " ---- ");
+            System.out.print(item.getCode() + " on " + item.getDate() + ", price: " + item.getAdjustedClosePrice() + ", cause: " + cause + "(t:" + df.format(item.getTradeChange()) + ", v:" + df.format(item.getVolumeChange()) + ")" + " ---- ");
         }
-        
-        if(item.getSignal().equals(Item.SignalType.SELL)){
-            if(buyItem!=null && buyItem.getDate().before(yesterDayItem.getDate())){
-                float gain = ((item.getAdjustedClosePrice()-buyItem.getAdjustedClosePrice())/buyItem.getAdjustedClosePrice())*100 -1;
-                
+
+        if (item.getSignal().equals(Item.SignalType.SELL)) {
+            if (buyItem != null && (buyItem.getDate().before(yesterDayItem.getDate()) || cause.equals("EOM"))) {
+                float gain = ((item.getAdjustedClosePrice() - buyItem.getAdjustedClosePrice()) / buyItem.getAdjustedClosePrice()) * 100 - 0.5f;
+
                 boolean belowBothSma = false;
                 float sma25 = item.getSmaList().get(25);
                 float sma10 = item.getSmaList().get(10);
                 float minSma = Math.min(item.getSmaList().get(10), item.getSmaList().get(25));
-                float diffWithMinSma = ((item.getAdjustedClosePrice()-minSma)/minSma)*100;
-                float diffWithSma10 = ((item.getAdjustedClosePrice()-sma10)/sma10)*100;
-                float diffWithSma25 = ((item.getAdjustedClosePrice()-sma25)/sma25)*100;
+                float diffWithMinSma = ((item.getAdjustedClosePrice() - minSma) / minSma) * 100;
+                float diffWithSma10 = ((item.getAdjustedClosePrice() - sma10) / sma10) * 100;
+                float diffWithSma25 = ((item.getAdjustedClosePrice() - sma25) / sma25) * 100;
                 boolean belowSma10 = false;
                 boolean belowSma25 = false;
-                
-                if(diffWithSma10<-3)
+
+                if (diffWithSma10 < -3) {
                     belowSma10 = true;
-                
-                if(diffWithSma25<0)
+                }
+
+                if (diffWithSma25 < 0) {
                     belowSma25 = true;
-                
-                if(diffWithMinSma<-5){
-                //if(item.getAdjustedClosePrice()<item.getSmaList().get(10) && item.getAdjustedClosePrice()<item.getSmaList().get(25)){
+                }
+
+                if (diffWithMinSma < -5) {
+                    //if(item.getAdjustedClosePrice()<item.getSmaList().get(10) && item.getAdjustedClosePrice()<item.getSmaList().get(25)){
                     belowBothSma = true;
                     //System.out.println("Must sell " + item.getCode() + " on " + item.getDate());
                 }
-                
+
                 //Do no sell
                 boolean endOfMarket = cause.equalsIgnoreCase("EOM");
                 Item dsex = dsexMap.get(item.getDate());
-                boolean final2 = dsex.getClosePrice()<dsex.getSmaList().get(10) && dsex.getClosePrice()<dsex.getSmaList().get(25);
-                boolean marketIsDown = final2 && dsex.getAdjustedClosePrice()<dsex.getYesterdayClosePrice();
-                boolean var1 = item.getAdjustedClosePrice()>= buyItem.getOpenPrice() && item.getAdjustedClosePrice()<sma25;
-                
-                if((((gain>-5) && gain<3) || gain<-10 || (!belowSma10 && gain>5) || (gain<0 && belowSma25)) && !endOfMarket && todayGap>-5 )
+                boolean final2 = dsex.getClosePrice() < dsex.getSmaList().get(10) && dsex.getClosePrice() < dsex.getSmaList().get(25);
+                boolean marketIsDown = final2 && dsex.getAdjustedClosePrice() < dsex.getYesterdayClosePrice();
+                boolean var1 = item.getAdjustedClosePrice() >= buyItem.getOpenPrice() && item.getAdjustedClosePrice() < sma25;
+                //System.out.println("code: " + item.getCode() + ", date: " + item.getDate() + ", cause: " + cause + ", belowSma10: " + belowSma10 + ", gain: " + gain + ", todayGap: " + todayGap + ", endOfMarket: " + endOfMarket);
+                if ((((gain > -5) && gain < 3) || gain < -10 || (!belowSma10 && gain > 5) || (gain < 0 && belowSma25)) && !endOfMarket && todayGap > -5) {
+                    //System.out.println("on " + item.getDate() + " denied1");
                     return;
-                
+                }
+
 //                if(gain<0 && item.getAdjustedClosePrice()>=buyItem.getOpenPrice())
 //                    return;
-                
-                if(gain<0 && dsex.getRSI()<=30 && !endOfMarket )
+                if (gain < 0 && dsex.getRSI() <= 30 && !endOfMarket) {
+                    //System.out.println("on " + item.getDate() + " denied2");
                     return;
-                
+                }
+
 //                if(item.getAdjustedClosePrice()>= buyItem.getOpenPrice() && item.getAdjustedClosePrice()<sma25)
 //                    return;
-                
-                summery +=gain;
+                summery += gain;
                 System.out.print(item.getDate() + ", price: " + item.getAdjustedClosePrice() + ", cause: " + cause + ", gain: " + df.format(gain) + "%");
                 buyItem = null;
-                
-                if(gain>0)
+
+                if (gain > 0) {
                     ++profit;
-                else
+                } else {
                     ++loss;
+                }
             }
         }
-            
+
     }
 
-    private static float getLastGreenMinimum(List<Item> items){
-        int head = items.size()-1;
-        for(int i=head-1; i>=0; i--){
+    private static float getLastGreenMinimum(List<Item> items) {
+        int head = items.size() - 1;
+        for (int i = head - 1; i >= 0; i--) {
             Item item = items.get(i);
             float priceGap = ((item.getAdjustedClosePrice() - item.getOpenPrice()) / item.getOpenPrice()) * 100;
-            if(priceGap >=1){
+            if (priceGap >= 1) {
                 return item.getOpenPrice();
             }
-                
+
         }
-        
+
         return items.get(head).getAdjustedClosePrice();
     }
-    
+
     private static boolean isSellSignal(ScannerService scanerService, Item calculatedItem, List<Item> items) {
         if (calculatedItem == null) {
             return false;
@@ -1021,26 +1238,27 @@ public class Client {
         //float todayPriceChangeWithRespectToOpen = ((today.getAdjustedClosePrice()-yesterday.getOpenPrice())/yesterday.getOpenPrice())*100;
         //float todayPriceChange = todayPriceChangeWithRespectToClose<todayPriceChangeWithRespectToOpen ? todayPriceChangeWithRespectToClose: todayPriceChangeWithRespectToOpen;
         float todayPriceGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
+        todayPriceGap = todayPriceGap + today.getAdjustedClosePrice() / 1000;
         float yesterdayPriceChange = ((yesterday.getAdjustedClosePrice() - dayBeforeYesterday.getAdjustedClosePrice()) / dayBeforeYesterday.getAdjustedClosePrice()) * 100;
         float yesterdayPriceGap = ((yesterday.getAdjustedClosePrice() - yesterday.getOpenPrice()) / yesterday.getOpenPrice()) * 100;
         float dayBeforeYesterdayPriceGap = ((dayBeforeYesterday.getAdjustedClosePrice() - dayBeforeYesterday.getOpenPrice()) / dayBeforeYesterday.getOpenPrice()) * 100;
-        
+
         float sma10 = scanerService.calculateSMA(items, 10);
         float sma25 = scanerService.calculateSMA(items, 25);
         today.getSmaList().put(10, sma10);
         today.getSmaList().put(25, sma25);
         Item dsex = dsexMap.get(today.getDate());
-        boolean final1 = today.getAdjustedClosePrice()<sma10 && today.getAdjustedClosePrice()<sma25;
-        boolean final2 = dsex.getClosePrice()<dsex.getSmaList().get(10) && dsex.getClosePrice()<dsex.getSmaList().get(25);
+        boolean final1 = today.getAdjustedClosePrice() < sma10 && today.getAdjustedClosePrice() < sma25;
+        boolean final2 = dsex.getClosePrice() < dsex.getSmaList().get(10) && dsex.getClosePrice() < dsex.getSmaList().get(25);
         float lastGreenMinimum = getLastGreenMinimum(items);
-        
-        
+
         boolean twoConsecutiveRed = false;
-        if (((todayPriceChange <= -0.5 && yesterdayPriceChange <= -1.0) || (todayPriceChange <= -1.0 && yesterdayPriceChange <= -0.5)) && todayPriceGap<0) {
+        if (((todayPriceChange <= -0.5 && yesterdayPriceChange <= -1.0) || (todayPriceChange <= -1.0 && yesterdayPriceChange <= -0.5)) && todayPriceGap < 0) {
             twoConsecutiveRed = true;
         }
 
         //@1. Should have two consecutive red (among them at least one day open-close should be more than 1%) and close price less than day before yesterday open price
+        //System.out.println(today.getDate() + ", twoConsecutiveRed: " + twoConsecutiveRed + ", issell: " + isSellCandidate(calculatedItem, items));
         if (twoConsecutiveRed && today.getAdjustedClosePrice() < dayBeforeYesterday.getOpenPrice() && isSellCandidate(calculatedItem, items)) {
             //System.out.println("Sell1 Date: " + today.getDate() + ", code: " + today.getCode());
             today.setSignal(Item.SignalType.SELL);
@@ -1059,7 +1277,6 @@ public class Client {
 //            doTrade(today, yesterday, "Sell1.5");
 //            return true;
 //        }
-
         //@2. Close price less than buy day open price
         //Should be implemented later
         //@3. Open price - close price is more than 6% 
@@ -1085,9 +1302,9 @@ public class Client {
             doTrade(today, yesterday, "Sell5", lastGreenMinimum);
             return true;
         }
-        
+
         //@5.5. Today is down and today is hammer<-3
-        if (todayPriceGap<0 && getDBHammer(today) < -3) {
+        if (todayPriceGap < 0 && getDBHammer(today) < -3) {
             //System.out.println("Sell5 Date: " + today.getDate() + ", code: " + today.getCode());
             today.setSignal(Item.SignalType.SELL);
             doTrade(today, yesterday, "Sell5.5", lastGreenMinimum);
@@ -1128,24 +1345,25 @@ public class Client {
         }
 
         // @9. Today close price less than yesterday minimum and less than day before yesterday minimum
-        if (todayPriceGap<0 && today.getAdjustedClosePrice() < yesterdayLower && today.getAdjustedClosePrice() < dayBeforeYesterdayLower) {
+        if (todayPriceGap < 0 && today.getAdjustedClosePrice() < yesterdayLower && today.getAdjustedClosePrice() < dayBeforeYesterdayLower) {
             //System.out.println("Sell9 Date: " + today.getDate() + ", code: " + today.getCode());
             today.setSignal(Item.SignalType.SELL);
             doTrade(today, yesterday, "Sell9", lastGreenMinimum);
             return true;
         }
-        
+
         // @10. any of last 3 days RSI is 70+ and today is not green nor up
-        boolean rsi70 = calculatedItem.getRSI()>=70 || calculatedItem.getYesterdayRSI()>=70 || calculatedItem.getDayBeforeYesterdayRSI()>=70;
-        if (rsi70 && (todayPriceGap<=0||todayPriceChange<=0)) {
+        boolean rsi70 = calculatedItem.getRSI() >= 70 || calculatedItem.getYesterdayRSI() >= 70 || calculatedItem.getDayBeforeYesterdayRSI() >= 70;
+        //System.out.println("code: " + today.getCode() + ", date: " + today.getDate() + ", rsi70: " + rsi70 + ", calculatedItem.getRSI(): " + calculatedItem.getRSI() + ", calculatedItem.getDayBeforeYesterdayRSI(): " + calculatedItem.getDayBeforeYesterdayRSI() + ", daybefore: " + dayBeforeYesterday.getDate());
+        if (rsi70 && (todayPriceGap <= 0 || todayPriceChange <= 0)) {
             //System.out.println("Sell10 Date: " + today.getDate() + ", code: " + today.getCode());
             today.setSignal(Item.SignalType.SELL);
             doTrade(today, yesterday, "Sell10", lastGreenMinimum);
             return true;
         }
-        
+
         //If price falls bellow both sma10 and sma25 either for item or for dsex
-        if(todayPriceChange<0 && todayPriceGap<0 && (final1 && final2)){
+        if (todayPriceChange < 0 && todayPriceGap < 0 && (final1 && final2)) {
             //System.out.println("final1: " + final1 + ", final2: " + final2);
             today.setSignal(Item.SignalType.SELL);
             doTrade(today, yesterday, "Sell11", lastGreenMinimum);
@@ -1227,7 +1445,7 @@ public class Client {
 //            }
 
             List<Item> items = oneYearData.getItems(code);
-            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
             Collections.sort(items);
 
             float previousVolumeChange = 0;
@@ -1274,10 +1492,10 @@ public class Client {
 
                 float volumePerTradeChange = today.getVolumePerTradeChange();
                 float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
-                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_A_MONTH);
 
-                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
-                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float rsi = scanerService.calculateRSI(itemSubList);
                 boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
                 float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
@@ -1285,7 +1503,7 @@ public class Client {
                 boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
                 float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
                 float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
-                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float hammer = getHammer(today);
                 scanerService.calculateDivergence(itemSubList);
                 int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
@@ -1349,7 +1567,7 @@ public class Client {
 //            }
 
             List<Item> items = oneYearData.getItems(code);
-            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
             Collections.sort(items);
 
             float previousVolumeChange = 0;
@@ -1396,10 +1614,10 @@ public class Client {
 
                 float volumePerTradeChange = today.getVolumePerTradeChange();
                 float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
-                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_A_MONTH);
 
-                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
-                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float rsi = scanerService.calculateRSI(itemSubList);
                 boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
                 float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
@@ -1407,7 +1625,7 @@ public class Client {
                 boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
                 float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
                 float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
-                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float hammer = getHammer(today);
 
                 scanerService.calculateDivergence(itemSubList);
@@ -1476,7 +1694,7 @@ public class Client {
 //            }
 
             List<Item> items = oneYearData.getItems(code);
-            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
             Collections.sort(items);
 
             float previousVolumeChange = 0;
@@ -1526,7 +1744,7 @@ public class Client {
                 int counter = 0;
                 for (int j = i; j >= 0; j--) {
                     itemSubList.add(items.get(j));
-                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
+                    if (counter >= ScannerService.TRADING_DAYS_IN_A_MONTH) {
                         break;
                     }
                     ++counter;
@@ -1543,10 +1761,10 @@ public class Client {
 //                float yesterdayVolumePerTradeChange = changes.getYesterdayChange();
                 float volumePerTradeChange = today.getVolumePerTradeChange();
                 float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
-                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_A_MONTH);
 
-                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
-                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float rsi = scanerService.calculateRSI(itemSubList);
                 boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
                 float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
@@ -1554,7 +1772,7 @@ public class Client {
                 boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
                 float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
                 float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
-                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float hammer = getHammer(today);
                 scanerService.calculateDivergence(itemSubList);
                 int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
@@ -1590,7 +1808,7 @@ public class Client {
 //            }
 
             List<Item> items = oneYearData.getItems(code);
-            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
             Collections.sort(items);
 
             float previousVolumeChange = 0;
@@ -1641,7 +1859,7 @@ public class Client {
                 int counter = 0;
                 for (int j = i; j >= 0; j--) {
                     itemSubList.add(items.get(j));
-                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
+                    if (counter >= ScannerService.TRADING_DAYS_IN_A_MONTH) {
                         break;
                     }
                     ++counter;
@@ -1658,10 +1876,10 @@ public class Client {
 //                float yesterdayVolumePerTradeChange = changes.getYesterdayChange();
                 float volumePerTradeChange = today.getVolumePerTradeChange();
                 float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
-                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_A_MONTH);
 
-                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
-                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float rsi = scanerService.calculateRSI(itemSubList);
                 boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
                 float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
@@ -1669,7 +1887,7 @@ public class Client {
                 boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
                 float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
                 float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
-                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float hammer = getHammer(today);
                 scanerService.calculateDivergence(itemSubList);
                 int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
@@ -1722,7 +1940,7 @@ public class Client {
             }
 
             List<Item> items = oneYearData.getItems(code);
-            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
             Collections.sort(items);
 
             float previousVolumeChange = 0;
@@ -1758,7 +1976,7 @@ public class Client {
                 int counter = 0;
                 for (int j = i; j >= 0; j--) {
                     itemSubList.add(items.get(j));
-                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
+                    if (counter >= ScannerService.TRADING_DAYS_IN_A_MONTH) {
                         break;
                     }
                     ++counter;
@@ -1767,10 +1985,10 @@ public class Client {
 
                 float volumePerTradeChange = today.getVolumePerTradeChange();
                 float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
-                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_A_MONTH);
 
-                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
-                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float rsi = scanerService.calculateRSI(itemSubList);
                 boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
                 float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
@@ -1778,7 +1996,7 @@ public class Client {
                 boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
                 float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
                 float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
-                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float hammer = getHammer(today);
                 scanerService.calculateDivergence(itemSubList);
                 int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
@@ -1830,7 +2048,7 @@ public class Client {
 //            }
 
             List<Item> items = oneYearData.getItems(code);
-            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
             Collections.sort(items);
 
             float previousVolumeChange = 0;
@@ -1866,7 +2084,7 @@ public class Client {
                 int counter = 0;
                 for (int j = i; j >= 0; j--) {
                     itemSubList.add(items.get(j));
-                    if (counter >= ScannerService.TRADING_DAYS_IN_2_MONTH) {
+                    if (counter >= ScannerService.TRADING_DAYS_IN_A_MONTH) {
                         break;
                     }
                     ++counter;
@@ -1875,10 +2093,10 @@ public class Client {
 
                 float volumePerTradeChange = today.getVolumePerTradeChange();
                 float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
-                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_A_MONTH);
 
-                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
-                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH);
+                float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
+                float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float rsi = scanerService.calculateRSI(itemSubList);
                 boolean isLastTwoDaysGreen = yesterdayGap > 0 && dayBeforeYesterdayGap > 0 && yesterdaychange > 0.5 && dayBeforeYesterdayChange > 0.5;
                 float tradeChangeWithYesterday = ((float) today.getTrade() / (float) yesterday.getTrade());
@@ -1886,7 +2104,7 @@ public class Client {
                 boolean isSuddenHike = volumeChangeWithYesterday >= 2 && volumeChange >= 2;
                 float diffWithPreviousLow10 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 10);
                 float diffWithPreviousLow3 = scanerService.getPriceDiffWithPreviousLow(itemSubList, 3);
-                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_2_MONTH / 2);
+                float diffWithPreviousHighVolume = scanerService.getVolumeDiffWithPreviousHigh(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float hammer = getHammer(today);
                 scanerService.calculateDivergence(itemSubList);
                 int divergence = itemSubList.get(itemSubList.size() - 1).getDivergence();
@@ -1936,7 +2154,7 @@ public class Client {
 
         for (int i = head - 1; (head - i) <= (days); i--) {
             Item item = items.get(i);
-            float calculatedTradeChange = scanerService.calculateTradeChange(items, i, ScannerService.TRADING_DAYS_IN_2_MONTH);
+            float calculatedTradeChange = scanerService.calculateTradeChange(items, i, ScannerService.TRADING_DAYS_IN_A_MONTH);
 //            if(item.getCode().equals("BGIC"))
 //                System.out.println("Date: " + item.getDate() + ", calculatedTradeChange: " + calculatedTradeChange + ", vc: " + item.getVolumePerTradeChange());
             if (calculatedTradeChange >= tradeChange && item.getVolumePerTradeChange() >= volumePerTradeChange) {
@@ -1957,7 +2175,7 @@ public class Client {
         float difference = Math.abs(item.getOpenPrice() - item.getAdjustedClosePrice());
         float largest = (item.getOpenPrice() + item.getAdjustedClosePrice() + difference) / 2;
         float smallest = (item.getOpenPrice() + item.getAdjustedClosePrice() - difference) / 2;
-        float dbHammer = (((smallest - item.getLow()) - (item.getHigh() - largest)) / item.getAdjustedClosePrice()) *100;
+        float dbHammer = (((smallest - item.getLow()) - (item.getHigh() - largest)) / item.getAdjustedClosePrice()) * 100;
         //if(item.getCode().equalsIgnoreCase("watachem"))
         //    System.out.println("yesterday " + item.getDate() + " hammer: " + dbHammer + ", open: " + item.getOpenPrice() + ", close: " + item.getClosePrice() + ", high: " + item.getHigh() + ", low: " + item.getLow() + ", largest: " + largest + ", smallest: " + smallest);
         return dbHammer;

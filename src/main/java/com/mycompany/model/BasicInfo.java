@@ -8,7 +8,7 @@ import java.util.Objects;
  */
 
 public class BasicInfo {
-    private String code;
+    protected String code;
     private float low;
     private float high;
     private String sector;
@@ -159,6 +159,8 @@ public class BasicInfo {
     }
 
     public SharePercentage getSharePercentage() {
+        if(sharePercentage == null)
+            sharePercentage = new SharePercentage(0, 0, 0, 0, 0);
         return sharePercentage;
     }
 

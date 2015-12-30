@@ -5,9 +5,7 @@ import com.mycompany.model.Item;
 import com.mycompany.model.BasicInfo;
 import com.mycompany.service.CustomHashMap;
 import com.mycompany.service.Utils;
-import java.sql.Connection;
 import java.sql.Date;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -16,66 +14,24 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * @date Apr 18, 2015
  * @author Setu
  */
-public class ItemDaoImpl {
-
-    static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-    static final String DB_URL = "jdbc:mysql://localhost:3306/stock";
-    static final String USER = "root";
-    static final String PASS = "root";
-    static final int FACE_VALUE = 10;
-    //private final String DATE_FORMAT = "dd/MM/yyyy";
-    //private final DateFormat dateFormat = new SimpleDateFormat(DATE_FORMAT);
-
-    //private static Connection conn;
-    private Connection connection;
-
-    public void open() throws SQLException, ClassNotFoundException {
-        if (connection == null || connection.isClosed()) {
-            Class.forName("com.mysql.jdbc.Driver");
-            connection = DriverManager.getConnection(DB_URL, USER, PASS);
-            System.out.println("Connection opened");
-        }
-    }
+public class ItemDaoImpl extends BasicDaoImpl{
 
     public ItemDaoImpl() {
-//        try {
-//            createConnection();
-//        } catch (SQLException | ClassNotFoundException ex) {
-//            Logger.getLogger(ItemDaoImpl.class.getName()).log(Level.SEVERE, null, ex);
-//        }
-    }
-
-    public void close() {
-        try {
-            if (connection != null && !connection.isClosed()) {
-                connection.close();
-                System.out.println("Connection closed");
-            }
-        } catch (SQLException ex) {
-            Logger.getLogger(ItemDaoImpl.class.getName()).log(Level.SEVERE, null, ex);
-        }
     }
 
     public void setItems(List<Item> items) throws SQLException, ClassNotFoundException {
-        //Insert codes
-        //System.out.println("check 1");
+
         insertCodes(getCodes(items));
-        //System.out.println("check 2");
 
         if (items.get(0).getPressure() == 0) {
             setItemsWithoutBSPressure(items);
-            //System.out.println("check 4");
         } else {
-            //System.out.println("check 5");
             setItemsWithBSPressure(items);
-            //System.out.println("check 6");
         }
 
         System.out.println("Finished updating " + items.size() + " items");
@@ -491,7 +447,11 @@ public class ItemDaoImpl {
 
     public CustomHashMap getData(int days) throws SQLException, ClassNotFoundException {
         //String sql = "SELECT CODE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, DATE FROM bs_pressure WHERE DATE IN (SELECT * FROM (SELECT DISTINCT(DATE) FROM bs_pressure ORDER BY DATE ) AS T) ORDER BY DATE;";
-        String sql = "SELECT DATE, CODE, OPEN_PRICE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, YESTERDAY_CLOSE_PRICE, DAY_LOW, DAY_HIGH, DATE, VOLUME, TRADE, VALUE FROM bs_pressure WHERE DATE >= ? ORDER BY DATE";
+        String sql = "SELECT pressure.DATE, pressure.CODE, OPEN_PRICE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, YESTERDAY_CLOSE_PRICE, DAY_LOW, DAY_HIGH, pressure.DATE, VOLUME, TRADE, VALUE, "
+                + "TOTALSECURITY, DIRECTOR, GOVERNMENT, INSTITUTE, FOREIN, PUBLIC "
+                + "FROM bs_pressure pressure "
+                + "LEFT JOIN year_statistics statistics ON pressure.CODE = statistics.CODE "
+                + "WHERE pressure.DATE >= ? ORDER BY pressure.DATE ";
         List<Item> items;
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
@@ -515,6 +475,12 @@ public class ItemDaoImpl {
                 item.setVolume(rs.getInt("volume"));
                 item.setValue(rs.getFloat("value"));
                 item.setTrade(rs.getInt("trade"));
+                item.setTotalSecurity(rs.getInt("totalSecurity"));
+                item.getSharePercentage().setDirector(rs.getFloat("director"));
+                item.getSharePercentage().setGovernment(rs.getFloat("government"));
+                item.getSharePercentage().setInstitute(rs.getFloat("institute"));
+                item.getSharePercentage().setForeign(rs.getFloat("forein"));
+                item.getSharePercentage().setPublics(rs.getFloat("public"));
                 calculateAdjustedClosePrice(item);
                 calculateAdjustedVolume(item);
                 items.add(item);
@@ -582,6 +548,7 @@ public class ItemDaoImpl {
         float adjustedLow = item.getLow();
         float factor = 0;
         java.util.Date today = new java.util.Date();
+        //java.util.Date today = item.getDate();
         for (DividentHistory divident : history) {
             if (item.getDate().before(divident.getDate()) && divident.getDate().before(today)) {
                 switch (divident.getType()) {

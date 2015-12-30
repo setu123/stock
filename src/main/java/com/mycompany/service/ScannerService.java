@@ -30,7 +30,7 @@ public class ScannerService {
     private final String VTC_SIGNAL = "VTC_SIGNAL";
     public static final int RSI_PERIOD = 14;
     public static final int TRADING_DAYS_IN_A_YEAR = 250;
-    public static final int TRADING_DAYS_IN_2_MONTH = 44;
+    //public static final int TRADING_DAYS_IN_2_MONTH = 44;
     public static final int TRADING_DAYS_IN_A_MONTH = 22;
     public static final int TRADING_DAYS_IN_A_WEEK = 5;
     public static final int DAYS_IN_A_YEAR = 365;
@@ -209,7 +209,7 @@ public class ScannerService {
                 continue;
             }
 
-            if (items.size() < TRADING_DAYS_IN_2_MONTH + 3) {
+            if (items.size() < TRADING_DAYS_IN_A_MONTH + 3) {
                 calculatedItem.setSignal(Item.SignalType.HOLD);
                 continue;
             }
@@ -463,7 +463,7 @@ public class ScannerService {
         float volumeChangeWithYesterday = ((float) today.getAdjustedVolume() / (float) yesterday.getAdjustedVolume());
         float diffWithPreviousLow = getPriceDiffWithPreviousLow(items, 10);
 
-        ChangesInVolumePerTrade changes = ChangesInVolumePerTrade.getChangesInVolumePerTrade(items, ScannerService.TRADING_DAYS_IN_2_MONTH);
+        ChangesInVolumePerTrade changes = ChangesInVolumePerTrade.getChangesInVolumePerTrade(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
         float previousYesterdayVolumePerTradeChange = changes.getDayBeforeYesterdayChange();
         float yesterdayVolumePerTradeChange = changes.getYesterdayChange();
         float todayVolumePerTradeChange = changes.getTodayChange();
@@ -745,7 +745,7 @@ public class ScannerService {
         return item.getAdjustedClosePrice() < item.getOpenPrice() ? item.getAdjustedClosePrice() : item.getOpenPrice();
     }
 
-    private Item getItemByCode(List<Item> items, String code) {
+    public Item getItemByCode(List<Item> items, String code) {
         for (Item item : items) {
             if (item.getCode().equals(code)) {
                 return item;
@@ -1075,7 +1075,7 @@ public class ScannerService {
             Collections.sort(items);
             Item item = new Item();
             item.setCode(code);
-            item.setVolumeChange(calculateVolumeChange(items, TRADING_DAYS_IN_2_MONTH));
+            item.setVolumeChange(calculateVolumeChange(items, TRADING_DAYS_IN_A_MONTH));
             distinctItems.add(item);
         }
 
@@ -1090,7 +1090,7 @@ public class ScannerService {
             Collections.sort(items);
             Item item = new Item();
             item.setCode(code);
-            item.setTradeChange(calculateTradeChange(items, TRADING_DAYS_IN_2_MONTH));
+            item.setTradeChange(calculateTradeChange(items, TRADING_DAYS_IN_A_MONTH));
             distinctItems.add(item);
         }
 
@@ -1119,7 +1119,7 @@ public class ScannerService {
         }
 
         if (days <= 0) {
-            days = TRADING_DAYS_IN_2_MONTH;     //Trading days in a year
+            days = TRADING_DAYS_IN_A_MONTH;     //Trading days in a year
         }
         long totalVolume = 0;
         int count = 0;

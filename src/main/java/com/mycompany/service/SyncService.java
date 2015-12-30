@@ -1,7 +1,10 @@
 package com.mycompany.service;
 
 import com.mycompany.dao.ItemDaoImpl;
+import com.mycompany.dao.PortfolioDaoImpl;
 import com.mycompany.model.Item;
+import com.mycompany.model.Portfolio;
+import com.mycompany.model.PortfolioDetails;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.sql.SQLException;
@@ -28,6 +31,7 @@ public class SyncService implements Job {
 
     private static final String WATCH_MATRIX_URL = "http://www.stockbangladesh.com/grids/watch";
     private static final int NUMBER_OF_ITEM_TO_CRAWL = 330; //Means all
+    public static final int PORTFOLIO_ID = 1;
 
     ObjectMapper objectMapper;
     private ServletContext context = null;
@@ -84,12 +88,40 @@ public class SyncService implements Job {
         System.out.println("Sync completed in " + elapsedTime/60 + " minutes " + elapsedTime%60 + " seconds");
     }
 
+    public void syncPortfolio() throws IOException {
+        Calendar start = Calendar.getInstance();
+        PortfolioDaoImpl dao = null;
+        Portfolio portfolio = new Portfolio(PORTFOLIO_ID);
+        
+        try {            
+            ScraperConfiguration config = Crawler.getScraperConfig(context, null, Crawler.CrawlType.PORTFOLIO_SYNC);
+            Crawler crawler = new Crawler(config, null, Crawler.CrawlType.PORTFOLIO_SYNC, null);
+            crawler.getParams().put("PORTFOLIO", portfolio);
+            crawler.start();
+            crawler.join();
+            
+            List<PortfolioDetails> portfolioDetails = (List<PortfolioDetails>) crawler.getParams().get("PORTFOLIO_DETAILS");
+            //System.out.println("portfolio size: " + portfolioDetails.size() + ", portfolio: " + portfolioDetails.get(0).getPortfolio().getId());
+            
+            dao = new PortfolioDaoImpl();
+            dao.open();
+            dao.updatePortfolioDetails(portfolioDetails, PORTFOLIO_ID);
+            dao.close();
+        } catch (InterruptedException | SQLException | ClassNotFoundException ex) {
+            Logger.getLogger(SyncService.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        Calendar end = Calendar.getInstance();
+        long elapsedTime = (end.getTimeInMillis() - start.getTimeInMillis())/1000;
+        System.out.println("Portfolio sync completed in " + elapsedTime/60 + " minutes " + elapsedTime%60 + " seconds");
+    }
+    
     public void syncYearStatistics() throws IOException {
         try {
             List<Item> items = Utils.getCodes();
             //System.out.println("total item size: " + items.size());
             
-            int chunkSize = items.size()/4;
+            int chunkSize = items.size()/10;
             List<Item> itemSublist = new ArrayList<>();
             
             for (int i = 0; i < items.size(); i++) {

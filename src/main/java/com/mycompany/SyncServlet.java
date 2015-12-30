@@ -23,7 +23,7 @@ import org.codehaus.jackson.map.ObjectMapper;
  *
  * @author Setu
  */
-@WebServlet(name = "SyncServlet", urlPatterns = {"/sync"})
+@WebServlet(name = "SyncServlet", urlPatterns = {"/sync/*"})
 public class SyncServlet extends HttpServlet {
     
     SyncService service = null;
@@ -47,7 +47,10 @@ public class SyncServlet extends HttpServlet {
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
         
-        service.sync();
+        if(request.getRequestURI().endsWith("/portfolio"))
+            service.syncPortfolio();
+
+        //service.sync();
         System.gc();
 //        List<Item> items = service.getWatchMatrix();
 //        service.fetchBSVolume("fsl");

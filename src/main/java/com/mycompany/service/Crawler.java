@@ -2,6 +2,8 @@ package com.mycompany.service;
 
 import com.mycompany.model.Item;
 import com.mycompany.model.ItemNews;
+import com.mycompany.model.Portfolio;
+import com.mycompany.model.PortfolioDetails;
 import com.mycompany.model.SharePercentage;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
@@ -55,7 +57,7 @@ public class Crawler extends Thread {
 
     public enum CrawlType {
 
-        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, DSEX_DATA_ARCHIVE, DSEX_DATA_SYNC, CODE_NAMES, NEWS
+        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, DSEX_DATA_ARCHIVE, DSEX_DATA_SYNC, CODE_NAMES, NEWS, PORTFOLIO_SYNC
     }
 
     private static ScraperConfiguration PRESSURE_CONFIG;
@@ -65,6 +67,7 @@ public class Crawler extends Thread {
     private static ScraperConfiguration DSEX_DATA_SYNC_CONFIG;
     private static ScraperConfiguration CODE_NAMES_CONFIG;
     private static ScraperConfiguration NEWS_CONFIG;
+    private static ScraperConfiguration PORTFOLIO_CONFIG;
     private ScraperConfiguration scraperConfig = null;
 
     static final Logger logger = Logger.getLogger(Crawler.class.getName());
@@ -75,6 +78,7 @@ public class Crawler extends Thread {
     private final String DSEX_DATA_ARCHIVE_URL = "http://dsebd.org/market_summary.php";
     private final String CODE_NAMES_URL = "http://www.dsebd.org/company%20listing.php";
     private final String NEWS_URL = "http://dsebd.org/old_news1.php";
+    private final String PORTFOLIO_URL_PREFIX = "http://www.stockbangladesh.com/portfolios/performance/";
     //private final ServletContext context;
     private final Item item;
     private final CrawlType crawlType;
@@ -85,8 +89,10 @@ public class Crawler extends Thread {
     private final static String dsexDataSyncFile = "dsex_index_sync.xml";
     private final static String codeNamesFile = "codes.xml";
     private final static String newsFile = "news.xml";
+    private final static String portfolioFile = "portfolio.xml";
     private final static String DATA_ARCHIVE_DATE_PATTERN = "yyyy-MM-dd";
     private final static String DSEX_DATA_ARCHIVE_DATE_PATTERN = "MMM dd, yyyy";
+    private final static String PORTFOLIO_DATE_PATTERN = "dd/MM/yyyy";
     private final static String DSEX_DATA_SYNC_DATE_PATTERN = "MMM dd, yyyy";
     private final String SKIP_CODE_PATTERN = "(T\\d+Y\\d+|.*dse.*|DEB.*)";
     private final long HTTP_TIMEOUT_1_MINUTE = 60000;
@@ -98,47 +104,6 @@ public class Crawler extends Thread {
         this.crawlType = crawlType;
         this.params = params;
     }
-
-//    public static ScraperConfiguration getScraperConfig(ServletContext context, CrawlType crawlType) throws FileNotFoundException {
-//        switch (crawlType) {
-//            case ITEM_PRICE:
-//                if (PRESSURE_CONFIG == null) {
-//                    PRESSURE_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + pressureConfigFile);
-//                }
-//                return PRESSURE_CONFIG;
-//            case ITEM_YEAR_STATISTICS:
-//                if (YEAR_STATISTIC_CONFIG == null) {
-//                    YEAR_STATISTIC_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + yearStatisticsFile);
-//                }
-//                return YEAR_STATISTIC_CONFIG;
-//            case DATA_ARCHIVE:
-//                if (DATA_ARCHIVE_CONFIG == null) {
-//                    DATA_ARCHIVE_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + dataArchiveFile);
-//                }
-//                return DATA_ARCHIVE_CONFIG;
-//            case DSEX_DATA_ARCHIVE:
-//                if (DSEX_DATA_ARCHIVE_CONFIG == null) {
-//                    DSEX_DATA_ARCHIVE_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + dsexDataArchiveFile);
-//                }
-//                return DSEX_DATA_ARCHIVE_CONFIG;
-//            case DSEX_DATA_SYNC:
-//                if (DSEX_DATA_SYNC_CONFIG == null) {
-//                    DSEX_DATA_SYNC_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + dsexDataSyncFile);
-//                }
-//                return DSEX_DATA_SYNC_CONFIG;
-//            case CODE_NAMES:
-//                if (CODE_NAMES_CONFIG == null) {
-//                    CODE_NAMES_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + codeNamesFile);
-//                }
-//                return CODE_NAMES_CONFIG;
-//            case NEWS:
-//                if (NEWS_CONFIG == null) {
-//                    NEWS_CONFIG = new ScraperConfiguration(context.getRealPath("/") + "/WEB-INF/classes/" + newsFile);
-//                }
-//        }
-//
-//        return null;
-//    }
 
     public static ScraperConfiguration getScraperConfig(ServletContext context, String configPath, CrawlType crawlType) throws FileNotFoundException {
         
@@ -182,6 +147,11 @@ public class Crawler extends Thread {
                     NEWS_CONFIG = new ScraperConfiguration(configPath + newsFile);
                 }
                 return NEWS_CONFIG;
+            case PORTFOLIO_SYNC:
+                if (PORTFOLIO_CONFIG == null) {
+                    PORTFOLIO_CONFIG = new ScraperConfiguration(configPath + portfolioFile);
+                }
+                return PORTFOLIO_CONFIG;
         }
 
         return null;
@@ -204,12 +174,72 @@ public class Crawler extends Thread {
                 crawlCodeNames();
             } else if (crawlType.equals(CrawlType.NEWS)) {
                 crawlNews();
+            } else if (crawlType.equals(CrawlType.PORTFOLIO_SYNC)) {
+                crawlPortfolio();
             }
         } catch (Exception ex) {
             //System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem());
             //ex.printStackTrace();
             //this.interrupt();
         }
+    }
+    
+    private void crawlPortfolio() {
+        Scraper scraper = new Scraper(scraperConfig, "d:/expekt");
+        //int remoteId = (int) params.get("REMOTE_ID");
+        //String url = PORTFOLIO_URL_PREFIX+remoteId;
+        //scraper.addVariableToContext("url", url);
+        scraper.setDebug(true);
+        synchronized (scraper) {
+            scraper.execute();
+        }
+
+        ListVariable variables = (ListVariable) scraper.getContext().get("portfolioDetails");
+        List<PortfolioDetails> portfolioDetails = parsePortfolioDetails(variables.toString());
+        getParams().put("PORTFOLIO_DETAILS", portfolioDetails);
+    }
+    
+    private List<PortfolioDetails> parsePortfolioDetails(String domStr){
+        Document doc;
+        List<PortfolioDetails> portfolioDetails = new ArrayList<>();
+        //Portfolio portfolio = (Portfolio) this.getParams().get("PORTFOLIO");
+        //System.out.println("passed portfolio: " + portfolio);
+
+        try {
+            InputStream is = new ByteArrayInputStream(domStr.getBytes());
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            doc = dBuilder.parse(is);
+            doc.normalizeDocument();
+
+            NodeList nodeList = doc.getElementsByTagName("data");
+            DateFormat dateFormat = new SimpleDateFormat(PORTFOLIO_DATE_PATTERN);
+            for (int i = 0; i < nodeList.getLength(); i++) {
+                Node node = nodeList.item(i);
+                NamedNodeMap attributes = node.getAttributes();
+
+                String dateStr = attributes.getNamedItem("buyDate").getNodeValue();
+                String code = attributes.getNamedItem("code").getNodeValue();
+                String buyPriceStr = attributes.getNamedItem("buyPrice").getNodeValue();
+                String sharesStr = attributes.getNamedItem("shares").getNodeValue();
+
+                PortfolioDetails portfolioDetail = new PortfolioDetails();
+                portfolioDetail.setCode(code);
+                portfolioDetail.setDate(dateFormat.parse(dateStr));
+                float buyPrice = Float.parseFloat(buyPriceStr);
+                int shares = Integer.parseInt(sharesStr);
+                portfolioDetail.setQuantity(shares);
+                portfolioDetail.setBuyPrice(buyPrice);
+
+                portfolioDetails.add(portfolioDetail);
+            }
+        } catch (SAXException | IOException | ParserConfigurationException | ParseException ex) {
+            System.out.println("Exception caught in parsing xml: " + ex.getMessage() );
+            ex.printStackTrace();
+            return new ArrayList<>();
+        }
+
+        return portfolioDetails;
     }
 
     private void crawlNews() throws ParserConfigurationException, ParseException, XPathExpressionException, SAXException, IOException {

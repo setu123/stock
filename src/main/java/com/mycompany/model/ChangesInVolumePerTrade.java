@@ -1,6 +1,6 @@
 package com.mycompany.model;
 
-import static com.mycompany.service.ScannerService.TRADING_DAYS_IN_2_MONTH;
+import static com.mycompany.service.ScannerService.TRADING_DAYS_IN_A_MONTH;
 import java.util.List;
 
 /**
@@ -52,7 +52,7 @@ public class ChangesInVolumePerTrade {
         Item dayBeforeYesterday = items.get(size-3);
 
         if (days <= 0) {
-            days = TRADING_DAYS_IN_2_MONTH;     //Trading days in a year
+            days = TRADING_DAYS_IN_A_MONTH;     //Trading days in a year
         }
         
         long totalVolume = 0;
@@ -99,7 +99,7 @@ public class ChangesInVolumePerTrade {
         Item dayBeforeYesterday = items.get(head-2);
 
         if (days <= 0) {
-            days = TRADING_DAYS_IN_2_MONTH;     //Trading days in a year
+            days = TRADING_DAYS_IN_A_MONTH;     //Trading days in a year
         }
         
         long totalVolume = 0;

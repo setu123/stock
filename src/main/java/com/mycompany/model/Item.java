@@ -330,8 +330,13 @@ public class Item extends BasicInfo implements Comparable<Item>{
     }
 
     public Map<Integer, Float> getEmaList() {
-        if(emaList == null)
+        if(emaList == null){
             emaList = new HashMap<>();
+            emaList.put(9, 0f);
+            emaList.put(12, 0f);
+            emaList.put(26, 0f);
+        }
+            
         return emaList;
     }
 
