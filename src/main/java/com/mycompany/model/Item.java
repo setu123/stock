@@ -44,6 +44,7 @@ public class Item extends BasicInfo implements Comparable<Item>{
     private Map<Integer, Float> smaList;
     private float yesterdayRSI;
     private float dayBeforeYesterdayRSI;
+    private Map<Integer, Float> volumeChanges;
 
     public SignalType getSignal() {
         return signal;
@@ -125,6 +126,22 @@ public class Item extends BasicInfo implements Comparable<Item>{
      */
     public void setDayBeforeYesterdayRSI(float dayBeforeYesterdayRSI) {
         this.dayBeforeYesterdayRSI = dayBeforeYesterdayRSI;
+    }
+
+    /**
+     * @return the volumeChanges
+     */
+    public Map<Integer, Float> getVolumeChanges() {
+        if(volumeChanges == null)
+            volumeChanges = new HashMap<>();
+        return volumeChanges;
+    }
+
+    /**
+     * @param volumeChanges the volumeChanges to set
+     */
+    public void setVolumeChanges(Map<Integer, Float> volumeChanges) {
+        this.volumeChanges = volumeChanges;
     }
     public enum SignalType{
         BUY, SELL, HOLD

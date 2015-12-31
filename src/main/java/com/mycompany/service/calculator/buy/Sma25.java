@@ -32,7 +32,7 @@ public class Sma25 extends BuySignalCalculator {
                 && divergence <= maxDivergence
                 && todayValue >= minValue
                 && todayTrade >= minTrade
-                && vChange >= minVChange && ((marketWasDown && vChange <= 4) || vChange <= 2 || (vChange>3 && publicShare<10000000 && lastTwoMonthVariation <= 10))
+                && vChange >= minVChange && ((marketWasDown && vChange <= 4) || (vChange <= 2 && weeklyVChange<2.8) || (vChange>3 && publicShare<10000000 && lastTwoMonthVariation <= 10))
                 && volumePerTradeChange < 1.8
                 && Math.min(todayGap, yesterdayGap) > -3
                 && diffWithPreviousLow10 <= 10 //&& Math.max(todayGap, yesterdayGap) >= 0.5

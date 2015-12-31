@@ -87,16 +87,16 @@ public class Client {
         ScannerService scanerService = new ScannerService();
         Portfolio portfolio = new Portfolio();
         List<BuySignalCalculator> buyCalculators = new ArrayList<>();
-        //buyCalculators.add(new Consecutive1(scanerService, oneYearData, portfolio));
-        //buyCalculators.add(new Consecutive15(scanerService, oneYearData, portfolio));
-        //buyCalculators.add(new Consecutive2(scanerService, oneYearData, portfolio));
-        //buyCalculators.add(new Consecutive3(scanerService, oneYearData, portfolio));
-//        buyCalculators.add(new GreenAfterRsi30(scanerService, oneYearData, portfolio));
-        //buyCalculators.add(new Macd(scanerService, oneYearData, portfolio));
+        buyCalculators.add(new Consecutive1(scanerService, oneYearData, portfolio));
+        buyCalculators.add(new Consecutive15(scanerService, oneYearData, portfolio));
+        buyCalculators.add(new Consecutive2(scanerService, oneYearData, portfolio));
+        buyCalculators.add(new Consecutive3(scanerService, oneYearData, portfolio));
+        buyCalculators.add(new GreenAfterRsi30(scanerService, oneYearData, portfolio));
+        buyCalculators.add(new Macd(scanerService, oneYearData, portfolio));
         buyCalculators.add(new Sma25(scanerService, oneYearData, portfolio));
-//        buyCalculators.add(new SuddenHike(scanerService, oneYearData, portfolio));
-        //buyCalculators.add(new Tail(scanerService, oneYearData, portfolio));
-        //buyCalculators.add(new ThreeGreen(scanerService, oneYearData, portfolio));
+        buyCalculators.add(new SuddenHike(scanerService, oneYearData, portfolio));
+        buyCalculators.add(new Tail(scanerService, oneYearData, portfolio));
+        buyCalculators.add(new ThreeGreen(scanerService, oneYearData, portfolio));
 
         List<SellSignalCalculator> sellCalculators = new ArrayList<>();
         ClusteredSellSignalCalculator clusterSell = new ClusteredSellSignalCalculator();
@@ -115,7 +115,7 @@ public class Client {
         //sellCalculators.add(new ClusteredSellSignalCalculator.sell12(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.EOM(scanerService, oneYearData, portfolio));
 
-        String script = "RDFOOD";
+        String script = "ORIONPHARM";
         profit = 0;
         loss = 0;
         totalBuy = 0;
@@ -155,7 +155,6 @@ public class Client {
                 aCalculator.intializeVariables(copyOfSubList, null);  
                 
                 //System.out.println("firstdate: " + copyOfSubList.get(0).getDate() + ", lastdate: " + copyOfSubList.get(copyOfSubList.size()-1).getDate() + ", size: " + copyOfSubList.size() + ", pItem= " + pItem + ", lasttradeday: " + SignalCalculator.lastTradingDay.getTime());
-                //String causeDetails = SignalCalculator.getCause() += "(t:" + df.format(aCalculator.t) + ", v:" + df.format(vChange) + ", vtc:" + df.format(volumePerTradeChange) + ")";
                 
                 for (BuySignalCalculator calculator : buyCalculators) {
                     if (calculator.isBuyCandidate(copyOfSubList, null)) {
@@ -165,7 +164,8 @@ public class Client {
                             portfolio.getPortfolioItems().put(today.getCode(), pItem);
                             ++totalBuy;
                             System.out.println("");
-                            System.out.print(today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + calculator.getCause());
+                            String causeDetails = SignalCalculator.getCause() + "(t:" + df.format(SignalCalculator.tChange) + ", v:" + df.format(SignalCalculator.vChange) + ", wv:" + df.format(SignalCalculator.today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK)) + ", vtc:" + df.format(SignalCalculator.volumePerTradeChange) + ")";
+                            System.out.print(today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + causeDetails);
                         }
                         
                         //if(!today.getDate().after(SignalCalculator.lastTradingDay.getTime()))

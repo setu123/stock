@@ -144,36 +144,41 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
 //            if(todaychange < 0 && todayGap < 0 && gain<-5 && belowBothSMA)
 //                return true;
               
-//            if(belowBothSMA && todayGap<=0 && todaychange<0 && belowDSEXBothSMA && dsex.getAdjustedClosePrice()<dsex.getYesterdayClosePrice())
+//            if(gain<-5 && belowBothSMA && todayGap<=0 && todaychange<0)
 //                return true;
             
-            if(gain>0 && belowSMA25 && todayGap<=0 && todaychange<0 && belowDSEXBothSMA && dsex.getAdjustedClosePrice()<dsex.getYesterdayClosePrice())
+//            if(belowBothSMA && todayGap<=0 && todaychange<0 && belowDSEXBothSMA && dsex.getAdjustedClosePrice()<dsex.getYesterdayClosePrice())
+//                return true;
+            if(gain>0 && gain <5)
                 return true;
             
-            if(gain>7 && gain<15 && upperTail>2.9)
-                return true;
+//            if(gain>0 && belowSMA25 && todayGap<=0 && todaychange<0 && belowDSEXBothSMA && dsex.getAdjustedClosePrice()<dsex.getYesterdayClosePrice())
+//                return true;
             
-            Calendar cal = Calendar.getInstance();
-            cal.setTime(today.getDate());
-            cal.add(Calendar.DAY_OF_YEAR, -60);
-            if(buyItem.getDate().before(cal.getTime()) && gain>0)
-                return true;
+//            if(gain>7 && gain<15 && upperTail>2.9)
+//                return true;
+            
+//            Calendar cal = Calendar.getInstance();
+//            cal.setTime(today.getDate());
+//            cal.add(Calendar.DAY_OF_YEAR, -60);
+//            if(buyItem.getDate().before(cal.getTime()) && gain>0)
+//                return true;
 
             //boolean var1 = item.getAdjustedClosePrice() >= buyItem.getOpenPrice() && item.getAdjustedClosePrice() < sma25;
 //            
-            if(today.getAdjustedClosePrice()>sma10 && notBelowDSEXBothSMA)
+            if(today.getAdjustedClosePrice()>sma10)
                 return false;
 
-            if(gain < -15)
+            if(gain < -10)
                 return false;
             
-            if ((((gain > -5) && gain < 3) || gain < -10  || (gain < 0 && belowAcceptableSma25)) && !endOfMarket && todayGap > -5) {
+            if ((((gain > -5)) || (gain < 0)) && todayGap > -9) {
                 return false;
             }
 
 //                if(gain<0 && item.getAdjustedClosePrice()>=buyItem.getOpenPrice())
 //                    return;
-            if (gain < 0 && dsex.getRSI() <= 30 && !endOfMarket) {
+            if (gain < 0 && dsex.getRSI() <= 30) {
                 return false;
             }
 

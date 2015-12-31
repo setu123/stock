@@ -29,18 +29,19 @@ public class SignalCalculator {
 
     static protected Item calculatedItem;
     static protected Item item;
-    static protected Item today;
+    static public Item today;
     static protected Item dsex;
     static protected Item yesterday;
     static protected Item dayBeforeYesterday;
     static protected Item twoDayBeforeYesterday;
     static protected float divergence;
     static protected float rsi;
-    static protected float vChange;
-    static protected float tChange;
+    static public float vChange;
+    static public float weeklyVChange;
+    static public float tChange;
     static protected float todayTrade;
     static protected float todayValue;
-    static protected float volumePerTradeChange;
+    static public float volumePerTradeChange;
     static protected float vtcRatio;
 
     static protected float todayGap;
@@ -144,7 +145,9 @@ public class SignalCalculator {
         twoDayBeforeYesterday = items.get(items.size() - 4);
         divergence = calculatedItem.getDivergence();
         rsi = calculatedItem.getRSI();
-        vChange = calculatedItem.getVolumeChange();
+        //vChange = calculatedItem.getVolumeChange();
+        vChange = calculatedItem.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_MONTH);
+        weeklyVChange = calculatedItem.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK);
         tChange = calculatedItem.getTradeChange();
         todayTrade = today.getTrade();
         todayValue = today.getValue();
@@ -268,7 +271,7 @@ public class SignalCalculator {
         }
             
         
-//        System.out.print("\ncode: " + today.getCode() + ", date: " + today.getDate() + ", tchange: " + today.getTradeChange() + ", vchange: " + today.getVolumeChange() + ", vtc: " + volumePerTradeChange + ", publicShare: " + publicShare + ", div: " + divergence + ", trade: " + today.getTrade() + ", value: " + today.getValue() + ", minValue: " + minValue + ", minTrade: " + minTrade + ", minSmaDiffWithClose: " + minSmaDiffWithClose + ", minDsexSmaDiffWithClose: " + minDsexSmaDiffWithClose + ", gain: " + gain + ", uppertail: " + upperTail + ", vtcRatio: " + vtcRatio);
+//        System.out.print("\ncode: " + today.getCode() + ", date: " + today.getDate() + ", tchange: " + today.getTradeChange() + ", vchange: " + today.getVolumeChange() + ", weekVchange: " + today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK) + ", vtc: " + volumePerTradeChange + ", publicShare: " + publicShare + ", div: " + divergence + ", trade: " + today.getTrade() + ", value: " + today.getValue() + ", minValue: " + minValue + ", minTrade: " + minTrade + ", minSmaDiffWithClose: " + minSmaDiffWithClose + ", minDsexSmaDiffWithClose: " + minDsexSmaDiffWithClose + ", gain: " + gain + ", uppertail: " + upperTail + ", vtcRatio: " + vtcRatio);
     }
 
     protected static float getDBHammer(Item item) {
@@ -451,12 +454,15 @@ public class SignalCalculator {
     private Item getCalculatedItem(List<Item> itemsSublist) {
         //System.out.println("items: " + items);
         Item calculated = itemsSublist.get(itemsSublist.size() - 1);
-        float volumeChange = scanner.calculateVolumeChange(itemsSublist, ScannerService.TRADING_DAYS_IN_A_MONTH);
+        float monthlyVolumeChange = scanner.calculateVolumeChange(itemsSublist, ScannerService.TRADING_DAYS_IN_A_MONTH);
+        float weeklyVolumeChange = scanner.calculateVolumeChange(itemsSublist, ScannerService.TRADING_DAYS_IN_A_WEEK);
         float tradeChange = scanner.calculateTradeChange(itemsSublist, ScannerService.TRADING_DAYS_IN_A_MONTH);
         float tempRsi = scanner.calculateRSI(itemsSublist);
         scanner.calculateDivergence(itemsSublist);
         int diverge = itemsSublist.get(itemsSublist.size() - 1).getDivergence();
-        calculated.setVolumeChange(volumeChange);
+        calculated.setVolumeChange(monthlyVolumeChange);    //This would be removed in future
+        calculated.getVolumeChanges().put(ScannerService.TRADING_DAYS_IN_A_MONTH, monthlyVolumeChange);
+        calculated.getVolumeChanges().put(ScannerService.TRADING_DAYS_IN_A_WEEK, weeklyVolumeChange);
         calculated.setTradeChange(tradeChange);
         calculated.setRSI(tempRsi);
         calculated.setDivergence(diverge);
