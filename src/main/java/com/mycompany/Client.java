@@ -106,6 +106,7 @@ public class Client {
         sellCalculators.add(new ClusteredSellSignalCalculator.sell4(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.sell5(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.sell55(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell56(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.sell6(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.sell7(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.sell8(scanerService, oneYearData, portfolio));
@@ -115,7 +116,7 @@ public class Client {
         //sellCalculators.add(new ClusteredSellSignalCalculator.sell12(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.EOM(scanerService, oneYearData, portfolio));
 
-        String script = "ORIONPHARM";
+        String script = "STANDARINS";
         profit = 0;
         loss = 0;
         totalBuy = 0;
@@ -126,8 +127,15 @@ public class Client {
 
         for (String code : oneYearData.keySet()) {
 //            if (!code.equals(script)) {
+//                SignalCalculator.debugEnabled = true;
 //                continue;
 //            }
+            
+            //Skip codes
+            List<String> skipCodes = new ArrayList<>();
+            skipCodes.add("AIMS1STMF");
+            if(skipCodes.contains(code))
+                continue;
 
             List<Item> items = oneYearData.getItems(code);
             scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_A_MONTH);

@@ -26,8 +26,8 @@ public class GreenAfterRsi30 extends BuySignalCalculator{
     public boolean isBuyCandidate(List<Item> itemSubList, Item calculated) {
         //System.out.println("date: " + today.getDate() + ", todayGap: " + todayGap + ", Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()): " + Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()) + ", todayDseIndexChange: " + todayDseIndexChange);
         if (
-                (todayGap >= 1.2 && todaychange>=1 && Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()) <= 30 && todayDseIndexChange > 0.9)
-                        && divergence <= maxDivergence
+                ((todayGap >= 1.2 || todaychange>=1) && Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()) <= 30)
+                        && divergence <= 10
                         && todayValue >= minValue
                         && todayTrade >= minTrade
 //                        && vtcRatio>0.8 && vtcRatio<2
@@ -35,7 +35,7 @@ public class GreenAfterRsi30 extends BuySignalCalculator{
                         && vChange >= minVChange && ((marketWasDown && vChange <= 4) || vChange <= 2)
                         && volumePerTradeChange < 1.8
 //                        && Math.min(todayGap, yesterdayGap) > -3
-                        && diffWithPreviousLow10 <= 10 //&& Math.max(todayGap, yesterdayGap) >= 0.5
+                        && diffWithPreviousLow10 <= 15 //&& Math.max(todayGap, yesterdayGap) >= 0.5
 //                        //&& upperTail < 4
                         && acceptableItemSMA && acceptableDSEXSMA
                         && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi

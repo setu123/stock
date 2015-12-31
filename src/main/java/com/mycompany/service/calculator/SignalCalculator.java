@@ -117,6 +117,8 @@ public class SignalCalculator {
     static protected float minValue;
     static protected int minTrade;
     static protected float todayClosePrice;
+    static public boolean debugEnabled = false;
+    static protected float sellingUpperTail = 2.5f;
 
     public SignalCalculator(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
         this.scanner = scanner;
@@ -270,8 +272,8 @@ public class SignalCalculator {
             minTrade = 0;
         }
             
-        
-//        System.out.print("\ncode: " + today.getCode() + ", date: " + today.getDate() + ", tchange: " + today.getTradeChange() + ", vchange: " + today.getVolumeChange() + ", weekVchange: " + today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK) + ", vtc: " + volumePerTradeChange + ", publicShare: " + publicShare + ", div: " + divergence + ", trade: " + today.getTrade() + ", value: " + today.getValue() + ", minValue: " + minValue + ", minTrade: " + minTrade + ", minSmaDiffWithClose: " + minSmaDiffWithClose + ", minDsexSmaDiffWithClose: " + minDsexSmaDiffWithClose + ", gain: " + gain + ", uppertail: " + upperTail + ", vtcRatio: " + vtcRatio);
+        if(debugEnabled)
+            System.out.print("\ncode: " + today.getCode() + ", date: " + today.getDate() + ", tchange: " + df.format(today.getTradeChange()) + ", vchange: " + df.format(today.getVolumeChange()) + ", weekVchange: " + today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK) + ", vtc: " + volumePerTradeChange + ", publicShare: " + publicShare + ", div: " + divergence + ", trade: " + today.getTrade() + ", value: " + today.getValue() + ", minValue: " + minValue + ", minTrade: " + minTrade + ", minSmaDiffWithClose: " + minSmaDiffWithClose + ", minDsexSmaDiffWithClose: " + minDsexSmaDiffWithClose + ", gain: " + gain + ", uppertail: " + upperTail + ", vtcRatio: " + vtcRatio + ", rsi: " + rsi + ", div: " + divergence);
     }
 
     protected static float getDBHammer(Item item) {

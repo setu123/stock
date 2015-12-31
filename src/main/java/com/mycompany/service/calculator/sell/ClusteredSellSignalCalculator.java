@@ -9,6 +9,7 @@ import com.mycompany.model.Item;
 import com.mycompany.model.Portfolio;
 import com.mycompany.service.CustomHashMap;
 import com.mycompany.service.ScannerService;
+import static com.mycompany.service.calculator.SignalCalculator.today;
 import java.util.List;
 
 /**
@@ -120,6 +121,28 @@ public class ClusteredSellSignalCalculator {
             //@5.5. Today is down and today is hammer<-3
             //System.out.println("date: " + today.getDate() + ", todayGap: " + todayGap + ", getDBHammer(today): " + getDBHammer(today));
             if (todayGap < 1 && (getDBHammer(today)<-3) || upperTail>2.9) {
+                setCause(this.getClass().getName());
+                return isMaskPassed(today, portfolio);
+            }
+            return false;
+        }
+    }
+    
+    public static class sell56 extends SellSignalCalculator {
+
+        public sell56(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
+            super(scanner, oneYearData, portfolio);
+        }
+
+        @Override
+        public boolean isSellCandidate(List<Item> itemSubList, Item calItem) {
+            //super.initializeVariables(itemSubList, calItem);
+            //@5.6. Today uppertail is > 4
+            float sellingTail = sellingUpperTail ;
+            if(rsi<69)
+                sellingTail = sellingUpperTail + 69-rsi;
+            if (upperTail>sellingTail && todayGap<=1 && Math.max(rsi, yesterdayRsi)>=69) {
+                //System.out.println("sell56-date: " + today.getDate() + ", upperTail: " + upperTail);
                 setCause(this.getClass().getName());
                 return isMaskPassed(today, portfolio);
             }
@@ -258,7 +281,7 @@ public class ClusteredSellSignalCalculator {
 //            return false;
 //        }
 //    }
-    
+
     public static class EOM extends SellSignalCalculator {
 
         public EOM(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {

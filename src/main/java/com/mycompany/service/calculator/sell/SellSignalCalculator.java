@@ -12,7 +12,6 @@ import com.mycompany.service.CustomHashMap;
 import com.mycompany.service.ScannerService;
 import com.mycompany.service.calculator.DecisionMaker;
 import com.mycompany.service.calculator.SignalCalculator;
-import java.util.Calendar;
 import java.util.List;
 
 /**
@@ -72,7 +71,7 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
 
         float yesterdayCandleLength = (Math.abs(yesterday.getOpenPrice() - yesterday.getAdjustedClosePrice()) / yesterday.getOpenPrice()) * 100;
         float todayCandleLength = (Math.abs(today.getOpenPrice() - today.getAdjustedClosePrice()) / today.getOpenPrice()) * 100;
-        float yesterdayHigher = Math.max(yesterday.getOpenPrice(), yesterday.getAdjustedClosePrice());
+        yesterdayHigher = Math.max(yesterday.getOpenPrice(), yesterday.getAdjustedClosePrice());
         float dayBeforeYesterdayHigher = Math.max(dayBeforeYesterday.getOpenPrice(), dayBeforeYesterday.getAdjustedClosePrice());
         float previousHigher = Math.max(yesterdayHigher, dayBeforeYesterdayHigher);
         float changeWithPreviousHigher = ((previousHigher - today.getAdjustedClosePrice()) / previousHigher) * 100;
@@ -149,7 +148,32 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
             
 //            if(belowBothSMA && todayGap<=0 && todaychange<0 && belowDSEXBothSMA && dsex.getAdjustedClosePrice()<dsex.getYesterdayClosePrice())
 //                return true;
-            if(gain>0 && gain <5)
+            
+//            if(gain<-5)
+//                return true;
+            
+            if(gain>2 && gain <5 && (todayClosePrice<lastGreenMinimum))
+                return true;
+            
+            if(gain>40 && (belowAcceptableSma10))
+                return true;
+            
+            if((gain>10 || rsi>=69) && upperTail>5)
+                return true;
+            
+            if(cause.contains("sell56"))
+                return true;
+            
+//            if(gain>45 && upperTail>4)
+//                return true;
+//            
+//            if(gain>5 && today.getAdjustedClosePrice()<sma25)
+//                return true;
+//            
+            if(buyItem.getCause().contains("gAfterRsi30") && gain<0 &&  (belowDSEXBothSMA || belowBothSMA))
+                return true;
+            
+            if(gain<-5)
                 return true;
             
 //            if(gain>0 && belowSMA25 && todayGap<=0 && todaychange<0 && belowDSEXBothSMA && dsex.getAdjustedClosePrice()<dsex.getYesterdayClosePrice())
