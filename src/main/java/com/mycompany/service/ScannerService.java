@@ -250,7 +250,7 @@ public class ScannerService {
 
             float difference = Math.abs(yesterday.getOpenPrice() - yesterday.getAdjustedClosePrice());
             float smallest = (yesterday.getOpenPrice() + yesterday.getAdjustedClosePrice() - difference) / 2;
-            float tail = ((smallest - yesterday.getLow()) / smallest) * 100;
+            float tail = ((smallest - yesterday.getDayLow()) / smallest) * 100;
             float upperTail = getUpperTail(today);
             
             float sma10 = calculateSMA(items, 10);
@@ -277,7 +277,7 @@ public class ScannerService {
             if((today.getAdjustedClosePrice()-today.getYesterdayClosePrice())<=0.1)
                 continue;
 
-            if((today.getHigh()-today.getAdjustedClosePrice())>=(today.getAdjustedClosePrice()-today.getOpenPrice()))
+            if((today.getDayHigh()-today.getAdjustedClosePrice())>=(today.getAdjustedClosePrice()-today.getOpenPrice()))
                 continue;
 
             if (((todaychange >= 1 && todayGap >= 0.5) && (yesterdaychange >= 1 || yesterdayGap >= 0.5) && (todaychange + yesterdaychange) > 1)
@@ -338,7 +338,7 @@ public class ScannerService {
                         && upperTail < 4) {
                     item.setSignal(Item.SignalType.BUY);
                     System.out.println("Sudengren-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tChange + ", volumeChange: " + vChange);
-                } else if ((todayGap>=1 && halfway>sma25 && today.getLow()<=sma25)
+                } else if ((todayGap>=1 && halfway>sma25 && today.getDayLow()<=sma25)
                         && divergence <= 5
                         && todayValue >= 1
                         && todayTrade >= 50
@@ -361,7 +361,7 @@ public class ScannerService {
     
     private float getUpperTail(Item item) {
         float largest = Math.max(item.getOpenPrice(), item.getAdjustedClosePrice());
-        float upperTail = ((item.getHigh() - largest) / largest) * 100;
+        float upperTail = ((item.getDayHigh() - largest) / largest) * 100;
         return upperTail;
     }
 
@@ -711,7 +711,7 @@ public class ScannerService {
         float difference = Math.abs(yesterday.getOpenPrice() - yesterday.getAdjustedClosePrice());
         //float largest = (yesterday.getOpenPrice() + yesterday.getAdjustedClosePrice() + difference) / 2;
         float smallest = (yesterday.getOpenPrice() + yesterday.getAdjustedClosePrice() - difference) / 2;
-        float tail = ((smallest - yesterday.getLow()) / smallest) * 100;
+        float tail = ((smallest - yesterday.getDayLow()) / smallest) * 100;
         float todayPriceChange = ((today.getAdjustedClosePrice() - yesterday.getAdjustedClosePrice()) / yesterday.getAdjustedClosePrice()) * 100;
         float todayPriceGap = ((today.getAdjustedClosePrice() - today.getOpenPrice()) / today.getOpenPrice()) * 100;
 

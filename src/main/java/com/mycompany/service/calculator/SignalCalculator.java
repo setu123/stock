@@ -16,6 +16,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @date Dec 16, 2015
@@ -31,6 +32,8 @@ public class SignalCalculator {
     static protected Item item;
     static public Item today;
     static protected Item dsex;
+    static protected Item dsexYesterday;
+    static protected Item dsexDayBefore;
     static protected Item yesterday;
     static protected Item dayBeforeYesterday;
     static protected Item twoDayBeforeYesterday;
@@ -71,6 +74,7 @@ public class SignalCalculator {
 
     static protected float sma10;
     static protected float sma25;
+    static protected float oneMonthBackSma25Change;
     static protected float halfway;
     static protected float lastGreenMinimum;
     static protected float todayDseIndexChange;
@@ -96,6 +100,7 @@ public class SignalCalculator {
     static protected int maxRsi;
     static protected float maxAllowedDsexRsi;
     static protected float lastMonthVariation;
+    static protected float lastMonthSmaVariation;
     static protected float lastTwoMonthVariation;
     static protected float lastMonthMaximum;
 
@@ -119,6 +124,7 @@ public class SignalCalculator {
     static protected float todayClosePrice;
     static public boolean debugEnabled = false;
     static protected float sellingUpperTail = 2.5f;
+    static protected float indexFluctuation;
 
     public SignalCalculator(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
         this.scanner = scanner;
@@ -143,7 +149,9 @@ public class SignalCalculator {
         today.setSignal(Item.SignalType.HOLD);
         dsex = getDSEXIndex(oneYearData, today.getDate());
         yesterday = items.get(items.size() - 2);
+        dsexYesterday = getDSEXIndex(oneYearData, yesterday.getDate());
         dayBeforeYesterday = items.get(items.size() - 3);
+        dsexDayBefore = getDSEXIndex(oneYearData, dayBeforeYesterday.getDate());
         twoDayBeforeYesterday = items.get(items.size() - 4);
         divergence = calculatedItem.getDivergence();
         rsi = calculatedItem.getRSI();
@@ -192,7 +200,7 @@ public class SignalCalculator {
 
         float difference = Math.abs(yesterday.getOpenPrice() - yesterday.getAdjustedClosePrice());
         float smallest = (yesterday.getOpenPrice() + yesterday.getAdjustedClosePrice() - difference) / 2;
-        tail = ((smallest - yesterday.getLow()) / smallest) * 100;
+        tail = ((smallest - yesterday.getDayLow()) / smallest) * 100;
         upperTail = getUpperTail(today);
 
         sma10 = calculateSMA(items, 10);
@@ -208,8 +216,11 @@ public class SignalCalculator {
         yesterdayRsi = scanner.calculateRSI(items);
         yesterdaySma10 = calculateSMA(items, 10);
         lastMonthVariation = getLastFiewDaysVariation(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
+        lastMonthSmaVariation = getLastFiewDaysSmaVariation(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
+        //lastMonthSmaVariation is tuned for higher price stocks
+        lastMonthSmaVariation = lastMonthSmaVariation + todayClosePrice/1000;
         lastTwoMonthVariation = getLastFiewDaysVariation(items, ScannerService.TRADING_DAYS_IN_A_MONTH*2);
-        lastMonthMaximum = getLastFiewDaysMaximum(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
+        lastMonthMaximum = getLastFiewDaysMaximumClosing(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
         items.remove(items.size() - 1);
         dayBeforeRsi = scanner.calculateRSI(items);
         dayBeforeYesterdaySma10 = calculateSMA(items, 10);
@@ -249,7 +260,7 @@ public class SignalCalculator {
         }
         //System.out.println("on " + today.getDate() + ", todaychange: " + todaychange + ", todayGap: " + todayGap + ", twoConsecutiveRed: " + twoConsecutiveRed);
 
-        if (todayGap <= 0 && yesterdayGap <= 0 && dayBeforeYesterdayGap <= 0) {
+        if ((todayGap <= 0 || todaychange<-1) && yesterdayGap <= 0 && dayBeforeYesterdayGap <= 0) {
             threeConsecutiveRed = true;
         }
         
@@ -264,23 +275,35 @@ public class SignalCalculator {
             gain = gain - 0.5f;   //Sell commision
         }     
         
-        minVChange = 0.3f;
+        minVChange = 1f;
         minValue = 1f;
         minTrade = 50;
         if(dsex.getRSI()<=30 || dsex.getYesterdayRSI()<=30){
             minValue = 0;
             minTrade = 0;
         }
+        
+        /**
+         * index fluctuation is calculated as x+(x/(2x+y)) where x in upper tail and y is index gap
+         */
+        float dsexHigher = Math.max(dsex.getOpenPrice(), dsex.getClosePrice());
+        float dsexUpperTail = ((dsex.getDayHigh()-dsexHigher)/dsexHigher)*100;
+        float dsexGap =((Math.abs(dsex.getOpenPrice() - dsex.getClosePrice()))/dsex.getClosePrice())*100;
+        indexFluctuation = dsexUpperTail + (dsexUpperTail/(2*dsexUpperTail+dsexGap));
+        
+        Item oneMonthBack = items.get(items.size()-ScannerService.TRADING_DAYS_IN_A_MONTH);
+        float oneMonthBackSma25 = oneMonthBack.getSmaList().get(25);
+        oneMonthBackSma25Change = ((sma25-oneMonthBackSma25)/oneMonthBackSma25)*100;
             
         if(debugEnabled)
-            System.out.print("\ncode: " + today.getCode() + ", date: " + today.getDate() + ", tchange: " + df.format(today.getTradeChange()) + ", vchange: " + df.format(today.getVolumeChange()) + ", weekVchange: " + today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK) + ", vtc: " + volumePerTradeChange + ", publicShare: " + publicShare + ", div: " + divergence + ", trade: " + today.getTrade() + ", value: " + today.getValue() + ", minValue: " + minValue + ", minTrade: " + minTrade + ", minSmaDiffWithClose: " + minSmaDiffWithClose + ", minDsexSmaDiffWithClose: " + minDsexSmaDiffWithClose + ", gain: " + gain + ", uppertail: " + upperTail + ", vtcRatio: " + vtcRatio + ", rsi: " + rsi + ", div: " + divergence);
+            System.out.print("\ncode: " + today.getCode() + ", date: " + today.getDate() + ", tchange: " + df.format(today.getTradeChange()) + ", vchange: " + df.format(today.getVolumeChange()) + ", weekVchange: " + today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK) + ", vtc: " + volumePerTradeChange + ", publicShare: " + publicShare + ", div: " + divergence + ", trade: " + today.getTrade() + ", value: " + today.getValue() + ", minValue: " + minValue + ", minTrade: " + minTrade + ", minSmaDiffWithClose: " + minSmaDiffWithClose + ", minDsexSmaDiffWithClose: " + minDsexSmaDiffWithClose + ", gain: " + gain + ", uppertail: " + upperTail + ", vtcRatio: " + vtcRatio + ", rsi: " + rsi + ", div: " + divergence + ", lastMonthSmaVariation: " + lastMonthSmaVariation + ", lastMonthMaximum: " + lastMonthMaximum + ", smaTrend: " + smaTrend + ", sma10: " + sma10 + ", sma25: " + sma25 + ", ex: " + (lastMonthSmaVariation <= 3.7  && lastMonthMaximum <= todayClosePrice) + ", indexFluctuation: " + indexFluctuation + ", oneMonthBackSma25Change: " + oneMonthBackSma25Change);
     }
 
     protected static float getDBHammer(Item item) {
         float difference = Math.abs(item.getOpenPrice() - item.getAdjustedClosePrice());
         float largest = (item.getOpenPrice() + item.getAdjustedClosePrice() + difference) / 2;
         float smallest = (item.getOpenPrice() + item.getAdjustedClosePrice() - difference) / 2;
-        float dbHammer = (((smallest - item.getLow()) - (item.getHigh() - largest)) / item.getAdjustedClosePrice()) * 100;
+        float dbHammer = (((smallest - item.getDayLow()) - (item.getDayHigh() - largest)) / item.getAdjustedClosePrice()) * 100;
         //if(item.getCode().equalsIgnoreCase("watachem"))
         //    System.out.println("yesterday " + item.getDate() + " hammer: " + dbHammer + ", open: " + item.getOpenPrice() + ", close: " + item.getClosePrice() + ", high: " + item.getHigh() + ", low: " + item.getLow() + ", largest: " + largest + ", smallest: " + smallest);
         return dbHammer;
@@ -309,6 +332,30 @@ public class SignalCalculator {
             float openPrice = items.get(i).getOpenPrice();
             float closePrice = items.get(i).getAdjustedClosePrice();
             float dayHigh = Math.max(openPrice, closePrice);
+            //float dayLow = Math.min(openPrice, closePrice);
+
+            if (dayHigh > maximum) {
+                maximum = dayHigh;
+            }
+
+            ++counter;
+            if (counter >= days) {
+                break;
+            }
+        }
+
+        return maximum;
+    }
+    
+    protected float getLastFiewDaysMaximumClosing(List<Item> items, int days) {
+        int size = items.size();
+        int counter = 0;
+        float maximum = 0;
+
+        for (int i = size - 2; i >= 0; i--) {
+            float openPrice = items.get(i).getOpenPrice();
+            float closePrice = items.get(i).getAdjustedClosePrice();
+            float dayHigh = closePrice;
             //float dayLow = Math.min(openPrice, closePrice);
 
             if (dayHigh > maximum) {
@@ -365,6 +412,47 @@ public class SignalCalculator {
 
             if (dayLow < minimum) {
                 minimum = dayLow;
+            }
+
+            ++counter;
+            if (counter >= days) {
+                break;
+            }
+        }
+
+        float diff = ((maximum - minimum) / ((maximum + minimum) / 2)) * 100;
+//        Item today = items.get(size-1);
+//        if(today.getCode().equals("DESCO"))
+//            System.out.println("todayDate: " + today.getDate() + ", maximum: " + maximum + ", minimum: " + minimum + ", diff: " + diff);
+        return diff;
+    }
+    
+    protected float getLastFiewDaysSmaVariation(List<Item> items, int days) {
+        int size = items.size();
+        int counter = 0;
+        float maximum = 0;
+        float minimum = 100000;
+
+        for (int i = size - 2; i >= 0; i--) {
+            Map<Integer, Float> smaList = items.get(i).getSmaList();
+            if(smaList!=null && smaList.isEmpty()){
+                smaList.put(10, calculateSMA(items, 10));
+                smaList.put(25, calculateSMA(items, 25));
+            }
+            
+            float sma_10 = smaList.get(10);
+            float sma_25 = smaList.get(25);
+            float smaHigh = Math.max(sma_10, sma_25);
+            float smaLow = Math.min(sma_10, sma_25);
+//            float smaHigh = sma_10;
+//            float smaLow = sma_10;
+
+            if (smaHigh > maximum) {
+                maximum = smaHigh;
+            }
+
+            if (smaLow < minimum) {
+                minimum = smaLow;
             }
 
             ++counter;
@@ -449,7 +537,13 @@ public class SignalCalculator {
 
     private float getUpperTail(Item item) {
         float largest = Math.max(item.getOpenPrice(), item.getAdjustedClosePrice());
-        float uTail = ((item.getHigh() - largest) / largest) * 100;
+        float lowest = Math.min(item.getOpenPrice(), item.getAdjustedClosePrice());
+        float uTail = ((item.getDayHigh() - largest) / largest) * 100;
+        float bTail = ((lowest- item.getDayLow()) / lowest) * 100;
+        uTail = uTail - bTail/2;
+        //float uTail = ((item.getHigh() - todayClosePrice) / todayClosePrice) * 100;
+        if(uTail>2)
+            uTail = uTail + 2/(1+Math.abs(todayGap));
         return uTail;
     }
 

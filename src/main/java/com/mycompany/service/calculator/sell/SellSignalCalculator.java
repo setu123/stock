@@ -131,7 +131,7 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
 //                //System.out.println("Must sell " + item.getCode() + " on " + item.getDate());
 //            }
             
-            //System.out.println("code: " + today.getCode() + ", date: " + today.getDate() + ", cause: " + cause.substring(cause.indexOf("$")) + ", belowBothSMA: " + belowBothSMA + ", gain: " + gain + ", todayGap: " + todayGap + ", todaychange: " + todaychange + ", diffWithMinSma: " + diffWithMinSma + ", endOfMarket: " + endOfMarket + ", belowDSEXBothSMA: " + belowDSEXBothSMA);
+//            System.out.println("came to sell-code: " + today.getCode() + ", date: " + today.getDate() + ", cause: " + cause.substring(cause.indexOf("$")) + ", belowBothSMA: " + belowBothSMA + ", gain: " + gain + ", todayGap: " + todayGap + ", todaychange: " + todaychange + ", diffWithMinSma: " + diffWithMinSma + ", endOfMarket: " + endOfMarket + ", belowDSEXBothSMA: " + belowDSEXBothSMA);
             //System.out.println("exp1: " + (dsex.getAdjustedClosePrice()<dsex.getAdjustedVolume()));
             
             if(endOfMarket)
@@ -152,16 +152,22 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
 //            if(gain<-5)
 //                return true;
             
-            if(gain>2 && gain <5 && (todayClosePrice<lastGreenMinimum))
+            if(gain>2 && gain <5 )
                 return true;
             
-            if(gain>40 && (belowAcceptableSma10))
+            if(gain <=2 && belowAcceptableSma10 )
+                return true;
+            
+            if((gain>40) && (belowAcceptableSma10))
                 return true;
             
             if((gain>10 || rsi>=69) && upperTail>5)
                 return true;
             
-            if(cause.contains("sell56"))
+            if(Math.max(rsi, yesterdayRsi)>=75)
+                return true;
+            
+            if(gain>40 && cause.contains("sell56"))
                 return true;
             
 //            if(gain>45 && upperTail>4)
@@ -173,7 +179,8 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
             if(buyItem.getCause().contains("gAfterRsi30") && gain<0 &&  (belowDSEXBothSMA || belowBothSMA))
                 return true;
             
-            if(gain<-5)
+            //stop loss
+            if(gain<-9)
                 return true;
             
 //            if(gain>0 && belowSMA25 && todayGap<=0 && todaychange<0 && belowDSEXBothSMA && dsex.getAdjustedClosePrice()<dsex.getYesterdayClosePrice())
@@ -190,7 +197,7 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
 
             //boolean var1 = item.getAdjustedClosePrice() >= buyItem.getOpenPrice() && item.getAdjustedClosePrice() < sma25;
 //            
-            if(today.getAdjustedClosePrice()>sma10)
+            if(todayClosePrice>sma10 || todayClosePrice>sma25)
                 return false;
 
             if(gain < -10)

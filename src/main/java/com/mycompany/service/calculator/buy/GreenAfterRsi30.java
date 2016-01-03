@@ -25,20 +25,30 @@ public class GreenAfterRsi30 extends BuySignalCalculator{
     @Override
     public boolean isBuyCandidate(List<Item> itemSubList, Item calculated) {
         //System.out.println("date: " + today.getDate() + ", todayGap: " + todayGap + ", Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()): " + Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()) + ", todayDseIndexChange: " + todayDseIndexChange);
+        float maxVChange = Math.max(vChange, weeklyVChange);
+        
         if (
-                ((todayGap >= 1.2 || todaychange>=1) && Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()) <= 30)
+                (
+                (todayGap >= 1.2 || todaychange>=1) 
+                && Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()) <= 30  
+                && dsexYesterday.getAdjustedClosePrice()<dsexYesterday.getAdjustedClosePrice()
+                )
                         && divergence <= 10
                         && todayValue >= minValue
                         && todayTrade >= minTrade
 //                        && vtcRatio>0.8 && vtcRatio<2
                         && rsi <=50
-                        && vChange >= minVChange && ((marketWasDown && vChange <= 4) || vChange <= 2)
+//                        && vChange >= minVChange && ((marketWasDown && vChange <= 4) || vChange <= 2)
+                        && vChange >=1.3
                         && volumePerTradeChange < 1.8
 //                        && Math.min(todayGap, yesterdayGap) > -3
+                        && dsex.getValue() >= 3000
+                        //&& maxVChange > 0.5
                         && diffWithPreviousLow10 <= 15 //&& Math.max(todayGap, yesterdayGap) >= 0.5
-//                        //&& upperTail < 4
+//                        && upperTail < 1
                         && acceptableItemSMA && acceptableDSEXSMA
                         && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
+                        && indexFluctuation < 1
                         //&& !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))
                 ) {
                     //System.out.println("sma250000Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", sma25: " + sma25);

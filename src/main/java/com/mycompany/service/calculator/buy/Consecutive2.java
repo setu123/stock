@@ -34,6 +34,7 @@ public class Consecutive2 extends BuySignalCalculator {
                 && todayTrade >= minTrade
                 && vChange >= 5
                 && dsexMaxRsiInLast2Days < maxAllowedDsexRsi //&& volumePerTradeChange < 1.8
+                && dsex.getValue() >= 3000
                 //&& Math.min(todayGap, yesterdayGap) > -3
                 //&& (diffWithPreviousLow10 <= 10 || (marketWasDown && diffWithPreviousLow10<=15))
                 //&& hammer < 4
