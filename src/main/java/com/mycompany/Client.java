@@ -159,6 +159,7 @@ public class Client {
                 aCalculator.intializeVariables(copyOfSubList, null);  
                 
                 //System.out.println("firstdate: " + copyOfSubList.get(0).getDate() + ", lastdate: " + copyOfSubList.get(copyOfSubList.size()-1).getDate() + ", size: " + copyOfSubList.size() + ", pItem= " + pItem + ", lasttradeday: " + SignalCalculator.lastTradingDay.getTime());
+                Item.SignalType signalType = Item.SignalType.NA;
                 
                 for (BuySignalCalculator calculator : buyCalculators) {
                     if (calculator.isBuyCandidate(copyOfSubList, null)) {
@@ -167,9 +168,17 @@ public class Client {
                             pItem = createPortfolioItem(today);
                             portfolio.getPortfolioItems().put(today.getCode(), pItem);
                             ++totalBuy;
+                            signalType = Item.SignalType.BUY;
                             System.out.println("");
                             String causeDetails = SignalCalculator.getCause() + "(t:" + df.format(SignalCalculator.tChange) + ", v:" + df.format(SignalCalculator.vChange) + ", wv:" + df.format(SignalCalculator.today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK)) + ", vtc:" + df.format(SignalCalculator.volumePerTradeChange) + ")";
-                            System.out.print(today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + causeDetails);
+                            System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + causeDetails);
+                        }else if(SignalCalculator.gain>=0){
+                            signalType = Item.SignalType.HOLD;
+                        }else{
+                            signalType = Item.SignalType.AVG;
+                            System.out.println("");
+                            String causeDetails = SignalCalculator.getCause() + "(t:" + df.format(SignalCalculator.tChange) + ", v:" + df.format(SignalCalculator.vChange) + ", wv:" + df.format(SignalCalculator.today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK)) + ", vtc:" + df.format(SignalCalculator.volumePerTradeChange) + ")";
+                            System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + causeDetails);
                         }
                         
                         //if(!today.getDate().after(SignalCalculator.lastTradingDay.getTime()))
@@ -185,6 +194,7 @@ public class Client {
                 copyOfSubList = new ArrayList<>(items);
                 for (SellSignalCalculator calculator : sellCalculators) {
                     if (calculator.isSellCandidate(copyOfSubList, null)) {
+                        signalType = Item.SignalType.SELL;
                         String cause = calculator.getClass().getName();
                         cause = cause.substring(cause.indexOf("$") + 1);
                         float gain = calculateGain(pItem, today);
@@ -203,8 +213,8 @@ public class Client {
                                 lossCountObject = 0;
                             lossCounter.put(pItem.getCause(), lossCountObject+1);
                         }
-                        System.out.print("----sell " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + cause + ", gain: " + df.format(gain) + "%" );
-                        portfolio.getPortfolioItems().put(today.getCode(), null);
+                        System.out.print("----" + signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + cause + ", gain: " + df.format(gain) + "%" );
+                        portfolio.getPortfolioItems().remove(today.getCode());
                         continue outerloop;
                     }
                 }

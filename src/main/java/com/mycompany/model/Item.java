@@ -144,7 +144,7 @@ public class Item extends BasicInfo implements Comparable<Item>{
         this.volumeChanges = volumeChanges;
     }
     public enum SignalType{
-        BUY, SELL, HOLD
+        BUY, SELL, HOLD, AVG, NA
     }
 
     public Item() {

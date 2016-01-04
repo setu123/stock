@@ -116,7 +116,7 @@ public class SignalCalculator {
     static protected boolean rsi70;
     
     static protected float publicShare;
-    static protected float gain;
+    static public float gain;
     
     static protected float minVChange;
     static protected float minValue;
@@ -133,9 +133,9 @@ public class SignalCalculator {
         this.portfolio = portfolio;
 
         lastTradingDay = Calendar.getInstance();
-        lastTradingDay.set(Calendar.YEAR, 2015);
-        lastTradingDay.set(Calendar.MONTH, 11);
-        lastTradingDay.set(Calendar.DAY_OF_MONTH, 9);
+        lastTradingDay.set(Calendar.YEAR, 2016);
+        lastTradingDay.set(Calendar.MONTH, 0);
+        lastTradingDay.set(Calendar.DAY_OF_MONTH, 5);
     }
 
     public void intializeVariables(List<Item> items, Item calculated) {
@@ -292,9 +292,11 @@ public class SignalCalculator {
         float dsexGap =((Math.abs(dsex.getOpenPrice() - dsex.getClosePrice()))/dsex.getClosePrice())*100;
         indexFluctuation = dsexUpperTail + (dsexUpperTail/(2*dsexUpperTail+dsexGap));
         
+        if(items.size()>ScannerService.TRADING_DAYS_IN_A_MONTH){
         Item oneMonthBack = items.get(items.size()-ScannerService.TRADING_DAYS_IN_A_MONTH);
         float oneMonthBackSma25 = oneMonthBack.getSmaList().get(25);
         oneMonthBackSma25Change = ((sma25-oneMonthBackSma25)/oneMonthBackSma25)*100;
+        }
         
         isBullTrap = isBullTrap();
             
