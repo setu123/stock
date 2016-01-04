@@ -44,7 +44,6 @@ public class Consecutive1 extends BuySignalCalculator {
                 && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
                 && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))
                 && dsex.getValue() >= 3000
-                && indexFluctuation < 1
                 ) {
             //System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
             setCause("Consecutive1: ");

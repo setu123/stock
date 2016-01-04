@@ -30,6 +30,10 @@ public abstract class BuySignalCalculator extends SignalCalculator implements De
     
     protected boolean isMaskPassed(Item item, Portfolio portfolio){
         //System.out.println("date: " + item.getDate() + " cause: " + getCause() + ", s: " + item.getSignal());
+        
+        if(isBullTrap)
+            return false;
+        
         Item buyItem = getBuyItem(item, portfolio);
         if(item.getSignal().equals(Item.SignalType.BUY)){
             

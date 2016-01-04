@@ -13,7 +13,6 @@ import com.mycompany.service.ImportService;
 import com.mycompany.service.ScannerService;
 import com.mycompany.service.SyncService;
 import com.mycompany.service.Utils;
-import static com.mycompany.service.calculator.DecisionMaker.df;
 import com.mycompany.service.calculator.SignalCalculator;
 import com.mycompany.service.calculator.buy.BuySignalCalculator;
 import com.mycompany.service.calculator.buy.Consecutive1;
@@ -35,15 +34,12 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
 import org.webharvest.definition.ScraperConfiguration;
 
 /**
@@ -116,7 +112,7 @@ public class Client {
         sellCalculators.add(new ClusteredSellSignalCalculator.sell12(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.EOM(scanerService, oneYearData, portfolio));
 
-        String script = "GHCL";
+        String script = "SINGERBD";
         profit = 0;
         loss = 0;
         totalBuy = 0;

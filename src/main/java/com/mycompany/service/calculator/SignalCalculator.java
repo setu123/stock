@@ -299,13 +299,15 @@ public class SignalCalculator {
         isBullTrap = isBullTrap();
             
         if(debugEnabled)
-            System.out.print("\ncode: " + today.getCode() + ", date: " + today.getDate() + ", tchange: " + df.format(today.getTradeChange()) + ", vchange: " + df.format(today.getVolumeChange()) + ", weekVchange: " + today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK) + ", vtc: " + volumePerTradeChange + ", publicShare: " + publicShare + ", div: " + divergence + ", trade: " + today.getTrade() + ", value: " + today.getValue() + ", minValue: " + minValue + ", minTrade: " + minTrade + ", minSmaDiffWithClose: " + minSmaDiffWithClose + ", minDsexSmaDiffWithClose: " + minDsexSmaDiffWithClose + ", gain: " + gain + ", uppertail: " + upperTail + ", vtcRatio: " + vtcRatio + ", rsi: " + rsi + ", div: " + divergence + ", lastMonthSmaVariation: " + lastMonthSmaVariation + ", lastMonthMaximum: " + lastMonthMaximum + ", smaTrend: " + smaTrend + ", sma10: " + sma10 + ", sma25: " + sma25 + ", ex: " + (lastMonthSmaVariation <= 3.7  && lastMonthMaximum <= todayClosePrice) + ", indexFluctuation: " + indexFluctuation + ", oneMonthBackSma25Change: " + oneMonthBackSma25Change + ", dsexyesopen: " + dsexYesterday.getOpenPrice() + ", dsexyesclose: " + dsexYesterday.getClosePrice());
+            System.out.print("\ncode: " + today.getCode() + ", date: " + today.getDate() + ", tchange: " + df.format(today.getTradeChange()) + ", vchange: " + df.format(today.getVolumeChange()) + ", weekVchange: " + today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK) + ", vtc: " + volumePerTradeChange + ", publicShare: " + publicShare + ", div: " + divergence + ", trade: " + today.getTrade() + ", value: " + today.getValue() + ", minValue: " + minValue + ", minTrade: " + minTrade + ", minSmaDiffWithClose: " + minSmaDiffWithClose + ", minDsexSmaDiffWithClose: " + minDsexSmaDiffWithClose + ", gain: " + gain + ", uppertail: " + upperTail + ", vtcRatio: " + vtcRatio + ", rsi: " + rsi + ", div: " + divergence + ", lastMonthSmaVariation: " + lastMonthSmaVariation + ", lastMonthMaximum: " + lastMonthMaximum + ", smaTrend: " + smaTrend + ", sma10: " + sma10 + ", sma25: " + sma25 + ", ex: " + (lastMonthSmaVariation <= 3.7  && lastMonthMaximum <= todayClosePrice) + ", indexFluctuation: " + indexFluctuation + ", oneMonthBackSma25Change: " + oneMonthBackSma25Change + ", dsexyesopen: " + dsexYesterday.getOpenPrice() + ", dsexyesclose: " + dsexYesterday.getClosePrice() + ", isBullTrap: " + isBullTrap);
     }
     
     private static boolean isBullTrap(){
-        float minDsexRsiInLast2Days = Math.min(dsex.getRSI(), dsexYesterday.getRSI());
+        float minDsexRsiInLast2Days = Math.min(dsexDayBefore.getRSI(), dsexYesterday.getRSI());
+        minDsexRsiInLast2Days = Math.min(minDsexRsiInLast2Days, dsex.getRSI());
         float todayIndexGap = dsex.getClosePrice()-dsex.getOpenPrice();
-        if(minDsexRsiInLast2Days <=30 && todayIndexGap>0 && indexFluctuation < 1)
+        //System.out.println("minDsexRsiInLast2Days: " + minDsexRsiInLast2Days + ", todayIndexGap: " + todayIndexGap + ", indexFluctuation: " + indexFluctuation);
+        if(minDsexRsiInLast2Days <=30 && todayIndexGap>0 && indexFluctuation >1)
             return true;
         return false;
     }

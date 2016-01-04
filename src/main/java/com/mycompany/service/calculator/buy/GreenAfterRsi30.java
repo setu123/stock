@@ -41,7 +41,6 @@ public class GreenAfterRsi30 extends BuySignalCalculator{
 //                        //&& upperTail < 4
                         && acceptableItemSMA && acceptableDSEXSMA
                         && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
-                        && indexFluctuation < 1
                         //&& !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))
                 ) {
                     //System.out.println("sma250000Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", sma25: " + sma25);
