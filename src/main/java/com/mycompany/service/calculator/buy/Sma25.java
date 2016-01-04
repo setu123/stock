@@ -28,7 +28,7 @@ public class Sma25 extends BuySignalCalculator {
         //System.out.println("date: " + today.getDate() + ", sma25: " + sma25 + ", yesterdaySma10: " + yesterdaySma10 + ", dayBeforeYesterdaySma10: " + dayBeforeYesterdaySma10 + ", smaTrend: " + smaTrend + ", halfway: " + halfway + ", low: " + today.getLow() + ", gap: " + todayGap);
 
         if (
-                (todayGap >= 1.2 && halfway > sma25 && today.getLow() <= (sma25 * 1.01))
+                (todayGap >= 1.2 && halfway > sma25 && today.getDayLow() <= (sma25 * 1.01))
                 && divergence <= maxDivergence
                 && todayValue >= minValue
                 && todayTrade >= minTrade
@@ -43,7 +43,7 @@ public class Sma25 extends BuySignalCalculator {
                 && (lastMonthVariation <= 7 ? lastMonthMaximum < today.getAdjustedClosePrice() : true)
                                         //&& lastGreenMinimum < today.getOpenPrice()
                 && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
-                && !((today.getHigh() - today.getAdjustedClosePrice()) > (today.getAdjustedClosePrice() - today.getOpenPrice()))
+                && !((today.getDayHigh() - today.getAdjustedClosePrice()) > (today.getAdjustedClosePrice() - today.getOpenPrice()))
                 ) {
             setCause("Sma25");
             boolean maskPassed = isMaskPassed(today, portfolio);

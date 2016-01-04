@@ -353,8 +353,8 @@ public class ItemDaoImpl extends BasicDaoImpl{
         try {
             preparedStatement = connection.prepareStatement(sql);
             for (BasicInfo item : items) {
-                preparedStatement.setFloat(1, item.getLow());
-                preparedStatement.setFloat(2, item.getHigh());
+                preparedStatement.setFloat(1, item.getYearLow());
+                preparedStatement.setFloat(2, item.getYearHigh());
                 preparedStatement.setDate(3, today);
                 preparedStatement.setString(4, item.getSector());
                 preparedStatement.setInt(5, item.getFaceValue());
@@ -421,8 +421,8 @@ public class ItemDaoImpl extends BasicDaoImpl{
                 item.setOpenPrice(rs.getFloat("open_price"));
                 item.setClosePrice(rs.getFloat("close_price"));
                 item.setYesterdayClosePrice(rs.getFloat("yesterday_close_price"));
-                item.setLow(rs.getFloat("day_low"));
-                item.setHigh(rs.getFloat("day_high"));
+                item.setDayLow(rs.getFloat("day_low"));
+                item.setDayHigh(rs.getFloat("day_high"));
                 item.setDate(rs.getDate("date"));
                 item.setVolume(rs.getInt("volume"));
                 item.setValue(rs.getFloat("value"));
@@ -463,26 +463,7 @@ public class ItemDaoImpl extends BasicDaoImpl{
             items = new ArrayList<>();
 
             while (rs.next()) {
-                Item item = new Item();
-                item.setDate(rs.getDate("date"));
-                item.setCode(rs.getString("code"));
-                item.setOpenPrice(rs.getFloat("open_price"));
-                item.setClosePrice(rs.getFloat("close_price"));
-                item.setYesterdayClosePrice(rs.getFloat("yesterday_close_price"));
-                item.setLow(rs.getFloat("day_low"));
-                item.setHigh(rs.getFloat("day_high"));
-                item.setDate(rs.getDate("date"));
-                item.setVolume(rs.getInt("volume"));
-                item.setValue(rs.getFloat("value"));
-                item.setTrade(rs.getInt("trade"));
-                item.setTotalSecurity(rs.getInt("totalSecurity"));
-                item.getSharePercentage().setDirector(rs.getFloat("director"));
-                item.getSharePercentage().setGovernment(rs.getFloat("government"));
-                item.getSharePercentage().setInstitute(rs.getFloat("institute"));
-                item.getSharePercentage().setForeign(rs.getFloat("forein"));
-                item.getSharePercentage().setPublics(rs.getFloat("public"));
-                calculateAdjustedClosePrice(item);
-                calculateAdjustedVolume(item);
+                Item item = populateItem(rs);
                 items.add(item);
             }
         }
@@ -497,6 +478,52 @@ public class ItemDaoImpl extends BasicDaoImpl{
         }
 
         return cMap;
+    }
+
+    private Item populateItem(ResultSet rs) throws SQLException {
+                Item item = new Item();
+                item.setDate(rs.getDate("date"));
+                item.setCode(rs.getString("code"));
+                item.setOpenPrice(rs.getFloat("open_price"));
+                item.setClosePrice(rs.getFloat("close_price"));
+                item.setYesterdayClosePrice(rs.getFloat("yesterday_close_price"));
+        item.setDayLow(rs.getFloat("day_low"));
+        item.setDayHigh(rs.getFloat("day_high"));
+                item.setDate(rs.getDate("date"));
+                item.setVolume(rs.getInt("volume"));
+                item.setValue(rs.getFloat("value"));
+                item.setTrade(rs.getInt("trade"));
+                item.setTotalSecurity(rs.getInt("totalSecurity"));
+                item.getSharePercentage().setDirector(rs.getFloat("director"));
+                item.getSharePercentage().setGovernment(rs.getFloat("government"));
+                item.getSharePercentage().setInstitute(rs.getFloat("institute"));
+                item.getSharePercentage().setForeign(rs.getFloat("forein"));
+                item.getSharePercentage().setPublics(rs.getFloat("public"));
+                calculateAdjustedClosePrice(item);
+                calculateAdjustedVolume(item);
+        return item;
+            }
+
+    public Item getItem(String code, java.util.Date date) throws SQLException {
+        String sql = "SELECT pressure.DATE, pressure.CODE, OPEN_PRICE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, YESTERDAY_CLOSE_PRICE, DAY_LOW, DAY_HIGH, pressure.DATE, VOLUME, TRADE, VALUE, "
+                + "TOTALSECURITY, DIRECTOR, GOVERNMENT, INSTITUTE, FOREIN, PUBLIC "
+                + "FROM bs_pressure pressure "
+                + "LEFT JOIN year_statistics statistics ON pressure.CODE = statistics.CODE "
+                + "WHERE pressure.DATE = ? && pressure.code = ?";
+        
+        Item item = null;
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setDate(1, getSqlDate(date));
+            preparedStatement.setString(2, code);
+            ResultSet rs = preparedStatement.executeQuery();
+            
+            while (rs.next()) {
+                item = populateItem(rs);
+            }
+        }
+
+        //This might return null, which is expected and should be handled carefully in the caller method
+        return item;
     }
     
     private CustomHashMap getItemizedData(List<Item> items) {
@@ -544,8 +571,8 @@ public class ItemDaoImpl extends BasicDaoImpl{
 
         float adjustedClosePrice = item.getClosePrice();
         float adjustedOpenPrice = item.getOpenPrice();
-        float adjustedHigh = item.getHigh();
-        float adjustedLow = item.getLow();
+        float adjustedHigh = item.getDayHigh();
+        float adjustedLow = item.getDayLow();
         float factor = 0;
         java.util.Date today = new java.util.Date();
         //java.util.Date today = item.getDate();
@@ -584,8 +611,8 @@ public class ItemDaoImpl extends BasicDaoImpl{
 
         item.setAdjustedClosePrice(adjustedClosePrice);
         item.setOpenPrice(adjustedOpenPrice);
-        item.setHigh(adjustedHigh);
-        item.setLow(adjustedLow);
+        item.setDayHigh(adjustedHigh);
+        item.setDayLow(adjustedLow);
     }
 
     private void calculateAdjustedVolume(Item item) {

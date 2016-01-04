@@ -69,13 +69,15 @@ public class SyncService implements Job {
             }
             
             //Get dse item
-            ImportService importService = new ImportService(dao);
+            //ImportService importService = new ImportService(dao);
             Item dsex = fetchDSEXIndex();
+            
+            dao = new ItemDaoImpl();
+            dao.open();
+            updateHighLow(dao, dsex);
             items.add(dsex);
             System.out.println("Fetching completed, going to update database..");
 
-            dao = new ItemDaoImpl();
-            dao.open();
             dao.setItems(items);
             dao.close();
         } catch (MalformedURLException | InterruptedException | ClassNotFoundException | SQLException ex) {
@@ -86,6 +88,27 @@ public class SyncService implements Job {
         Calendar end = Calendar.getInstance();
         long elapsedTime = (end.getTimeInMillis() - start.getTimeInMillis())/1000;
         System.out.println("Sync completed in " + elapsedTime/60 + " minutes " + elapsedTime%60 + " seconds");
+    }
+
+    private void updateHighLow(ItemDaoImpl dao, Item dsex) throws SQLException, ClassNotFoundException{
+            Item dbItem = dao.getItem(dsex.getCode(), dsex.getDate());
+            
+            //System.out.println("dbitem: " + dbItem);
+            //There is no data for today yet
+            if(dbItem == null){
+                dsex.setDayHigh(dsex.getClosePrice());
+                dsex.setDayLow(dsex.getClosePrice());
+                return;
+            }
+            
+            if(dbItem.getDayHigh()!=0 && dbItem.getDayHigh()>dsex.getDayHigh())
+                dsex.setDayHigh(dbItem.getDayHigh());
+            
+            if(dbItem.getDayLow()!=0 && dbItem.getDayLow()<dsex.getDayLow())
+                dsex.setDayLow(dbItem.getDayLow());
+            
+            //System.out.println("2dsex low: " + dsex.getDayLow());
+            //System.out.println("2dsex high: " + dsex.getDayHigh());
     }
 
     public void syncPortfolio() throws IOException {

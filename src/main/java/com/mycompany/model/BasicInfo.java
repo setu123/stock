@@ -9,8 +9,8 @@ import java.util.Objects;
 
 public class BasicInfo {
     protected String code;
-    private float low;
-    private float high;
+    private float yearLow;
+    private float yearHigh;
     private String sector;
     private int faceValue;
     private int totalSecurity;
@@ -29,10 +29,10 @@ public class BasicInfo {
         this.code = code;
     }
 
-    public BasicInfo(String code, float low, float high) {
+    public BasicInfo(String code, float yearLow, float yearHigh) {
         this.code = code;
-        this.low = low;
-        this.high = high;
+        this.yearLow = yearLow;
+        this.yearHigh = yearHigh;
     }
 
     public String getCode() {
@@ -41,22 +41,6 @@ public class BasicInfo {
 
     public void setCode(String code) {
         this.code = code;
-    }
-
-    public float getLow() {
-        return low;
-    }
-
-    public void setLow(float low) {
-        this.low = low;
-    }
-
-    public float getHigh() {
-        return high;
-    }
-
-    public void setHigh(float high) {
-        this.high = high;
     }
 
     @Override
@@ -83,7 +67,7 @@ public class BasicInfo {
 
     @Override
     public String toString() {
-        return "BasicInfo{" + "code=" + code + ", low=" + low + ", high=" + high + ", sector=" + sector + ", faceValue=" + faceValue + ", totalSecurity=" + totalSecurity + ", authorizedCapital=" + authorizedCapital + ", paidUpCapital=" + paidUpCapital + ", yearEnd=" + yearEnd + ", reserve=" + reserve + ", PE=" + PE + ", category=" + category + ", sharePercentage=" + sharePercentage + '}';
+        return "BasicInfo{" + "code=" + code + ", low=" + yearLow + ", high=" + yearHigh + ", sector=" + sector + ", faceValue=" + faceValue + ", totalSecurity=" + totalSecurity + ", authorizedCapital=" + authorizedCapital + ", paidUpCapital=" + paidUpCapital + ", yearEnd=" + yearEnd + ", reserve=" + reserve + ", PE=" + PE + ", category=" + category + ", sharePercentage=" + sharePercentage + '}';
     }
 
     public String getSector() {
@@ -166,6 +150,34 @@ public class BasicInfo {
 
     public void setSharePercentage(SharePercentage sharePercentage) {
         this.sharePercentage = sharePercentage;
+    }
+
+    /**
+     * @return the yearHigh
+     */
+    public float getYearHigh() {
+        return yearHigh;
+}
+
+    /**
+     * @param yearHigh the yearHigh to set
+     */
+    public void setYearHigh(float yearHigh) {
+        this.yearHigh = yearHigh;
+    }
+
+    /**
+     * @return the yearLow
+     */
+    public float getYearLow() {
+        return yearLow;
+    }
+
+    /**
+     * @param yearLow the yearLow to set
+     */
+    public void setYearLow(float yearLow) {
+        this.yearLow = yearLow;
     }
 
 }

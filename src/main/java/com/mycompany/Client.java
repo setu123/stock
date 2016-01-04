@@ -113,10 +113,10 @@ public class Client {
         sellCalculators.add(new ClusteredSellSignalCalculator.sell9(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.sell10(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.sell11(scanerService, oneYearData, portfolio));
-        //sellCalculators.add(new ClusteredSellSignalCalculator.sell12(scanerService, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.sell12(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.EOM(scanerService, oneYearData, portfolio));
 
-        String script = "STANDARINS";
+        String script = "GHCL";
         profit = 0;
         loss = 0;
         totalBuy = 0;
@@ -834,7 +834,7 @@ public class Client {
                 //boolean tailFound = scanerService.isTailFoundYesterday(calculatedItem, itemSubList);
                 float difference = Math.abs(yesterday.getOpenPrice() - yesterday.getAdjustedClosePrice());
                 float smallest = (yesterday.getOpenPrice() + yesterday.getAdjustedClosePrice() - difference) / 2;
-                float tail = ((smallest - yesterday.getLow()) / smallest) * 100;
+                float tail = ((smallest - yesterday.getDayLow()) / smallest) * 100;
                 float sma10 = scanerService.calculateSMA(itemSubList, 10);
                 float sma25 = scanerService.calculateSMA(itemSubList, 25);
 
@@ -896,7 +896,7 @@ public class Client {
                         && final1 && final2
                         && dsexMaxRsiInLast2Days < maxAllowedDsexRsi
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
-                        && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
+                        && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
                     String cause = "Consecutive1: " + dayBeforeRsi;
                     today.setSignal(Item.SignalType.BUY);
@@ -916,7 +916,7 @@ public class Client {
                         && final1 && final2
                         && dsexMaxRsiInLast2Days < maxAllowedDsexRsi
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
-                        && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
+                        && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
                     String cause = "Consecutive1.5: ";
                     today.setSignal(Item.SignalType.BUY);
@@ -958,7 +958,7 @@ public class Client {
                         && final1 && final2
                         && dsexMaxRsiInLast2Days < maxAllowedDsexRsi
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
-                        && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
+                        && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
                     String cause = "Consecutive3: ";
                     today.setSignal(Item.SignalType.BUY);
@@ -978,7 +978,7 @@ public class Client {
                         && final1 && final2
                         && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
-                        && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
+                        && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("Macd0000000-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
                     String cause = "Macd00-Date: ";
                     today.setSignal(Item.SignalType.BUY);
@@ -996,7 +996,7 @@ public class Client {
                         && final1 && final2
                         && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
-                        && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
+                        && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("Tail0000000-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
                     String cause = "Tail000-Date: ";
                     today.setSignal(Item.SignalType.BUY);
@@ -1016,7 +1016,7 @@ public class Client {
                         && final1 && final2
                         && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
-                        && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
+                        && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("Three000-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
                     String cause = "Three-Date: ";
                     today.setSignal(Item.SignalType.BUY);
@@ -1041,7 +1041,7 @@ public class Client {
 //                    String cause = "Sudengren-Date: ";
 //                    today.setSignal(Item.SignalType.BUY);today.setTradeChange(tradeChange);today.setVolumeChange(volumeChange);
 //                    doTrade(today, yesterday, cause, -1);
-                } else if ((todayGap >= 1.2 && halfway > sma25 && today.getLow() <= (sma25 * 1.01))
+                } else if ((todayGap >= 1.2 && halfway > sma25 && today.getDayLow() <= (sma25 * 1.01))
                         && divergence <= maxDivergence
                         && todayValue >= 1
                         && todayTrade >= 50
@@ -1056,7 +1056,7 @@ public class Client {
                         && (lastMonthVariation <= 7 ? lastMonthMaximum < today.getAdjustedClosePrice() : true)
                         //&& lastGreenMinimum < today.getOpenPrice()
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
-                        && !((today.getHigh() - today.getAdjustedClosePrice()) > (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
+                        && !((today.getDayHigh() - today.getAdjustedClosePrice()) > (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("date: " + today.getDate() + ", sma10: " + sma10 + ", yesterdaySma10: " + yesterdaySma10 + ", dayBeforeYesterdaySma10: " + dayBeforeYesterdaySma10);
                     String cause = "sma25Date: " + lastMonthVariation + ", max: " + lastMonthMaximum;
                     today.setSignal(Item.SignalType.BUY);
@@ -1074,7 +1074,7 @@ public class Client {
                         && hammer < 4
                         && final1 && final2
                         && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
-                        && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
+                        && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("sma250000Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", sma25: " + sma25);
                     String cause = "Suddenhike: ";
                     today.setSignal(Item.SignalType.BUY);
@@ -1092,7 +1092,7 @@ public class Client {
                         && hammer < 4
                         && final1 && final2
                         && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
-                        && !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
+                        && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
                     //System.out.println("sma250000Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", sma25: " + sma25);
                     String cause = "gAfterRsi30: ";
                     today.setSignal(Item.SignalType.BUY);
@@ -2175,7 +2175,7 @@ public class Client {
 
     private static float getHammer(Item item) {
         float largest = Math.max(item.getOpenPrice(), item.getAdjustedClosePrice());
-        float hammer = ((item.getHigh() - largest) / largest) * 100;
+        float hammer = ((item.getDayHigh() - largest) / largest) * 100;
         return hammer;
     }
 
@@ -2183,7 +2183,7 @@ public class Client {
         float difference = Math.abs(item.getOpenPrice() - item.getAdjustedClosePrice());
         float largest = (item.getOpenPrice() + item.getAdjustedClosePrice() + difference) / 2;
         float smallest = (item.getOpenPrice() + item.getAdjustedClosePrice() - difference) / 2;
-        float dbHammer = (((smallest - item.getLow()) - (item.getHigh() - largest)) / item.getAdjustedClosePrice()) * 100;
+        float dbHammer = (((smallest - item.getDayLow()) - (item.getDayHigh() - largest)) / item.getAdjustedClosePrice()) * 100;
         //if(item.getCode().equalsIgnoreCase("watachem"))
         //    System.out.println("yesterday " + item.getDate() + " hammer: " + dbHammer + ", open: " + item.getOpenPrice() + ", close: " + item.getClosePrice() + ", high: " + item.getHigh() + ", low: " + item.getLow() + ", largest: " + largest + ", smallest: " + smallest);
         return dbHammer;

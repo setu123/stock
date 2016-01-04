@@ -263,24 +263,24 @@ public class ClusteredSellSignalCalculator {
         }
     }
     
-//    public static class sell12 extends SellSignalCalculator {
-//
-//        public sell12(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
-//            super(scanner, oneYearData, portfolio);
-//        }
-//
-//        @Override
-//        public boolean isSellCandidate(List<Item> itemSubList, Item calItem) {
-//            //super.initializeVariables(itemSubList, calItem);
-//            // @12. Gain is greater than 10% and its touching sma10
-//            //System.out.println("sell11date: " + today.getDate() + ", belowBothSMA: " + belowBothSMA + ", belowDSEXBothSMA: " + belowDSEXBothSMA);
-//            if (todaychange < 0 && todayGap < 0 && gain>=8 && today.getAdjustedClosePrice()<sma10) {
-//                setCause(this.getClass().getName());
-//                return isMaskPassed(today, portfolio);
-//            }
-//            return false;
-//        }
-//    }
+    public static class sell12 extends SellSignalCalculator {
+
+        public sell12(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
+            super(scanner, oneYearData, portfolio);
+        }
+
+        @Override
+        public boolean isSellCandidate(List<Item> itemSubList, Item calItem) {
+            //super.initializeVariables(itemSubList, calItem);
+            // @12. DSEX index is below both SMA
+            //System.out.println("sell11date: " + today.getDate() + ", belowBothSMA: " + belowBothSMA + ", belowDSEXBothSMA: " + belowDSEXBothSMA);
+            if (belowDSEXBothSMA) {
+                setCause(this.getClass().getName());
+                return isMaskPassed(today, portfolio);
+            }
+            return false;
+        }
+    }
 
     public static class EOM extends SellSignalCalculator {
 

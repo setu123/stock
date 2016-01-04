@@ -356,6 +356,9 @@ public class Crawler extends Thread {
         item.setClosePrice(index);
         item.setLastPrice(index);
         item.setAdjustedClosePrice(index);
+        item.setDayHigh(index);
+        item.setDayLow(index);
+        item.setOpenPrice(index-change);
         item.setYesterdayClosePrice(index-change);
         item.setAdjustedYesterdayClosePrice(index-change);
         item.setTrade(trade);
@@ -577,8 +580,8 @@ public class Crawler extends Thread {
         str = variable.toString().trim().split(" ")[1];
         float publics = Float.parseFloat(str);
 
-        item.setLow(low);
-        item.setHigh(high);
+        item.setYearLow(low);
+        item.setYearHigh(high);
         item.setSector(sector);
         item.setFaceValue(faceValue);
         item.setTotalSecurity(totalSecurity);

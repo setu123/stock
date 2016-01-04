@@ -169,16 +169,21 @@ public class Item extends BasicInfo implements Comparable<Item>{
 //            return (this.trade - anItem.trade);
 //        }
 //        return 0;
-        if(o == null || o.getDate()==null)
+        if(o == null || o.getDate()==null || this.getDate()==null)
             return -1;
         
-        int returnValue;
-        if(this.getDate()!=null && o.getDate()!=null)
-            returnValue = (int)(this.getDate().getTime() - o.getDate().getTime()); //Sort by date
-        else
-            returnValue = this.getCode().compareTo(o.getCode());
+//        int returnValue;
+//        if(this.getDate()!=null)
+//            returnValue = (int)(this.getDate().getTime() > o.getDate().getTime()); //Sort by date
+//        else
+//            returnValue = this.getCode().compareTo(o.getCode());
         
-        return returnValue; //Sort by date
+        if(this.getDate().getTime()>o.getDate().getTime())
+            return 1;
+        else if (this.getDate().getTime()<o.getDate().getTime())
+            return -1;
+        
+        return 0; //Sort by date
     }
 
     public float getPressure() {
