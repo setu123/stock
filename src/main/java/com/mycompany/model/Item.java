@@ -45,6 +45,7 @@ public class Item extends BasicInfo implements Comparable<Item>{
     private float yesterdayRSI;
     private float dayBeforeYesterdayRSI;
     private Map<Integer, Float> volumeChanges;
+    private float gain;
 
     public SignalType getSignal() {
         return signal;
@@ -142,6 +143,20 @@ public class Item extends BasicInfo implements Comparable<Item>{
      */
     public void setVolumeChanges(Map<Integer, Float> volumeChanges) {
         this.volumeChanges = volumeChanges;
+    }
+
+    /**
+     * @return the gain
+     */
+    public float getGain() {
+        return gain;
+    }
+
+    /**
+     * @param gain the gain to set
+     */
+    public void setGain(float gain) {
+        this.gain = gain;
     }
     public enum SignalType{
         BUY, SELL, HOLD, AVG, NA

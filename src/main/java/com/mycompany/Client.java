@@ -14,15 +14,18 @@ import com.mycompany.service.ScannerService;
 import com.mycompany.service.SyncService;
 import com.mycompany.service.Utils;
 import com.mycompany.service.calculator.SignalCalculator;
+import static com.mycompany.service.calculator.SignalCalculator.lastTradingDay;
 import com.mycompany.service.calculator.buy.BuySignalCalculator;
 import com.mycompany.service.calculator.buy.Consecutive1;
 import com.mycompany.service.calculator.buy.Consecutive15;
 import com.mycompany.service.calculator.buy.Consecutive2;
 import com.mycompany.service.calculator.buy.Consecutive3;
 import com.mycompany.service.calculator.buy.GreenAfterRsi30;
+import com.mycompany.service.calculator.buy.LargeCandle;
 import com.mycompany.service.calculator.buy.Macd;
 import com.mycompany.service.calculator.buy.Sma25;
 import com.mycompany.service.calculator.buy.SuddenHike;
+import com.mycompany.service.calculator.buy.Sma25Trend;
 import com.mycompany.service.calculator.buy.Tail;
 import com.mycompany.service.calculator.buy.ThreeGreen;
 import com.mycompany.service.calculator.sell.ClusteredSellSignalCalculator;
@@ -49,6 +52,7 @@ import org.webharvest.definition.ScraperConfiguration;
 public class Client {
 
     private final static String DATE_PATTERN = "dd-MM-yyyy";
+    private final static String DSEX_CODE = "DSEX";
     static DateFormat dateFormat = new SimpleDateFormat(DATE_PATTERN);
     private static Map<Date, Item> dsexMap = new HashMap<>();
 
@@ -93,6 +97,8 @@ public class Client {
         buyCalculators.add(new SuddenHike(scanerService, oneYearData, portfolio));
         buyCalculators.add(new Tail(scanerService, oneYearData, portfolio));
         buyCalculators.add(new ThreeGreen(scanerService, oneYearData, portfolio));
+        buyCalculators.add(new Sma25Trend(scanerService, oneYearData, portfolio));
+        buyCalculators.add(new LargeCandle(scanerService, oneYearData, portfolio));
 
         List<SellSignalCalculator> sellCalculators = new ArrayList<>();
         ClusteredSellSignalCalculator clusterSell = new ClusteredSellSignalCalculator();
@@ -110,9 +116,10 @@ public class Client {
         sellCalculators.add(new ClusteredSellSignalCalculator.sell10(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.sell11(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.sell12(scanerService, oneYearData, portfolio));
+        //sellCalculators.add(new ClusteredSellSignalCalculator.sell13(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.EOM(scanerService, oneYearData, portfolio));
 
-        String script = "SINGERBD";
+        String script = "GEMINISEA";
         profit = 0;
         loss = 0;
         totalBuy = 0;
@@ -120,8 +127,19 @@ public class Client {
         
         Map<String, Integer> lossCounter = new HashMap<>();
         Map<String, Integer> profitCounter = new HashMap<>();
+        
+        lastTradingDay = Calendar.getInstance();
+        lastTradingDay.set(Calendar.YEAR, 2016);
+        lastTradingDay.set(Calendar.MONTH, 1);
+        lastTradingDay.set(Calendar.DAY_OF_MONTH, 10);
 
         for (String code : oneYearData.keySet()) {
+            //Skip dsex
+            if (code.equals(DSEX_CODE)) {
+                continue;
+            }
+            
+            
 //            if (!code.equals(script)) {
 //                SignalCalculator.debugEnabled = true;
 //                continue;
@@ -163,21 +181,22 @@ public class Client {
                 
                 for (BuySignalCalculator calculator : buyCalculators) {
                     if (calculator.isBuyCandidate(copyOfSubList, null)) {
-                        //System.out.println("date: " + today.getDate() + ", buycause: " + calculator.getCause());
+                        String causeDetails = parseCause(calculator) + "(t:" + df.format(SignalCalculator.tChange) + ", v:" + df.format(SignalCalculator.vChange) + ", wv:" + df.format(SignalCalculator.today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK)) + ", vtc:" + df.format(SignalCalculator.volumePerTradeChange) + ")";
+                        //System.out.println(", date: " + today.getDate() + ", buycause: " + SignalCalculator.getCause() + ", pItem: " + pItem);
                         if (pItem == null) {
                             pItem = createPortfolioItem(today);
                             portfolio.getPortfolioItems().put(today.getCode(), pItem);
                             ++totalBuy;
                             signalType = Item.SignalType.BUY;
                             System.out.println("");
-                            String causeDetails = SignalCalculator.getCause() + "(t:" + df.format(SignalCalculator.tChange) + ", v:" + df.format(SignalCalculator.vChange) + ", wv:" + df.format(SignalCalculator.today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK)) + ", vtc:" + df.format(SignalCalculator.volumePerTradeChange) + ")";
                             System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + causeDetails);
                         }else if(SignalCalculator.gain>=0){
                             signalType = Item.SignalType.HOLD;
+                            System.out.println("");
+                            System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + causeDetails);
                         }else{
                             signalType = Item.SignalType.AVG;
                             System.out.println("");
-                            String causeDetails = SignalCalculator.getCause() + "(t:" + df.format(SignalCalculator.tChange) + ", v:" + df.format(SignalCalculator.vChange) + ", wv:" + df.format(SignalCalculator.today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK)) + ", vtc:" + df.format(SignalCalculator.volumePerTradeChange) + ")";
                             System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + causeDetails);
                         }
                         
@@ -186,6 +205,7 @@ public class Client {
                     }
                 }
                 
+                //System.out.println("Nobuyfound date: " + today.getDate() + ", pItem: " + pItem);
                 //No buy item, so not need to check sell
                 if (pItem == null) {
                     continue;
@@ -195,8 +215,9 @@ public class Client {
                 for (SellSignalCalculator calculator : sellCalculators) {
                     if (calculator.isSellCandidate(copyOfSubList, null)) {
                         signalType = Item.SignalType.SELL;
-                        String cause = calculator.getClass().getName();
-                        cause = cause.substring(cause.indexOf("$") + 1);
+                        
+                        String cause = parseCause(calculator);
+                        
                         float gain = calculateGain(pItem, today);
                         summery += gain;
                         ++totalSell;
@@ -213,11 +234,17 @@ public class Client {
                                 lossCountObject = 0;
                             lossCounter.put(pItem.getCause(), lossCountObject+1);
                         }
-                        System.out.print("----" + signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + cause + ", gain: " + df.format(gain) + "%" );
+                        
+                        long tenure = today.getDate().getTime() - pItem.getDate().getTime();
+                        tenure = tenure/86400000;
+                        totalTenure += tenure;
+                        
+                        System.out.print("----" + signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + cause + ", gain: " + df.format(gain) + "%" + ", tenure: " + tenure );
                         portfolio.getPortfolioItems().remove(today.getCode());
                         continue outerloop;
                     }
                 }
+                //System.out.println("nosellfound on " + today.getDate());
             }
         }
 
@@ -225,9 +252,36 @@ public class Client {
         //float winPercentage = ((float)profit/(float)(profit+loss))*100;
         //System.out.println("Profit: " + profit + ", loss: " + loss + ", percentage: " + df.format(winPercentage) + "%");
         float gainPercent = ((float) profit / (float) (totalBuy)) * 100;
-        System.out.println("\nsummery: " + summery + ", totalBuy: " + totalBuy + ", totalSell: " + totalSell + ", profitRate: " + summery / totalBuy + ", profit:loss= " + profit + " : " + loss + " gainPercent: " + df.format(gainPercent));
+        float averageTenure = (float)totalTenure/(float)totalSell;
+        System.out.println("\nsummery: " + summery + ", totalBuy: " + totalBuy + ", totalSell: " + totalSell + ", profitRate: " + summery / totalBuy + ", profit:loss= " + profit + " : " + loss + " gainPercent: " + df.format(gainPercent) + ", averageTenure: " + averageTenure);
         System.out.println("losscounter: " + lossCounter);
         System.out.println("proftcounter: " + profitCounter);
+    }
+    
+    private static String parseCause(SignalCalculator calculator){
+        String cause = SignalCalculator.getCause();
+        if(cause != null){
+            if(cause.contains("$"))
+                cause = cause.substring(cause.indexOf("$")+1);
+            if(cause.contains("."))
+                cause = cause.substring(cause.lastIndexOf(".") + 1);
+            return cause;
+        }
+            
+        
+//        if(calculator instanceof BuySignalCalculator){
+//            //cause = calculator.getClass().getName();
+//            return cause.substring(cause.lastIndexOf(".")+1);
+//        }
+//        
+//        if(calculator instanceof SellSignalCalculator){
+//            //cause = calculator.getClass().getName();
+//            cause = cause.substring(cause.indexOf("$") + 1);
+//            //System.out.println("parsed cause: " + cause);
+//            return cause;
+//        }
+        
+        return null;
     }
 
     private static float calculateGain(PortfolioItem pItem, Item today) {
@@ -241,7 +295,7 @@ public class Client {
         pItem.setCode(item.getCode());
         pItem.setDate(item.getDate());
         pItem.setAverageBuyPrice(item.getAdjustedClosePrice() * 1.005f);
-        pItem.setCause(SignalCalculator.getCause());
+        pItem.setCause(parseCause(null));
         return pItem;
     }
 
@@ -1142,6 +1196,7 @@ public class Client {
     static int totalSell = 0;
     float TotalGain = 0;
     static float lastMonthVariation = 0;
+    static long totalTenure = 0;
     static Calendar upto = Calendar.getInstance();
 
     private static void doTrade(Item item, Item yesterDayItem, String cause, float lastGreenMinimum) {

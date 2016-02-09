@@ -1,6 +1,7 @@
 package com.mycompany.service;
 
 import com.mycompany.dao.ItemDaoImpl;
+import com.mycompany.dao.PortfolioDaoImpl;
 import com.mycompany.model.ChangesInVolumePerTrade;
 import com.mycompany.model.Item;
 import com.mycompany.model.Portfolio;
@@ -12,8 +13,10 @@ import com.mycompany.service.calculator.buy.Consecutive15;
 import com.mycompany.service.calculator.buy.Consecutive2;
 import com.mycompany.service.calculator.buy.Consecutive3;
 import com.mycompany.service.calculator.buy.GreenAfterRsi30;
+import com.mycompany.service.calculator.buy.LargeCandle;
 import com.mycompany.service.calculator.buy.Macd;
 import com.mycompany.service.calculator.buy.Sma25;
+import com.mycompany.service.calculator.buy.Sma25Trend;
 import com.mycompany.service.calculator.buy.SuddenHike;
 import com.mycompany.service.calculator.buy.Tail;
 import com.mycompany.service.calculator.buy.ThreeGreen;
@@ -50,10 +53,20 @@ public class ScannerService {
     public static final int TRADING_DAYS_IN_A_MONTH = 22;
     public static final int TRADING_DAYS_IN_A_WEEK = 5;
     public static final int DAYS_IN_A_YEAR = 365;
+    private Portfolio portfolio;
+    private PortfolioDaoImpl portfolioDao;
     //private static float MACD_MAX = 0;
 
     public ScannerService() {
         dao = new ItemDaoImpl();
+        portfolioDao = new PortfolioDaoImpl();
+        try{
+        portfolioDao.open();
+        portfolio = portfolioDao.getPortfolio(SyncService.PORTFOLIO_ID);
+        portfolioDao.close();
+        }catch(Exception ex){
+            System.out.println("Exception caught: " + ex.getMessage());
+        }
     }
 
     public List<Item> getItemsWithscannedProperties() throws SQLException, ClassNotFoundException {
@@ -61,7 +74,7 @@ public class ScannerService {
         dao.open();
 
         Utils.updateDates(dao);
-
+        
         List<Item> items = getPressure();
         //CustomHashMap oneYearData = dao.getOneYearData();
         //Get 2 month data
@@ -382,7 +395,6 @@ public class ScannerService {
     }
 
     private List<Item> getPurifiedSignal(CustomHashMap oneYearData) throws SQLException {
-        Portfolio portfolio = new Portfolio();
         List<BuySignalCalculator> buyCalculators = new ArrayList<>();
         buyCalculators.add(new Consecutive1(this, oneYearData, portfolio));
         buyCalculators.add(new Consecutive15(this, oneYearData, portfolio));
@@ -394,6 +406,8 @@ public class ScannerService {
         buyCalculators.add(new SuddenHike(this, oneYearData, portfolio));
         buyCalculators.add(new Tail(this, oneYearData, portfolio));
         buyCalculators.add(new ThreeGreen(this, oneYearData, portfolio));
+        buyCalculators.add(new Sma25Trend(this, oneYearData, portfolio));
+        buyCalculators.add(new LargeCandle(this, oneYearData, portfolio));
 
         List<SellSignalCalculator> sellCalculators = new ArrayList<>();
         ClusteredSellSignalCalculator clusterSell = new ClusteredSellSignalCalculator();
@@ -411,7 +425,7 @@ public class ScannerService {
         sellCalculators.add(new ClusteredSellSignalCalculator.sell10(this, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.sell11(this, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.sell12(this, oneYearData, portfolio));
-        sellCalculators.add(new ClusteredSellSignalCalculator.EOM(this, oneYearData, portfolio));
+        //sellCalculators.add(new ClusteredSellSignalCalculator.EOM(this, oneYearData, portfolio));
 
         List<Item> distinctItems = new ArrayList<>();
 
@@ -434,7 +448,7 @@ public class ScannerService {
 
             for (BuySignalCalculator calculator : buyCalculators) {
                 if (calculator.isBuyCandidate(items, null)) {
-                    //System.out.println("date: " + SignalCalculator.today.getDate() + ", buycause: " + calculator.getCause());
+                    //System.out.println("date: " + SignalCalculator.today.getDate() + ", code: " + code + ", gain: " + SignalCalculator.gain + ", buycause: " + calculator.getCause() + ", pItem: " + pItem);
                     if (pItem == null) {
                         item.setSignal(Item.SignalType.BUY);
                     } else if (SignalCalculator.gain >= 0) {
@@ -1105,7 +1119,7 @@ public class ScannerService {
         float rs = getRS(items);
         float rsi = 100 - (100 / (1 + rs));
         if (rsi == 0) {
-            System.out.println("rs: " + rs);
+            //System.out.println("rs: " + rs + ", code: " + items.get(items.size()-1).getCode());
         }
 
         return rsi;
@@ -1134,14 +1148,14 @@ public class ScannerService {
                 totalGain += ((item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice()) + Math.abs(item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice())) / 2;
             }
 
-            averageGain = totalGain / RSI_PERIOD;
+            averageGain = totalGain / (float)RSI_PERIOD;
             return averageGain;
         }
 
         float previousAverageGain = getAverageGain(items, index - 1);
         Item item = items.get(index - 1);
         float todayGain = ((item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice()) + Math.abs(item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice())) / 2;
-        averageGain = (previousAverageGain * 13 + todayGain) / RSI_PERIOD;
+        averageGain = (previousAverageGain * 13 + todayGain) / (float)RSI_PERIOD;
         return averageGain;
     }
 
@@ -1161,14 +1175,14 @@ public class ScannerService {
                 totalLoss += (Math.abs(item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice()) - (item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice())) / 2;
             }
 
-            averageLoss = totalLoss / RSI_PERIOD;
+            averageLoss = totalLoss / (float)RSI_PERIOD;
             return averageLoss;
         }
 
         float previousAverageLoss = getAverageLoss(items, index - 1);
         Item item = items.get(index - 1);
         float todayLoss = (Math.abs(item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice()) - (item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice())) / 2;
-        averageLoss = (previousAverageLoss * 13 + todayLoss) / RSI_PERIOD;
+        averageLoss = (previousAverageLoss * 13 + todayLoss) / (float)RSI_PERIOD;
 
         return averageLoss;
     }
@@ -1229,13 +1243,15 @@ public class ScannerService {
         }
         long totalVolume = 0;
         int count = 0;
+        Item firstDay = null;
         for (int i = items.size() - 2; (i >= 0 && (items.size() - i) < (days + 2)); i--) {
             totalVolume += items.get(i).getAdjustedVolume();
             ++count;
+            firstDay = items.get(i);
         }
-        float avgVolume = Math.round(totalVolume / count);
+        float avgVolume = (float)totalVolume / (float)count;
         //System.out.println("code: " + items.get(0).getCode() + ", totalVolume: " + totalVolume + ", avgVolume: " + avgVolume);
-        float ratio = (items.get(items.size() - 1).getAdjustedVolume()) / avgVolume;
+        float ratio = ((float)items.get(items.size() - 1).getAdjustedVolume()) / avgVolume;
 
         Item today = items.get(items.size() - 1);
         Calendar cal = Calendar.getInstance();
@@ -1246,6 +1262,7 @@ public class ScannerService {
 //        DecimalFormat df = new DecimalFormat("#.#");
 //        String ratioString = df.format(ratio);
 //        return Float.parseFloat(ratioString);
+        //System.out.println("lastday: " + items.get(items.size()-1).getDate() + ", v-change: " + ratio + ", days: " + days + ", firstDay: " + firstDay.getDate() + ", todayvolume: " + items.get(items.size() - 1).getAdjustedVolume() + ", avg: " + avgVolume);
         return ratio;
     }
 

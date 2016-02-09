@@ -36,7 +36,7 @@ public class SuddenHike extends BuySignalCalculator {
                 && acceptableItemSMA && acceptableDSEXSMA
                 && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
                 && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
-            setCause("Suddenhike");
+            setCause(this.getClass().getName());
             boolean maskPassed = isMaskPassed(today, portfolio);
             return maskPassed;
         }

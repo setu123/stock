@@ -26,7 +26,6 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
 //    protected boolean threeConsecutiveRed = false;
 //    protected Item buyDayItem;
 //    protected boolean rsi70;
-
     public SellSignalCalculator(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
         super(scanner, oneYearData, portfolio);
     }
@@ -50,7 +49,6 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
 //        buyDayItem = getBuyDayItem(itemSubList.get(itemSubList.size()-1).getCode());
 //        rsi70 = rsi >= 70 || yesterdayRsi >= 70 || dayBeforeRsi >= 70;
 //    }
-
     private Item getBuyDayItem(String code) {
         PortfolioItem portfolioItem = portfolio.getPortfolioItems().get(code);
 
@@ -96,17 +94,17 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
     }
 
     protected boolean isMaskPassed(Item item, Portfolio portfolio) {
-        //System.out.println("date: " + item.getDate() + ", code: " + item.getCode() + ", cause: " + getCause());
+        //System.out.println("cametosell-date: " + item.getDate() + ", code: " + item.getCode() + ", cause: " + getCause());
 
-        
-        
-        if (!(buyItem != null && buyItem.getDate().before(yesterday.getDate())))
-                return false;
-
-//        if (buyItem != null && buyItem.getDate().before(yesterday.getDate())) {
-        else{
+        if (!(buyItem != null && buyItem.getDate().before(yesterday.getDate()))) {
+            return false;
+        } //        if (buyItem != null && buyItem.getDate().before(yesterday.getDate())) {
+        else {
             float gain = ((item.getAdjustedClosePrice() - buyItem.getAverageBuyPrice()) / buyItem.getAverageBuyPrice()) * 100;
             gain = gain - 0.5f;   //Sell commision
+            today.setGain(gain);
+//            float maxGainInLastWeek = getMaxGainInLastWeek();
+            //System.out.println("today: " + today.getDate() + ", itemsdate: ");
 
             float minSma = Math.min(item.getSmaList().get(10), item.getSmaList().get(25));
             float diffWithMinSma = ((item.getAdjustedClosePrice() - minSma) / minSma) * 100;
@@ -115,6 +113,7 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
             boolean belowAcceptableSma10 = false;
             boolean belowAcceptableSma25 = false;
             boolean endOfMarket = cause.equalsIgnoreCase("EOM");
+            //System.out.println("diffWithSma10: " + diffWithSma10);
 
             if (diffWithSma10 < -3) {
                 belowAcceptableSma10 = true;
@@ -124,58 +123,72 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
                 belowAcceptableSma25 = true;
             }
 
-//            belowBothSMA = false;
-//            if (diffWithMinSma < -2) {
-//                //if(item.getAdjustedClosePrice()<item.getSmaList().get(10) && item.getAdjustedClosePrice()<item.getSmaList().get(25)){
-//                belowBothSMA = true;
-//                //System.out.println("Must sell " + item.getCode() + " on " + item.getDate());
+            //System.out.println("\nCame to sell: date: " + today.getDate());
+            if (endOfMarket) {
+                return true;
+            }
+
+            if (gain > 2 && gain < 5 && (todayClosePrice < lastGreenMinimum)) {
+                return true;
+            }
+
+            if (todayGap < -7 && gain >= 10 && Math.max(rsi, yesterdayRsi) >= 70) {
+                return true;
+            }
+
+            if (gain >= 10 && gain <= 11 && Math.max(yesterdayRsi, dayBeforeRsi) >= 70 && rsi <= 68) {
+                return true;
+            }
+
+            if (gain >= 10 && gain <= 11 && diffWithSma10 < 0) {
+                return true;
+            }
+
+//          //Check if gain is bypassed milestones
+//            if(maxGainInLastWeek>=12 && gain<5){
+//                setCause("bypass caught");
+//                return true;
 //            }
-            
-            //System.out.println("code: " + today.getCode() + ", date: " + today.getDate() + ", cause: " + cause.substring(cause.indexOf("$")) + ", belowBothSMA: " + belowBothSMA + ", gain: " + gain + ", todayGap: " + todayGap + ", todaychange: " + todaychange + ", diffWithMinSma: " + diffWithMinSma + ", endOfMarket: " + endOfMarket + ", belowDSEXBothSMA: " + belowDSEXBothSMA);
-            //System.out.println("exp1: " + (dsex.getAdjustedClosePrice()<dsex.getAdjustedVolume()));
-            
-            if(endOfMarket)
+            if (gain >= 20 && gain <= 21) {
                 return true;
-            
-//            if(todaychange < 0 && todayGap < 0 && gain>=10 && today.getAdjustedClosePrice()<sma10)
-//                return true;
-            
-//            if(todaychange < 0 && todayGap < 0 && gain<-5 && belowBothSMA)
-//                return true;
-              
-//            if(gain<-5 && belowBothSMA && todayGap<=0 && todaychange<0)
-//                return true;
-            
-//            if(belowBothSMA && todayGap<=0 && todaychange<0 && belowDSEXBothSMA && dsex.getAdjustedClosePrice()<dsex.getYesterdayClosePrice())
-//                return true;
-            
-//            if(gain<-5)
-//                return true;
-            
-            if(gain>2 && gain <5 && (todayClosePrice<lastGreenMinimum))
+            }
+
+            if (gain >= 30 && gain <= 31) {
                 return true;
-            
-//            if(gain>=10 && gain<=11)
-//                return true;
-            
-            if(gain>=20 && gain<=21)
-                return true;
-            
-//            if(gain>=30 && gain<=31)
-//                return true;
+            }
 //            
 //            if(gain>=40 && gain<=41)
 //                return true;
-            
-            if(gain>40 && (belowAcceptableSma10))
+
+            if (gain > 40 && (belowAcceptableSma10)) {
                 return true;
-            
-            if((gain>10 || rsi>=69) && upperTail>5)
+            }
+
+            if (gain > 40 && Math.max(rsi, yesterdayRsi) >= 70) {
                 return true;
-            
-            if(cause.contains("sell56"))
+            }
+
+//            if(gain>40 && rsi>=80)
+//                return true;
+            if ((gain > 10 || rsi >= 69) && upperTail > 5) {
                 return true;
-            
+            }
+
+            if (cause.contains("sell56")) {
+                return true;
+            }
+
+            if (isMarketDown && gain > -8) {
+                setCause("MarketDown");
+                //System.out.println("going to set marketdown");
+                return true;
+            }
+
+            if (gain>20 && (maxGainAfterBuy - gain) >= 7) {
+                setCause("below maxGain");
+                return true;
+            }
+
 //            if(gain>45 && upperTail>4)
 //                return true;
 //            
@@ -184,30 +197,28 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
 //            
 //            if(buyItem.getCause().contains("gAfterRsi30") && gain<0 &&  (belowDSEXBothSMA || belowBothSMA))
 //                return true;
-            
-//            if(gain<-5)
+            //stop loss
+//            if(gain<-5 && belowAcceptableSma25 && belowAcceptableSma10)
 //                return true;
-            
 //            if(gain>0 && belowSMA25 && todayGap<=0 && todaychange<0 && belowDSEXBothSMA && dsex.getAdjustedClosePrice()<dsex.getYesterdayClosePrice())
 //                return true;
-            
 //            if(gain>7 && gain<15 && upperTail>2.9)
 //                return true;
-            
 //            Calendar cal = Calendar.getInstance();
 //            cal.setTime(today.getDate());
 //            cal.add(Calendar.DAY_OF_YEAR, -60);
 //            if(buyItem.getDate().before(cal.getTime()) && gain>0)
 //                return true;
-
             //boolean var1 = item.getAdjustedClosePrice() >= buyItem.getOpenPrice() && item.getAdjustedClosePrice() < sma25;
 //            
-            if(today.getAdjustedClosePrice()>sma10)
+            if (today.getAdjustedClosePrice() > sma10) {
                 return false;
+            }
 
-            if(gain < -10)
+            if (gain < -10) {
                 return false;
-            
+            }
+
             if ((((gain > -5)) || (gain < 0)) && todayGap > -9) {
                 return false;
             }
@@ -232,5 +243,14 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
         }
 
         return true;
+    }
+
+    private float getMaxGainInLastWeek() {
+        float max = 0;
+        max = Math.max(yesterday.getGain(), dayBeforeYesterday.getGain());
+        max = Math.max(max, twoDayBeforeYesterday.getGain());
+        max = Math.max(max, threeDayBeforeYesterday.getGain());
+        max = Math.max(max, fourDayBeforeYesterday.getGain());
+        return max;
     }
 }

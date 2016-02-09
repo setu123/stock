@@ -34,8 +34,6 @@ public class GreenAfterRsi30 extends BuySignalCalculator{
                         && rsi <=50
                         && vChange >= minVChange && ((marketWasDown && vChange <= 4) || vChange <= 2)
                         && volumePerTradeChange < 1.8
-//                        && Math.min(todayGap, yesterdayGap) > -3
-                        && dsex.getValue() >= 3000
                         //&& maxVChange > 0.5
                         && diffWithPreviousLow10 <= 15 //&& Math.max(todayGap, yesterdayGap) >= 0.5
 //                        //&& upperTail < 4
@@ -44,7 +42,7 @@ public class GreenAfterRsi30 extends BuySignalCalculator{
                         //&& !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))
                 ) {
                     //System.out.println("sma250000Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", sma25: " + sma25);
-                    setCause("gAfterRsi30:");
+                    setCause(this.getClass().getName());
                     boolean maskPassed = isMaskPassed(today, portfolio);
             return maskPassed;
                 }

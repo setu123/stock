@@ -235,10 +235,12 @@ public class ClusteredSellSignalCalculator {
             // @10. any of last 3 days RSI is 70+ and today is not green nor up
             //System.out.println(today.getDate() + ", yesterdayrsi: " + calculatedItem.getYesterdayRSI());
             //boolean rsi70 = rsi >= 70 || yesterdayRsi >= 70 || dayBeforeRsi >= 70;
-            //System.out.println("code: " + today.getCode() + ", date: " + today.getDate() + ", rsi70: " + rsi70 + ", todaygap: " + todayGap + ", yesterdayRsi: " + yesterdayRsi + ", dayBeforeRsi: " + dayBeforeRsi + ", daybefore: " + dayBeforeYesterday.getDate());
+//            System.out.println(", sell10date: " + today.getDate() + ", rsi70: " + rsi70 + ", todaygap: " + todayGap + ", yesterdayRsi: " + yesterdayRsi + ", dayBeforeRsi: " + dayBeforeRsi + ", daybefore: " + dayBeforeYesterday.getDate());
             if (rsi70 && (todayGap <= 0 || todaychange <= 0)) {
                 setCause(this.getClass().getName());
-                return isMaskPassed(today, portfolio);
+                boolean mask = isMaskPassed(today, portfolio);
+//                System.out.println(", sell10date: " + today.getDate() + ", rsi70: " + rsi70 + ", todaygap: " + todayGap + ", mask: " + mask);
+                return mask;
             }
             return false;
         }
@@ -282,6 +284,27 @@ public class ClusteredSellSignalCalculator {
         }
     }
 
+    public static class sell13 extends SellSignalCalculator {
+
+        public sell13(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
+            super(scanner, oneYearData, portfolio);
+        }
+
+        @Override
+        public boolean isSellCandidate(List<Item> itemSubList, Item calItem) {
+            //super.initializeVariables(itemSubList, calItem);
+            // @12. RSI 80+ and today gap is negetive and price is falling
+            System.out.println("sell13date: " + today.getDate() + ", rsi: " + rsi + ", todayGap: " + todayGap + ", todayChange: " + todaychange);
+            if (rsi>=80 && todayGap<0 && todaychange<0) {
+                setCause(this.getClass().getName());
+                boolean mask = isMaskPassed(today, portfolio);
+                //System.out.println("sell13date: " + today.getDate() + ", rsi: " + rsi + ", mask: " + mask);
+                return mask;
+            }
+            return false;
+        }
+    }
+    
     public static class EOM extends SellSignalCalculator {
 
         public EOM(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
@@ -291,7 +314,8 @@ public class ClusteredSellSignalCalculator {
         @Override
         public boolean isSellCandidate(List<Item> itemSubList, Item calItem) {
             //super.initializeVariables(itemSubList, calItem);
-            return today.getDate().after(lastTradingDay.getTime());
+            setCause(this.getClass().getName());
+            return lastTradingDay!=null && today.getDate().after(lastTradingDay.getTime());
         }
     }
 }

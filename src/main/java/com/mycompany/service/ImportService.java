@@ -245,7 +245,7 @@ public class ImportService {
             items = (List<Item>) crawler.getParams().get("items");
             Calendar processEndedAt = Calendar.getInstance();
             long elapsedTime = (processEndedAt.getTimeInMillis() - processStartedAt.getTimeInMillis()) / 1000;
-            System.out.println("Time elapsed to sync " + day + " day archive for " + items.size() + " item: " + (elapsedTime / 60) + " minutes " + (elapsedTime % 60) + " seconds");
+            //System.out.println("Time elapsed to sync " + day + " day archive for " + items.size() + " item: " + (elapsedTime / 60) + " minutes " + (elapsedTime % 60) + " seconds");
         } catch (IOException | InterruptedException ex) {
             Logger.getLogger(ImportService.class.getName()).log(Level.SEVERE, null, ex);
             ex.printStackTrace();

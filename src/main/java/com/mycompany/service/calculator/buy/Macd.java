@@ -40,10 +40,9 @@ public class Macd extends BuySignalCalculator {
                 && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
                 && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
                 && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))
-                && dsex.getValue() >= 3000
                 ) {
             //System.out.println("Macd0000000-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
-            setCause("Macd");
+            setCause(this.getClass().getName());
             boolean maskPassed = isMaskPassed(today, portfolio);
             return maskPassed;
         }

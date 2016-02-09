@@ -40,12 +40,12 @@ public class Sma25 extends BuySignalCalculator {
                 && acceptableItemSMA && acceptableDSEXSMA
                 && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
                 && smaTrend
-                && (lastMonthVariation <= 7 ? lastMonthMaximum < today.getAdjustedClosePrice() : true)
-                                        //&& lastGreenMinimum < today.getOpenPrice()
+                //&& (lastMonthVariation <= 7 ? lastMonthMaximum < today.getAdjustedClosePrice() : true)
+                && (lastMonthVariation <= 7 ? diffWithLastMonthHigh > -1 : true)
                 && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
                 && !((today.getDayHigh() - today.getAdjustedClosePrice()) > (today.getAdjustedClosePrice() - today.getOpenPrice()))
                 ) {
-            setCause("Sma25");
+            setCause(this.getClass().getName());
             boolean maskPassed = isMaskPassed(today, portfolio);
             return maskPassed;
         }

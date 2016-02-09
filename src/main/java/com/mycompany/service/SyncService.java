@@ -60,13 +60,17 @@ public class SyncService implements Job {
             List<Item> items = Utils.getCodes();
             System.out.println("codes size: " + items.size());
             selectTopItems(items);
+            System.out.println("Check 1");
             fetchBSVolume(items);
+            System.out.println("Check 2");
             items = getValidItems(items);
 
             if (items.isEmpty()) {
                 System.out.println("Skipping update");
                 return;
             }
+            
+            System.out.println("Check 3");
             
             //Get dse item
             //ImportService importService = new ImportService(dao);
@@ -82,6 +86,11 @@ public class SyncService implements Job {
             dao.close();
         } catch (MalformedURLException | InterruptedException | ClassNotFoundException | SQLException ex) {
             Logger.getLogger(SyncService.class.getName()).log(Level.SEVERE, null, ex);
+            System.out.println("Exception caught in syncing");
+            ex.printStackTrace();
+        } catch (Exception ex) {
+            Logger.getLogger(SyncService.class.getName()).log(Level.SEVERE, null, ex);
+            System.out.println("Exception2 caught in syncing");
             ex.printStackTrace();
         }
         
@@ -96,8 +105,8 @@ public class SyncService implements Job {
             //System.out.println("dbitem: " + dbItem);
             //There is no data for today yet
             if(dbItem == null){
-                dsex.setDayHigh(dsex.getClosePrice());
-                dsex.setDayLow(dsex.getClosePrice());
+                dsex.setDayHigh(dsex.getOpenPrice());
+                dsex.setDayLow(dsex.getOpenPrice());
                 return;
             }
             

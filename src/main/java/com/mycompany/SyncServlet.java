@@ -49,8 +49,8 @@ public class SyncServlet extends HttpServlet {
         
         if(request.getRequestURI().endsWith("/portfolio"))
             service.syncPortfolio();
-
-        //service.sync();
+        else
+            service.sync();
         System.gc();
 //        List<Item> items = service.getWatchMatrix();
 //        service.fetchBSVolume("fsl");

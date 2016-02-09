@@ -39,7 +39,7 @@ public class Tail extends BuySignalCalculator {
                 && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
                 && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))) {
             //System.out.println("Tail0000000-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
-            setCause("Tail000");
+            setCause(this.getClass().getName());
             boolean maskPassed = isMaskPassed(today, portfolio);
             return maskPassed;
         }

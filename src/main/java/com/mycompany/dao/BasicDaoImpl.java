@@ -32,7 +32,7 @@ public class BasicDaoImpl {
         if (connection == null || connection.isClosed()) {
             Class.forName("com.mysql.jdbc.Driver");
             connection = DriverManager.getConnection(DB_URL, USER, PASS);
-            System.out.println("Connection opened");
+            //System.out.println("Connection opened");
         }
     }
     
@@ -40,7 +40,7 @@ public class BasicDaoImpl {
         try {
             if (connection != null && !connection.isClosed()) {
                 connection.close();
-                System.out.println("Connection closed");
+                //System.out.println("Connection closed");
             }
         } catch (SQLException ex) {
             Logger.getLogger(ItemDaoImpl.class.getName()).log(Level.SEVERE, null, ex);

@@ -42,7 +42,7 @@ public class Consecutive2 extends BuySignalCalculator {
                 //&& !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))
                 ) {
             //System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
-            setCause("Consecutive2:");
+            setCause(this.getClass().getName());
 
             boolean maskPassed = isMaskPassed(today, portfolio);
             return maskPassed;

@@ -24,7 +24,7 @@ public class Consecutive1 extends BuySignalCalculator {
     @Override
     public boolean isBuyCandidate(List<Item> itemSubList, Item calculated) {
         //intializeVariables(itemSubList, calculated);
-        //System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + item.getCode() + ", price: " + today.getAdjustedClosePrice() + ", tchange: " + tChange + ", volumeChange: " + vChange + ", diffWithPreviousLow10: " + diffWithPreviousLow10 + ", todayChange: " + todaychange + ", todayGap: " + todayGap + ", acceptableItemSMA: " + acceptableItemSMA + ", accedsex: " + acceptableDSEXSMA + ", yesterdayRsi: " + yesterdayRsi + ", dayBeforeRsi: " + dayBeforeRsi);
+        //System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + today.getCode() + ", price: " + today.getAdjustedClosePrice());
         if ((
                 (todaychange >= 1 && todayGap >= 1.2) 
                 && (yesterdaychange >= 1 || yesterdayGap >= 1) 
@@ -43,10 +43,9 @@ public class Consecutive1 extends BuySignalCalculator {
                 && dsexMaxRsiInLast2Days < maxAllowedDsexRsi
                 && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
                 && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))
-                && dsex.getValue() >= 3000
                 ) {
             //System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
-            setCause("Consecutive1: ");
+            setCause(this.getClass().getName());
                     //today.setSignal(Item.SignalType.BUY);today.setTradeChange(tradeChange);today.setVolumeChange(volumeChange);
             //doTrade(today, yesterday, cause, -1);
             boolean maskPassed = isMaskPassed(today, portfolio);

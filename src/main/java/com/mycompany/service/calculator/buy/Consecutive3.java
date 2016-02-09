@@ -42,10 +42,9 @@ public class Consecutive3 extends BuySignalCalculator{
                         && dsexMaxRsiInLast2Days < maxAllowedDsexRsi
                         && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)
                         && !((today.getDayHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))
-                        && dsex.getValue() >= 3000
                 ) {
                     //System.out.println("Consecutive-Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange);
-                    setCause("Consecutive3:");
+                    setCause(this.getClass().getName());
                     boolean maskPassed = isMaskPassed(today, portfolio);
             return maskPassed;
                 }
