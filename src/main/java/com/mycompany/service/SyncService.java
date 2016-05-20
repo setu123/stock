@@ -154,6 +154,9 @@ public class SyncService implements Job {
             //System.out.println("total item size: " + items.size());
             
             int chunkSize = items.size()/10;
+            if(chunkSize == 0)
+                chunkSize = 1;
+            
             List<Item> itemSublist = new ArrayList<>();
             
             for (int i = 0; i < items.size(); i++) {

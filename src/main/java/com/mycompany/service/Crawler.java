@@ -14,6 +14,7 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -21,6 +22,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.servlet.ServletContext;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -98,6 +101,9 @@ public class Crawler extends Thread {
     private final long HTTP_TIMEOUT_1_MINUTE = 60000;
     private Map params;
 
+    final Pattern pattern = Pattern.compile("[^-,0-9]*(-?[0-9]*\\.[0-9]*)[^0-9]*");
+    final Pattern emptyPattern = Pattern.compile("<td align=\\\"center\\\">-</td>");
+
     public Crawler(ScraperConfiguration scraperConfig, Item item, CrawlType crawlType, Map params) {
         this.scraperConfig = scraperConfig;
         this.item = item;
@@ -106,11 +112,11 @@ public class Crawler extends Thread {
     }
 
     public static ScraperConfiguration getScraperConfig(ServletContext context, String configPath, CrawlType crawlType) throws FileNotFoundException {
-        
-        if(context!=null){
+
+        if (context != null) {
             configPath = context.getRealPath("/") + "/WEB-INF/classes/";
         }
-        
+
         switch (crawlType) {
             case ITEM_PRICE:
                 if (PRESSURE_CONFIG == null) {
@@ -183,7 +189,7 @@ public class Crawler extends Thread {
             //this.interrupt();
         }
     }
-    
+
     private void crawlPortfolio() {
         Scraper scraper = new Scraper(scraperConfig, "d:/expekt");
         //int remoteId = (int) params.get("REMOTE_ID");
@@ -198,8 +204,8 @@ public class Crawler extends Thread {
         List<PortfolioDetails> portfolioDetails = parsePortfolioDetails(variables.toString());
         getParams().put("PORTFOLIO_DETAILS", portfolioDetails);
     }
-    
-    private List<PortfolioDetails> parsePortfolioDetails(String domStr){
+
+    private List<PortfolioDetails> parsePortfolioDetails(String domStr) {
         Document doc;
         List<PortfolioDetails> portfolioDetails = new ArrayList<>();
         //Portfolio portfolio = (Portfolio) this.getParams().get("PORTFOLIO");
@@ -234,7 +240,7 @@ public class Crawler extends Thread {
                 portfolioDetails.add(portfolioDetail);
             }
         } catch (SAXException | IOException | ParserConfigurationException | ParseException ex) {
-            System.out.println("Exception caught in parsing xml: " + ex.getMessage() );
+            System.out.println("Exception caught in parsing xml: " + ex.getMessage());
             ex.printStackTrace();
             return new ArrayList<>();
         }
@@ -258,15 +264,16 @@ public class Crawler extends Thread {
         DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
         XPath xPath = XPathFactory.newInstance().newXPath();
         DateFormat dateFormat = new SimpleDateFormat(DATA_ARCHIVE_DATE_PATTERN);
-        
+
         List<ItemNews> newses = new ArrayList<>();
         for (Iterator it = variables.toList().iterator(); it.hasNext();) {
-            String newsNode =  it.next().toString();
+            String newsNode = it.next().toString();
             ItemNews news = parseNews(newsNode, dBuilder, xPath, dateFormat);
-            if(news != null)
+            if (news != null) {
                 newses.add(news);
+            }
         }
-        
+
         getParams().put("newses", newses);
     }
 
@@ -314,7 +321,7 @@ public class Crawler extends Thread {
         List<Item> items = parseXML(variables.toString());
         getParams().put("items", items);
     }
-    
+
     private void crawlDsexDataArchive() {
         Scraper scraper = new Scraper(scraperConfig, "d:/expekt");
         String url = DSEX_DATA_ARCHIVE_URL;
@@ -330,7 +337,7 @@ public class Crawler extends Thread {
         List<Item> items = parseDsexXML(variables.toString());
         getParams().put("items", items);
     }
-    
+
     private void crawlDsexDataSync() throws ParseException {
         Scraper scraper = new Scraper(scraperConfig, "d:/expekt");
         scraper.setDebug(true);
@@ -340,7 +347,7 @@ public class Crawler extends Thread {
 
         String dateStr = scraper.getContext().get("date").toString();
         dateStr = dateStr.substring("Last update on".length());
-        dateStr = dateStr.substring(0, dateStr.indexOf("at")-1).trim();
+        dateStr = dateStr.substring(0, dateStr.indexOf("at") - 1).trim();
         DateFormat dateFormat = new SimpleDateFormat(DSEX_DATA_SYNC_DATE_PATTERN);
         Date date = dateFormat.parse(dateStr);
         String str = scraper.getContext().get("index").toString();
@@ -351,16 +358,16 @@ public class Crawler extends Thread {
         int trade = Integer.parseInt(str);
         str = scraper.getContext().get("value").toString();
         float value = Float.parseFloat(str);
-        
+
         item.setDate(date);
         item.setClosePrice(index);
         item.setLastPrice(index);
         item.setAdjustedClosePrice(index);
         item.setDayHigh(index);
         item.setDayLow(index);
-        item.setOpenPrice(index-change);
-        item.setYesterdayClosePrice(index-change);
-        item.setAdjustedYesterdayClosePrice(index-change);
+        item.setOpenPrice(index - change);
+        item.setYesterdayClosePrice(index - change);
+        item.setAdjustedYesterdayClosePrice(index - change);
         item.setTrade(trade);
         item.setValue(value);
     }
@@ -372,7 +379,7 @@ public class Crawler extends Thread {
         InputStream is = new ByteArrayInputStream(domStr.getBytes());
         doc = dBuilder.parse(is);
         doc.normalizeDocument();
-        
+
         NodeList codeNode = (NodeList) xPath.evaluate("/tbody/tr[1]/td[2]/text()", doc.getDocumentElement(), XPathConstants.NODESET);
         String code = codeNode.item(0).getNodeValue();
 
@@ -392,7 +399,7 @@ public class Crawler extends Thread {
 
         return itemNews;
     }
-    
+
     private List<Item> parseDsexXML(String domStr) {
         //System.out.println("domStr: " + domStr);
         Document doc;
@@ -426,10 +433,10 @@ public class Crawler extends Thread {
                 anItem.setClosePrice(closePrice);
                 anItem.setAdjustedClosePrice(closePrice);
                 anItem.setLastPrice(closePrice);
-                anItem.setYesterdayClosePrice(closePrice-change);
+                anItem.setYesterdayClosePrice(closePrice - change);
                 anItem.setTrade(Integer.parseInt(tradeStr));
                 anItem.setValue(Float.parseFloat(valueStr));
-                    items.add(anItem);
+                items.add(anItem);
             }
         } catch (SAXException | IOException | ParserConfigurationException | ParseException ex) {
             System.out.println("Exception caught in parsing xml: " + ex.getMessage() + ", code: " + getItem().getCode());
@@ -503,98 +510,138 @@ public class Crawler extends Thread {
         String url = YEAR_STATISTICS_URL + getItem().getCode();
         scraper.addVariableToContext("url", url);
         scraper.setDebug(true);
-        scraper.getHttpClientManager().getHttpClient().getParams().setConnectionManagerTimeout(HTTP_TIMEOUT_1_MINUTE*3);
+        scraper.getHttpClientManager().getHttpClient().getParams().setConnectionManagerTimeout(HTTP_TIMEOUT_1_MINUTE * 3);
         //System.out.println("Going to fetch " + item.getCode());
         synchronized (scraper) {
             scraper.execute();
         }
-       // System.out.println("Fetch completed " + item.getCode());
+        // System.out.println("Fetch completed " + item.getCode());
 
-        ListVariable variable = (ListVariable) scraper.getContext().get("range");
-        String str = variable.toString();
-        String[] lowHigh = str.split("-");
-        float low = 0;
-        float high = 0;
+        try {
+            ListVariable variable = (ListVariable) scraper.getContext().get("range");
+            String str = variable.toString();
+            String[] lowHigh = str.split("-");
+            float low = 0;
+            float high = 0;
 
-        if (str.length() >= 2) {
-            low = Float.parseFloat(lowHigh[0].trim());
-            high = Float.parseFloat(lowHigh[1].trim());
+            if (str.length() >= 2) {
+                low = Float.parseFloat(lowHigh[0].trim().replace(",", ""));
+                high = Float.parseFloat(lowHigh[1].trim().replace(",", ""));
+            }
+
+            variable = (ListVariable) scraper.getContext().get("sector");
+            String sector = variable.toString().trim();
+
+            variable = (ListVariable) scraper.getContext().get("faceValue");
+            str = variable.toString().trim();
+            int faceValue = (int) Float.parseFloat(str);
+
+            variable = (ListVariable) scraper.getContext().get("totalSecurity");
+            str = variable.toString().trim().replace(",", "");
+            int totalSecurity = Integer.parseInt(str);
+
+            variable = (ListVariable) scraper.getContext().get("authorizedCapital");
+            str = variable.toString().trim().replace(",", "");
+            float authorizedCapital = Float.parseFloat(str);
+
+            variable = (ListVariable) scraper.getContext().get("paidUpCapital");
+            str = variable.toString().trim().replace(",", "");
+            float paidUpCapital = Float.parseFloat(str);
+
+            variable = (ListVariable) scraper.getContext().get("yearEnd");
+            String yearEnd = variable.toString().trim();
+
+            variable = (ListVariable) scraper.getContext().get("reserve");
+            str = variable.toString().trim().replace(",", "");
+            float reserve = Float.parseFloat(str);
+
+            variable = (ListVariable) scraper.getContext().get("PE");
+            char amp = (char) 160;
+            str = variable.toString().trim().replace("" + amp, "");
+            float PE = 0;
+            if (str.isEmpty() || str.equals("n/a")) {
+                PE = 0;
+            } else {
+                try {
+                    PE = Float.parseFloat(str);
+                } catch (NumberFormatException nfe) {
+                    variable = (ListVariable) scraper.getContext().get("EPSQ4");
+                    Matcher emptyMatcher = emptyPattern.matcher(variable.toString().trim());
+                    if (emptyMatcher.matches()) {
+                        variable = (ListVariable) scraper.getContext().get("EPSQ3");
+                        emptyMatcher = emptyPattern.matcher(variable.toString().trim());
+                        if (emptyMatcher.matches()) {
+                            variable = (ListVariable) scraper.getContext().get("EPSQ2");
+                            emptyMatcher = emptyPattern.matcher(variable.toString().trim());
+                            if (emptyMatcher.matches()) {
+                                variable = (ListVariable) scraper.getContext().get("EPSQ1");
+                            }
+                        }
+                    }
+
+                    str = variable.getWrappedObject().toString();
+                    Matcher matcher = pattern.matcher(str);
+                    if (matcher.matches()) {
+                        str = matcher.group(1);
+                        float eps = Float.parseFloat(str);
+                        ListVariable closePriceVariable = (ListVariable) scraper.getContext().get("closePrice");
+                        str = closePriceVariable.toString().trim().replace(",", "");
+                        float closePrice = Float.parseFloat(str);
+                        PE = closePrice / eps;
+                    } else if (emptyMatcher.matches()) {
+                        PE = 0;
+                    }
+
+                }
+
+            }
+
+            variable = (ListVariable) scraper.getContext().get("category");
+            String category = variable.toString().trim();
+
+            variable = (ListVariable) scraper.getContext().get("director");
+            str = variable.toString();
+            str = variable.toString().substring(str.indexOf("\n") + 1);
+            float director = Float.parseFloat(str);
+
+            variable = (ListVariable) scraper.getContext().get("government");
+            str = variable.toString();
+            str = variable.toString().substring(str.indexOf("\n") + 1);
+            float government = Float.parseFloat(str);
+
+            variable = (ListVariable) scraper.getContext().get("institute");
+            str = variable.toString();
+            str = variable.toString().substring(str.indexOf("\n") + 1);
+            float institute = Float.parseFloat(str);
+
+            variable = (ListVariable) scraper.getContext().get("foreign");
+            str = variable.toString();
+            str = variable.toString().substring(str.indexOf("\n") + 1);
+            float foreign = Float.parseFloat(str);
+
+            variable = (ListVariable) scraper.getContext().get("public");
+            str = variable.toString();
+            str = variable.toString().substring(str.indexOf("\n") + 1);
+            float publics = Float.parseFloat(str);
+
+            item.setYearLow(low);
+            item.setYearHigh(high);
+            item.setSector(sector);
+            item.setFaceValue(faceValue);
+            item.setTotalSecurity(totalSecurity);
+            item.setAuthorizedCapital(authorizedCapital);
+            item.setPaidUpCapital(paidUpCapital);
+            item.setYearEnd(yearEnd);
+            item.setReserve(reserve);
+            item.setPE(PE);
+            item.setCategory(category);
+            SharePercentage percentage = new SharePercentage(director, government, institute, foreign, publics);
+            item.setSharePercentage(percentage);
+
+        } catch (Exception ex) {
+            System.out.println("Error item: " + item.getCode());
+            ex.printStackTrace();
         }
-
-        variable = (ListVariable) scraper.getContext().get("sector");
-        String sector = variable.toString().trim();
-
-        variable = (ListVariable) scraper.getContext().get("faceValue");
-        str = variable.toString().trim();
-        int faceValue = (int) Float.parseFloat(str);
-
-        variable = (ListVariable) scraper.getContext().get("totalSecurity");
-        str = variable.toString().trim().replace(",", "");
-        int totalSecurity = Integer.parseInt(str);
-
-        variable = (ListVariable) scraper.getContext().get("authorizedCapital");
-        str = variable.toString().trim().replace(",", "");
-        float authorizedCapital = Float.parseFloat(str);
-
-        variable = (ListVariable) scraper.getContext().get("paidUpCapital");
-        str = variable.toString().trim().replace(",", "");
-        float paidUpCapital = Float.parseFloat(str);
-
-        variable = (ListVariable) scraper.getContext().get("yearEnd");
-        String yearEnd = variable.toString().trim();
-
-        variable = (ListVariable) scraper.getContext().get("reserve");
-        str = variable.toString().trim().replace(",", "");
-        float reserve = Float.parseFloat(str);
-
-        variable = (ListVariable) scraper.getContext().get("PE");
-        char amp = (char) 160;
-        str = variable.toString().trim().replace("" + amp, "");
-        float PE = 0;
-        if (str.isEmpty() || str.equals("n/a")) {
-            PE = 0;
-        } else {
-            PE = Float.parseFloat(str);
-        }
-
-        variable = (ListVariable) scraper.getContext().get("category");
-        String category = variable.toString().trim();
-
-        variable = (ListVariable) scraper.getContext().get("director");
-        str = variable.toString().trim().split(" ")[1];
-        float director = Float.parseFloat(str);
-
-        variable = (ListVariable) scraper.getContext().get("government");
-        str = variable.toString().trim().split("Govt.")[1];
-        float government = Float.parseFloat(str);
-
-        variable = (ListVariable) scraper.getContext().get("institute");
-        str = variable.toString().trim().split(" ")[1];
-        float institute = Float.parseFloat(str);
-
-        variable = (ListVariable) scraper.getContext().get("foreign");
-        str = variable.toString().trim().split(" ")[1];
-        float foreign = Float.parseFloat(str);
-
-        variable = (ListVariable) scraper.getContext().get("public");
-        str = variable.toString().trim().split(" ")[1];
-        float publics = Float.parseFloat(str);
-
-        item.setYearLow(low);
-        item.setYearHigh(high);
-        item.setSector(sector);
-        item.setFaceValue(faceValue);
-        item.setTotalSecurity(totalSecurity);
-        item.setAuthorizedCapital(authorizedCapital);
-        item.setPaidUpCapital(paidUpCapital);
-        item.setYearEnd(yearEnd);
-        item.setReserve(reserve);
-        item.setPE(PE);
-        item.setCategory(category);
-        SharePercentage percentage = new SharePercentage(director, government, institute, foreign, publics);
-        item.setSharePercentage(percentage);
-
-        //System.out.println("Item: " + item);
     }
 
     private void crawlPrice() throws Exception {

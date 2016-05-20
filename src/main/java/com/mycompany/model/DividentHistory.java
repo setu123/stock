@@ -11,6 +11,7 @@ public class DividentHistory implements Comparable<DividentHistory>{
     private Date date;
     private DividentType type;
     private float percent;
+    private float issuePrice;
 
     public DividentType getType() {
         return type;
@@ -26,6 +27,20 @@ public class DividentHistory implements Comparable<DividentHistory>{
 
     public void setPercent(float percent) {
         this.percent = percent;
+    }
+
+    /**
+     * @return the issuePrice
+     */
+    public float getIssuePrice() {
+        return issuePrice;
+    }
+
+    /**
+     * @param issuePrice the issuePrice to set
+     */
+    public void setIssuePrice(float issuePrice) {
+        this.issuePrice = issuePrice;
     }
     
     public enum DividentType{

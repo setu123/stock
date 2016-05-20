@@ -128,6 +128,13 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
                 return true;
             }
 
+            long tenure = today.getDate().getTime() - buyItem.getDate().getTime();
+            tenure = tenure/86400000;
+            if(gain>0 && gain<=5 && tenure>21){
+                setCause(SignalCalculator.cause + " - " + "Tenure exceeded");
+                return true;
+            }
+            
             if (gain > 2 && gain < 5 && (todayClosePrice < lastGreenMinimum)) {
                 return true;
             }
@@ -178,14 +185,19 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
                 return true;
             }
 
-            if (isMarketDown && gain > -8) {
-                setCause("MarketDown");
-                //System.out.println("going to set marketdown");
-                return true;
-            }
+//            if (isMarketDown && belowBothSMA && gain > -5) {
+//                setCause("MarketDown");
+//                //System.out.println("going to set marketdown");
+//                return true;
+//            }
 
             if (gain>20 && (maxGainAfterBuy - gain) >= 7) {
                 setCause("below maxGain");
+                return true;
+            }
+            
+            if(todaychange<0 && todayGap<0 && gain>2 && today.getAdjustedVolume() < maxPriceDay.getAdjustedVolume()/2.5){
+                setCause(SignalCalculator.cause + " - " + "Volume dropped");
                 return true;
             }
 
@@ -197,9 +209,19 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
 //            
 //            if(buyItem.getCause().contains("gAfterRsi30") && gain<0 &&  (belowDSEXBothSMA || belowBothSMA))
 //                return true;
+            
+            //Safe exit
+            if(gain>0 && gain <5 && todayGap<=0 && yesterdayGap<=0 && dayBeforeYesterdayGap<=0 && twoDayBeforeYesterdayGap<=0){
+                setCause(SignalCalculator.cause + " - " + "Safe exit");
+                return true;
+            }
+            
             //stop loss
-//            if(gain<-5 && belowAcceptableSma25 && belowAcceptableSma10)
-//                return true;
+            if((gain<5 && gain>-6 && belowBothSMA) || (gain>=-5 && gain <=-10)){
+                setCause(SignalCalculator.cause + " - " + "Stop loss");
+                return true;
+            }
+                
 //            if(gain>0 && belowSMA25 && todayGap<=0 && todaychange<0 && belowDSEXBothSMA && dsex.getAdjustedClosePrice()<dsex.getYesterdayClosePrice())
 //                return true;
 //            if(gain>7 && gain<15 && upperTail>2.9)

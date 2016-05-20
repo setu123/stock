@@ -46,6 +46,8 @@ public class Item extends BasicInfo implements Comparable<Item>{
     private float dayBeforeYesterdayRSI;
     private Map<Integer, Float> volumeChanges;
     private float gain;
+    private boolean potentiality;
+    private float dividentYield;
 
     public SignalType getSignal() {
         return signal;
@@ -158,6 +160,34 @@ public class Item extends BasicInfo implements Comparable<Item>{
     public void setGain(float gain) {
         this.gain = gain;
     }
+
+    /**
+     * @return the potentiality
+     */
+    public boolean isPotentiality() {
+        return potentiality;
+    }
+
+    /**
+     * @param potentiality the potentiality to set
+     */
+    public void setPotentiality(boolean potentiality) {
+        this.potentiality = potentiality;
+    }
+
+    /**
+     * @return the dividentYield
+     */
+    public float getDividentYield() {
+        return dividentYield;
+    }
+
+    /**
+     * @param dividentYield the dividentYield to set
+     */
+    public void setDividentYield(float dividentYield) {
+        this.dividentYield = dividentYield;
+    }
     public enum SignalType{
         BUY, SELL, HOLD, AVG, NA
     }
@@ -268,6 +298,10 @@ public class Item extends BasicInfo implements Comparable<Item>{
     @Override
     public String toString() {
         return "Item{" + "code=" + getCode() + ", date=" + getDate() + ", trade=" + trade + ", pressure=" + pressure + ", buyVolume=" + buyVolume + ", sellVolume=" + sellVolume + ", lastPrice=" + lastPrice + ", openPrice=" + openPrice + ", closePrice=" + closePrice + ", adjustedClosePrice= " + adjustedClosePrice + ", volume=" + volume + ", value=" + value + ", dayHigh=" + dayHigh + ", dayLow=" + dayLow + ", hammer=" + hammer + ", volumeChange=" + volumeChange + ", cLengthChange=" + cLengthChange + ", consecutiveGreen=" + consecutiveGreen + ", tradeChange=" + tradeChange + ", lastUpdated=" + lastUpdated + ", RSI=" + RSI + ", yesterdayClosePrice=" + yesterdayClosePrice + '}';
+    }
+    
+    public String getYearStatistics(){
+        return super.toString();
     }
 
     public float getDayHigh() {

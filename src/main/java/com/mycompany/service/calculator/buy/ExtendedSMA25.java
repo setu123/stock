@@ -11,16 +11,19 @@ import com.mycompany.service.CustomHashMap;
 import com.mycompany.service.ScannerService;
 import com.mycompany.service.calculator.SignalCalculator;
 import static com.mycompany.service.calculator.SignalCalculator.averageValuePerTrade;
+import static com.mycompany.service.calculator.SignalCalculator.maxPriceDay;
+import static com.mycompany.service.calculator.SignalCalculator.sma25;
 import static com.mycompany.service.calculator.SignalCalculator.today;
+import static com.mycompany.service.calculator.SignalCalculator.vChange;
 import java.util.List;
 
 /**
  * @date Dec 17, 2015
  * @author setu
  */
-public class Sma25 extends BuySignalCalculator {
+public class ExtendedSMA25 extends BuySignalCalculator {
 
-    public Sma25(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
+    public ExtendedSMA25(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
         super(scanner, oneYearData, portfolio);
     }
 
@@ -36,6 +39,8 @@ public class Sma25 extends BuySignalCalculator {
         float gap = today.getOpenPrice()-yesterdayMax;
         gap = (gap/yesterdayMax)*100;
         float sma25Diff = ((SignalCalculator.sma25-SignalCalculator.oneWeekAgoSma25)/SignalCalculator.oneWeekAgoSma25)*100;
+        float oneWeekAgoSma10 = fourDayBeforeYesterday.getSmaList().get(10);
+        float sma10Diff = ((SignalCalculator.sma10-oneWeekAgoSma10)/oneWeekAgoSma10)*100;
         boolean gapLogic = gap>0.7? todayGap>=4:true;
         float plainGap = todayClosePrice-today.getOpenPrice();
         float oneWeekAgoEma9 = fourDayBeforeYesterday.getEmaList().get(9);
@@ -45,6 +50,7 @@ public class Sma25 extends BuySignalCalculator {
         float tails = ((today.getDayHigh() - today.getDayLow()) - straightGap);
         boolean isShaky = tails>straightGap;
         float topTail = ((today.getDayHigh()-Math.max(today.getOpenPrice(), today.getAdjustedClosePrice()))/Math.max(today.getOpenPrice(), today.getAdjustedClosePrice()))*100;
+        float bottomTail = ((Math.min(today.getOpenPrice(), today.getAdjustedClosePrice())-today.getDayLow())/Math.min(today.getOpenPrice(), today.getAdjustedClosePrice()))*100;
         float maxPriceDayMax = Math.max(maxPriceDay.getOpenPrice(), maxPriceDay.getAdjustedClosePrice());
         float changeWithMaxPriceDay = ((todayClosePrice-maxPriceDayMax)/maxPriceDayMax)*100;
         
@@ -56,24 +62,37 @@ public class Sma25 extends BuySignalCalculator {
                 && divergence <= maxDivergence
                 && todayValue >= minValue
                 && todayTrade >= minTrade
-                && vChange >= 0.8
+                && vChange >= 2 
+//                && (todaychange<5 || (todaychange>9 && upperTail<1))
+//                && weeklyVChange >= 3
 //                && vChange >= minVChange && ((marketWasDown && vChange <= 4) || (vChange <= 2 && weeklyVChange<2.8) || (vChange>3 && publicShare<10000000 && lastTwoMonthVariation <= 10))
 //                && volumePerTradeChange >= 1.3 && vChange >=5
 //                && Math.min(todayGap, yesterdayGap) > -3
-                && diffWithPreviousLow10 <= 12 //&& Math.max(todayGap, yesterdayGap) >= 0.5
-                && upperTail < 4
+                && diffWithPreviousLow10 <= 8 //&& Math.max(todayGap, yesterdayGap) >= 0.5
+//                && greenCountInLastFewDays >=3
+                && bottomTail >=1.2
+////                && sma10Diff >= 0
 //                && topTail <= 1.1
+                && upperTail <= 2
                 && acceptableItemSMA && acceptableDSEXSMA
+                && !today.getSector().equalsIgnoreCase("bank") 
+                && !today.getSector().equalsIgnoreCase("mutual funds")
+//                && sma25IntersectInLastFewDays >= 5
+//                && gap >=2 && gap<=3
+//                && todaychange >5 && todaychange<9
 //                && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
-//                && sma25Diff >= -0.6
-                && todayClosePrice > sma10
-                && emaPass
+                && sma25Diff <= -0
+//                && todayEma9 < 0
+//                && todayClosePrice > sma10
+//                && emaPass
 //                && !isShaky
-//                && lastMonthVariation <=5
-//                && lastWeekMaxVolume < today.getAdjustedVolume()
-                && changeWithMaxPriceDay >= -1
-//                && yesterdayGap>0
+//                && sma25> sma10*1.01 && today.getOpenPrice()<sma10 && today.getAdjustedClosePrice()>sma25
+//                && today.getAdjustedVolume() > lastMonthMaxVolume
+//                  && todayClosePrice > lastMonthMaximum
+//                && changeWithMaxPriceDay >= -1
+//                && lastMonthSmaVariation < 3
 //                && smaTrend
+//                  && volumePerTradeChange <= 1.2 
                 //&& (lastMonthVariation <= 7 ? lastMonthMaximum < today.getAdjustedClosePrice() : true)
 //                && (lastMonthVariation <= 7 ? diffWithLastMonthHigh > -1 : true)
 //                && !((today.getAdjustedClosePrice() - today.getYesterdayClosePrice()) <= 0.1)

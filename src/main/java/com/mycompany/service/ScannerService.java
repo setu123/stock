@@ -3,6 +3,7 @@ package com.mycompany.service;
 import com.mycompany.dao.ItemDaoImpl;
 import com.mycompany.dao.PortfolioDaoImpl;
 import com.mycompany.model.ChangesInVolumePerTrade;
+import com.mycompany.model.DividentHistory;
 import com.mycompany.model.Item;
 import com.mycompany.model.Portfolio;
 import com.mycompany.model.PortfolioItem;
@@ -47,6 +48,7 @@ public class ScannerService {
     private final String DIVERGENCE = "DIVERGENCE";
     private final String SIGNAL = "SIGNAL";
     private final String VTC_SIGNAL = "VTC_SIGNAL";
+    private final String DIVIDENT_YIELD = "DIVIDENT_YIELD";
     public static final int RSI_PERIOD = 14;
     public static final int TRADING_DAYS_IN_A_YEAR = 250;
     //public static final int TRADING_DAYS_IN_2_MONTH = 44;
@@ -55,6 +57,7 @@ public class ScannerService {
     public static final int DAYS_IN_A_YEAR = 365;
     private Portfolio portfolio;
     private PortfolioDaoImpl portfolioDao;
+    private DecimalFormat df = new DecimalFormat("#.#");
     //private static float MACD_MAX = 0;
 
     public ScannerService() {
@@ -98,11 +101,59 @@ public class ScannerService {
         //System.out.println("up to getDivergenceAndRSIBasedSignal time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
         mergeItems(items, getPurifiedSignal(dataArchive), SIGNAL);
         //System.out.println("up to getPurifiedSignal time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
-        mergeItems(items, getVolumePerTradeChangeBasedSignal(items, dataArchive), VTC_SIGNAL);
+        //mergeItems(items, getVolumePerTradeChangeBasedSignal(items, dataArchive), VTC_SIGNAL);
+        mergeItems(items, getDividentYield(dataArchive), DIVIDENT_YIELD);
 
         dao.close();
         interceptDSEXItem(items);
         return items;
+    }
+    
+    private List<Item> getDividentYield(CustomHashMap oneYearData){
+        Date latestDividentDate;
+        DividentHistory latestCashHistory;
+        
+        List<Item> distinctItems = new ArrayList<>();
+        for (String code : oneYearData.keySet()) {
+            if (code.equals("DSEX")) {
+                continue;
+            }
+            List<Item> items = oneYearData.getItems(code);
+            Collections.sort(items);
+            Item item = items.get(items.size() - 1);
+
+            List<DividentHistory> histories = Utils.getDividentHistory(item.getCode());
+            latestDividentDate = new Date(Long.MIN_VALUE);
+            latestCashHistory = null;
+            
+            //Find lastestDividentDate
+            for(DividentHistory history: histories){
+                if(!history.getDate().before(latestDividentDate) && history.getDate().before(item.getDate()))
+                    latestDividentDate = history.getDate();
+            }
+            
+            for(DividentHistory history: histories){
+                if(history.getDate().equals(latestDividentDate) && history.getType().equals(DividentHistory.DividentType.CASH))
+                    latestCashHistory = history;
+            }
+            
+            if(latestCashHistory != null){
+                float cashDivident = latestCashHistory.getPercent();
+                float dividentYield = (cashDivident*10)/item.getAdjustedClosePrice();
+                String dividentYieldString = df.format(dividentYield);
+                
+                try{
+                    dividentYield = Float.parseFloat(dividentYieldString);
+                    item.setDividentYield(dividentYield);
+                }catch(NumberFormatException nfe){
+                    System.out.println("NumberFormatException: " + nfe.getMessage() + ", dividentYield: " + dividentYield + ", code: " + item.getCode());
+                }
+            }
+            
+            distinctItems.add(item);
+        }
+        
+        return distinctItems;
     }
 
     private void interceptDSEXItem(List<Item> items) {
@@ -225,6 +276,7 @@ public class ScannerService {
         return dsex;
     }
 
+    @Deprecated
     private List<Item> getDivergenceAndRSIBasedSignal(List<Item> calculatedItems, CustomHashMap oneYearData) throws SQLException, ClassNotFoundException {
         List<Item> distinctItems = new ArrayList<>();
 
@@ -445,6 +497,7 @@ public class ScannerService {
             SignalCalculator aCalculator = buyCalculators.get(0);
             List<Item> copyOfSubList = new ArrayList<>(items);
             aCalculator.intializeVariables(copyOfSubList, null);
+            item.setPotentiality(SignalCalculator.potentiality);
 
             for (BuySignalCalculator calculator : buyCalculators) {
                 if (calculator.isBuyCandidate(items, null)) {
@@ -903,9 +956,13 @@ public class ScannerService {
                             break;
                         case SIGNAL:
                             to.setSignal(with.getSignal());
+                            to.setPotentiality(with.isPotentiality());
                             break;
                         case VTC_SIGNAL:
                             to.setVtcSignal(with.getVtcSignal());
+                            break;
+                        case DIVIDENT_YIELD:
+                            to.setDividentYield(with.getDividentYield());
                             break;
                         default:
                             break;

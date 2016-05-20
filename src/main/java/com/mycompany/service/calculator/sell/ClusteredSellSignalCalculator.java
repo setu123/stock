@@ -305,6 +305,33 @@ public class ClusteredSellSignalCalculator {
         }
     }
     
+    public static class sell14 extends SellSignalCalculator {
+
+        public sell14(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
+            super(scanner, oneYearData, portfolio);
+        }
+
+        @Override
+        public boolean isSellCandidate(List<Item> itemSubList, Item calItem) {
+            //super.initializeVariables(itemSubList, calItem);
+            
+            float yesterdayVChange = yesterday.getVolumeChange();
+            float todayVChange = today.getVolumeChange();
+            float volumeDrop = todayVChange/yesterdayVChange;
+            long tenure = today.getDate().getTime() - buyItem.getDate().getTime();
+            tenure = tenure/86400000;
+            
+            if (gain>0 && gain<=5 && tenure>21) {
+//                System.out.println("Going to check sell4.date: " + today.getDate());
+                setCause(this.getClass().getName());
+                boolean mask = isMaskPassed(today, portfolio);
+//                System.out.println(", sell14date: " + today.getDate() + ", mask: " + mask + ", gain: " + gain);
+                return mask;
+            }
+            return false;
+        }
+    }
+    
     public static class EOM extends SellSignalCalculator {
 
         public EOM(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {

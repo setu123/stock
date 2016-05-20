@@ -30,6 +30,7 @@ public class LargeCandle extends BuySignalCalculator {
                 && divergence <= maxDivergence
 //                && todayClosePrice > sma25
                 && notBelowBothSMA
+                && notBelowDSEXBothSMA
                 && diffWithPreviousLow10 <= 7
                 ) {
             setCause(this.getClass().getName());

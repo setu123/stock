@@ -11,11 +11,12 @@ import java.util.Date;
  * @date Oct 2, 2015
  * @author setu
  */
-public class ItemNews {
+public class ItemNews implements Comparable<ItemNews>{
 
     private String code;
     private String news;
     private Date date;
+    private EPSList epsList;
 
     public Date getDate() {
         return date;
@@ -44,6 +45,31 @@ public class ItemNews {
     @Override
     public String toString() {
         return "ItemNews{" + "code=" + code + ", news=" + news + ", date=" + date + '}';
+    }
+
+    @Override
+    public int compareTo(ItemNews o) {
+        if(o==null)
+            return -1;
+        
+        if(!this.getCode().equals(o.getCode()))
+            return this.getCode().compareTo(o.getCode());
+        
+        return this.getDate().compareTo(o.getDate());
+    }
+
+    /**
+     * @return the epsList
+     */
+    public EPSList getEpsList() {
+        return epsList;
+    }
+
+    /**
+     * @param epsList the epsList to set
+     */
+    public void setEpsList(EPSList epsList) {
+        this.epsList = epsList;
     }
     
     
