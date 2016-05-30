@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+    <var-def name="data">
+            <xpath expression="/html/body/table[2]/tbody/tr/td[2]/table/tbody/tr[2]/td[1]/table[1]/tbody//tr[position()>1]">
+                <html-to-xml>
+                    <http method="post" url="http://www.dsebd.org/day_end_archive.php">
+                        <http-param name="DayEndSumDate1" >
+                            <template>${startDate}</template>
+                        </http-param>
+                        <http-param name="DayEndSumDate2">
+                            <template>${endDate}</template>
+                        </http-param>
+                        <http-param name="Symbol">
+                            <template>${code}</template>
+                        </http-param>
+                    </http>
+                </html-to-xml>
+            </xpath>
+    </var-def> 
+    
+    
+    <var-def name="items">
+        <![CDATA[ <items> ]]>
+    <loop item="item" index="i">
+    	<list>
+    		<var name="data"/>
+    	</list>
+    	<body>
+    		<xquery>
+                    <xq-param name="item" type="node()"><var name="item"/></xq-param>
+                    <xq-expression><![CDATA[
+                            declare variable $item as node() external;
+                            let $date := $item//td[2]/font/text()
+                            let $code := $item//td[3]/a/font/text()
+                            let $ltp := $item//td[4]/font/text()
+                            let $high := $item//td[5]/font/text()
+                            let $low := $item//td[6]/font/text()
+                            let $open := $item//td[7]/font/text()
+                            let $close := $item//td[8]/font/text()
+                            let $ycp := $item//td[9]/font/text()
+                            let $trade := $item//td[10]/font/text()
+                            let $value := $item//td[11]/font/text()
+                            let $volume := $item//td[12]/font/text()
+                                return
+                                    <data date="{$date}" code="{$code}" ltp="{$ltp}" high="{$high}" low="{$low}" open="{$open}" close="{$close}" ycp="{$ycp}" trade="{$trade}" value="{$value}" volume="{$volume}"/>
+                    ]]></xq-expression>
+                </xquery>
+    		
+    	</body>
+    </loop>     
+    <![CDATA[ </items> ]]>
+    </var-def>
+    
+    
+</config>

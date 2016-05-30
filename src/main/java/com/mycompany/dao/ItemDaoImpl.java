@@ -456,7 +456,7 @@ public class ItemDaoImpl extends BasicDaoImpl{
 
     public CustomHashMap getData(int days) throws SQLException, ClassNotFoundException {
         //String sql = "SELECT CODE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, DATE FROM bs_pressure WHERE DATE IN (SELECT * FROM (SELECT DISTINCT(DATE) FROM bs_pressure ORDER BY DATE ) AS T) ORDER BY DATE;";
-        String sql = "SELECT pressure.DATE, pressure.CODE, OPEN_PRICE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, YESTERDAY_CLOSE_PRICE, DAY_LOW, DAY_HIGH, pressure.DATE, VOLUME, TRADE, VALUE, "
+        String sql = "SELECT pressure.DATE, pressure.CODE, OPEN_PRICE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, YESTERDAY_CLOSE_PRICE, DAY_LOW, DAY_HIGH, pressure.DATE, VOLUME, TRADE, VALUE, PRESSURE, "
                 + "TOTALSECURITY, DIRECTOR, GOVERNMENT, INSTITUTE, FOREIN, PUBLIC, SECTOR "
                 + "FROM bs_pressure pressure "
                 + "LEFT JOIN year_statistics statistics ON pressure.CODE = statistics.CODE "
@@ -502,6 +502,7 @@ public class ItemDaoImpl extends BasicDaoImpl{
                 item.setVolume(rs.getInt("volume"));
                 item.setValue(rs.getFloat("value"));
                 item.setTrade(rs.getInt("trade"));
+                item.setPressure(rs.getInt("pressure"));
                 item.setTotalSecurity(rs.getInt("totalSecurity"));
                 item.getSharePercentage().setDirector(rs.getFloat("director"));
                 item.getSharePercentage().setGovernment(rs.getFloat("government"));
@@ -515,8 +516,8 @@ public class ItemDaoImpl extends BasicDaoImpl{
             }
 
     public Item getItem(String code, java.util.Date date) throws SQLException {
-        String sql = "SELECT pressure.DATE, pressure.CODE, OPEN_PRICE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, YESTERDAY_CLOSE_PRICE, DAY_LOW, DAY_HIGH, pressure.DATE, VOLUME, TRADE, VALUE, "
-                + "TOTALSECURITY, DIRECTOR, GOVERNMENT, INSTITUTE, FOREIN, PUBLIC "
+        String sql = "SELECT pressure.DATE, pressure.CODE, OPEN_PRICE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, YESTERDAY_CLOSE_PRICE, DAY_LOW, DAY_HIGH, pressure.DATE, VOLUME, TRADE, VALUE, PRESSURE, "
+                + "TOTALSECURITY, DIRECTOR, GOVERNMENT, INSTITUTE, FOREIN, PUBLIC, SECTOR "
                 + "FROM bs_pressure pressure "
                 + "LEFT JOIN year_statistics statistics ON pressure.CODE = statistics.CODE "
                 + "WHERE pressure.DATE = ? && pressure.code = ?";

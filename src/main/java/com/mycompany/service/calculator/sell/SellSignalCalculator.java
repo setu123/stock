@@ -130,7 +130,7 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
 
             long tenure = today.getDate().getTime() - buyItem.getDate().getTime();
             tenure = tenure/86400000;
-            if(gain>0 && gain<=5 && tenure>21){
+            if(gain>0 && gain<=5 && tenure>DECISION_MAKING_TENURE){
                 setCause(SignalCalculator.cause + " - " + "Tenure exceeded");
                 return true;
             }
@@ -181,9 +181,9 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
                 return true;
             }
 
-            if (cause.contains("sell56")) {
-                return true;
-            }
+//            if (cause.contains("sell56")) {
+//                return true;
+//            }
 
 //            if (isMarketDown && belowBothSMA && gain > -5) {
 //                setCause("MarketDown");
@@ -217,10 +217,10 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
             }
             
             //stop loss
-            if((gain<5 && gain>-6 && belowBothSMA) || (gain>=-5 && gain <=-10)){
-                setCause(SignalCalculator.cause + " - " + "Stop loss");
-                return true;
-            }
+//            if((gain<5 && gain>-6 && belowBothSMA) || (gain>=-5 && gain <=-10)){
+//                setCause(SignalCalculator.cause + " - " + "Stop loss");
+//                return true;
+//            }
                 
 //            if(gain>0 && belowSMA25 && todayGap<=0 && todaychange<0 && belowDSEXBothSMA && dsex.getAdjustedClosePrice()<dsex.getYesterdayClosePrice())
 //                return true;
@@ -266,6 +266,29 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
 
         return true;
     }
+    
+    protected boolean isMaskPassed2(Item item, Portfolio portfolio) {
+        //System.out.println("cametosell-date: " + item.getDate() + ", code: " + item.getCode() + ", cause: " + getCause());
+        
+        if((gain>=-6 && gain <=-4)){
+                setCause(SignalCalculator.cause + " - " + "Stop loss");
+                return true;
+            }
+
+        if (!(buyItem != null && buyItem.getDate().before(yesterday.getDate()))) {
+            return false;
+        } //        if (buyItem != null && buyItem.getDate().before(yesterday.getDate())) {
+        else {
+            float gain = ((item.getAdjustedClosePrice() - buyItem.getAverageBuyPrice()) / buyItem.getAverageBuyPrice()) * 100;
+            
+            if (gain < 8) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
 
     private float getMaxGainInLastWeek() {
         float max = 0;
