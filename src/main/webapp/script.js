@@ -7,7 +7,7 @@ Ext.define('Pressure', {extend: 'Ext.data.Model', fields: ['code', 'pressure', '
                 var publicPercent = record.data.publics;
                 var publicShare = ((totalSecurity * publicPercent) / 100) / 1000000;
                 return publicShare.toFixed(1);
-            }}, 'potentiality', 'dividentYield']});
+            }}, 'potentiality', 'dividentYield', 'bottom']});
 Ext.Ajax.cors = true;
 Ext.Ajax.useDefaultXhrHeader = false;
 var localStore = new Ext.data.Store({
@@ -25,7 +25,7 @@ var gridView = Ext.ComponentQuery.query('gridpanel')[0];
 //hideColumns(gridView.headerCt);
 var store = gridView.store;
 var model = store.model;
-model.setFields([{name: 'id', type: 'int'}, {name: 'code', type: 'string'}, {name: 'sector', type: 'string'}, {name: 'category', type: 'string'}, {name: 'market_lot', type: 'int'}, {name: 'face_value', type: 'int'}, {name: 'nav', type: 'float'}, {name: 'lastprice', type: 'float'}, {name: 'open', type: 'float'}, {name: 'high', type: 'float'}, {name: 'low', type: 'float'}, {name: 'pchange', type: 'float'}, {name: 'change', type: 'float'}, {name: 'pe', type: 'float'}, {name: 'eps', type: 'float'}, {name: 'volume', type: 'int'}, {name: 'value', type: 'float'}, {name: 'trade', type: 'float'}, {name: 'ycp', type: 'float'}, {name: 'pressure', type: 'float', defaultValue: 0}, {name: 'volumeChange', type: 'float', defaultValue: 0}, {name: 'hammer', type: 'float', defaultValue: 0}, {name: 'cLengthChange', type: 'float', defaultValue: 0}, {name: 'consecutiveGreen', type: 'boolean', defaultValue: false}, {name: 'tradeChange', type: 'float'}, {name: 'rsi', type: 'int'}, {name: 'divergence', type: 'int'}, {name: 'signal', type: 'string', defaultValue: 'NA'}, {name: 'publics', type: 'float', defaultValue: '50'}, {name: 'publicShare', type: 'float', defaultValue: '50'}, {name: 'totalSecurity', type: 'float', defaultValue: '0'}, {name: 'paidUpCapital', type: 'float', defaultValue: '0'}, {name: 'reserve', type: 'float', defaultValue: '0'}, {name: 'potentiality', type: 'boolean', defaultValue: '0'}, {name: 'dividentYield', type: 'float', defaultValue: '0'}]);
+model.setFields([{name: 'id', type: 'int'}, {name: 'code', type: 'string'}, {name: 'sector', type: 'string'}, {name: 'category', type: 'string'}, {name: 'market_lot', type: 'int'}, {name: 'face_value', type: 'int'}, {name: 'nav', type: 'float'}, {name: 'lastprice', type: 'float'}, {name: 'open', type: 'float'}, {name: 'high', type: 'float'}, {name: 'low', type: 'float'}, {name: 'pchange', type: 'float'}, {name: 'change', type: 'float'}, {name: 'pe', type: 'float'}, {name: 'eps', type: 'float'}, {name: 'volume', type: 'int'}, {name: 'value', type: 'float'}, {name: 'trade', type: 'float'}, {name: 'ycp', type: 'float'}, {name: 'pressure', type: 'float', defaultValue: 0}, {name: 'volumeChange', type: 'float', defaultValue: 0}, {name: 'hammer', type: 'float', defaultValue: 0}, {name: 'cLengthChange', type: 'float', defaultValue: 0}, {name: 'consecutiveGreen', type: 'boolean', defaultValue: false}, {name: 'tradeChange', type: 'float'}, {name: 'rsi', type: 'int'}, {name: 'divergence', type: 'int'}, {name: 'signal', type: 'string', defaultValue: 'NA'}, {name: 'publics', type: 'float', defaultValue: '50'}, {name: 'publicShare', type: 'float', defaultValue: '50'}, {name: 'totalSecurity', type: 'float', defaultValue: '0'}, {name: 'paidUpCapital', type: 'float', defaultValue: '0'}, {name: 'reserve', type: 'float', defaultValue: '0'}, {name: 'potentiality', type: 'boolean', defaultValue: '0'}, {name: 'dividentYield', type: 'float', defaultValue: '0'}, {name: 'bottom', type: 'boolean', defaultValue: false}]);
 store.on('load', function () {
     localStore.load(function (records, operation, success) {
         store.suspendEvents();
@@ -54,6 +54,7 @@ store.on('load', function () {
             stockRecord.set('reserve', rec.get('reserve'));
             stockRecord.set('potentiality', rec.get('potentiality'));
             stockRecord.set('dividentYield', rec.get('dividentYield'));
+            stockRecord.set('bottom', rec.get('bottom'));
         }
         store.commitChanges();
         store.resumeEvents();
@@ -96,6 +97,13 @@ var potentiality = Ext.create('Ext.grid.column.Column', {header: 'Sma25', dataIn
         return value;  
 }});
 var dividentYield = Ext.create('Ext.grid.column.Column', {header: 'Yield', dataIndex: 'dividentYield', width: 60, readOnly: true, hidden: true});
+var bottom = Ext.create('Ext.grid.column.Column', {header: 'Bottom', dataIndex: 'bottom', width: 60, readOnly: true, hidden: false, renderer:function(value, record){
+        if(value===true)
+            value = "<span style='color:green'>" + value + "</span>";
+        return value; 
+}});
+    
+gridView.headerCt.insert(gridView.columns.length, bottom);
 gridView.headerCt.insert(gridView.columns.length, dividentYield);
 gridView.headerCt.insert(gridView.columns.length, potentiality);
 gridView.headerCt.insert(gridView.columns.length, reserve);
@@ -129,6 +137,7 @@ function hideColumns(headerCt) {
     headerCt.items.getAt(13).hide();
     headerCt.items.getAt(16).hide();
     headerCt.items.getAt(18).hide();
+    headerCt.items.getAt(29).hide();
 //    headerCt.items.getAt(20).hide();
 //    headerCt.items.getAt(21).hide();
 //    headerCt.items.getAt(28).hide();

@@ -478,13 +478,13 @@ public class ItemDaoImpl extends BasicDaoImpl{
         }
 
         CustomHashMap cMap = getItemizedData(items);
-        for (String code : cMap.keySet()) {
-            items = cMap.getItems(code);
-            items.get(0).setAdjustedYesterdayClosePrice(items.get(0).getYesterdayClosePrice());
-            for (int i = 1; i < items.size(); i++) {
-                calculateAdjustedYesterdayClosePrice(items.get(i), items.get(i - 1).getDate());
-            }
-        }
+//        for (String code : cMap.keySet()) {
+//            items = cMap.getItems(code);
+//            items.get(0).setAdjustedYesterdayClosePrice(items.get(0).getYesterdayClosePrice());
+//            for (int i = 1; i < items.size(); i++) {
+//                calculateAdjustedYesterdayClosePrice(items.get(i), items.get(i - 1).getDate());
+//            }
+//        }
 
         return cMap;
     }
@@ -584,6 +584,7 @@ public class ItemDaoImpl extends BasicDaoImpl{
         float adjustedOpenPrice = item.getOpenPrice();
         float adjustedHigh = item.getDayHigh();
         float adjustedLow = item.getDayLow();
+        float adjustedYesterdayClose = item.getYesterdayClosePrice();
         float factor = 0;
         java.util.Date today = new java.util.Date();
         //java.util.Date today = item.getDate();
@@ -595,6 +596,7 @@ public class ItemDaoImpl extends BasicDaoImpl{
                         adjustedOpenPrice = adjustedOpenPrice - (FACE_VALUE * divident.getPercent()) / 100;
                         adjustedHigh = adjustedHigh - (FACE_VALUE * divident.getPercent()) / 100;
                         adjustedLow = adjustedLow - (FACE_VALUE * divident.getPercent()) / 100;
+                        adjustedYesterdayClose = adjustedYesterdayClose - (FACE_VALUE * divident.getPercent()) / 100;
                         break;
                     case STOCK:
                         factor = 1 / (1 + (divident.getPercent() / 100));
@@ -602,6 +604,7 @@ public class ItemDaoImpl extends BasicDaoImpl{
                         adjustedOpenPrice = adjustedOpenPrice * factor;
                         adjustedHigh = adjustedHigh * factor;
                         adjustedLow = adjustedLow * factor;
+                        adjustedYesterdayClose = adjustedYesterdayClose * factor;
                         break;
 //                    case RIGHT:
 //                        int baseQuantity = Math.round(100 / divident.getPercent());
@@ -615,6 +618,7 @@ public class ItemDaoImpl extends BasicDaoImpl{
                         adjustedOpenPrice = (adjustedOpenPrice+divident.getIssuePrice()) * factor;
                         adjustedHigh = (adjustedHigh+divident.getIssuePrice()) * factor;
                         adjustedLow = (adjustedLow+divident.getIssuePrice()) * factor;
+                        adjustedYesterdayClose = (adjustedYesterdayClose+divident.getIssuePrice()) * factor;
                         break;
                     case SPLIT:
                         factor = 1 / (1 + (divident.getPercent() / 100));
@@ -622,6 +626,7 @@ public class ItemDaoImpl extends BasicDaoImpl{
                         adjustedOpenPrice = adjustedOpenPrice * factor;
                         adjustedHigh = adjustedHigh * factor;
                         adjustedLow = adjustedLow * factor;
+                        adjustedYesterdayClose = adjustedYesterdayClose * factor;
                         break;
                 }
             }
@@ -631,6 +636,7 @@ public class ItemDaoImpl extends BasicDaoImpl{
         item.setOpenPrice(adjustedOpenPrice);
         item.setDayHigh(adjustedHigh);
         item.setDayLow(adjustedLow);
+        item.setAdjustedYesterdayClosePrice(adjustedYesterdayClose);
     }
 
     private void calculateAdjustedVolume(Item item) {

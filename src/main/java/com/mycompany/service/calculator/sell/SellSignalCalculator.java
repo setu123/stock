@@ -130,7 +130,7 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
 
             long tenure = today.getDate().getTime() - buyItem.getDate().getTime();
             tenure = tenure/86400000;
-            if(gain>0 && gain<=5 && tenure>DECISION_MAKING_TENURE){
+            if(gain>3 && gain<=5 && tenure>DECISION_MAKING_TENURE && Math.max(rsi, yesterdayRsi)>=70){
                 setCause(SignalCalculator.cause + " - " + "Tenure exceeded");
                 return true;
             }
@@ -213,6 +213,12 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
             //Safe exit
             if(gain>0 && gain <5 && todayGap<=0 && yesterdayGap<=0 && dayBeforeYesterdayGap<=0 && twoDayBeforeYesterdayGap<=0){
                 setCause(SignalCalculator.cause + " - " + "Safe exit");
+                return true;
+            }
+            
+            float maxRsi = Math.max(yesterdayRsi, dayBeforeRsi);
+            if((maxRsi>=80 && rsi<maxRsi) || (maxRsi>=70 && rsi<70)){
+                setCause(SignalCalculator.cause + " - " + "RSI drop");
                 return true;
             }
             

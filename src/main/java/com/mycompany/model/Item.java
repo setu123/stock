@@ -48,6 +48,7 @@ public class Item extends BasicInfo implements Comparable<Item>{
     private float gain;
     private boolean potentiality;
     private float dividentYield;
+    private boolean bottom;
 
     public SignalType getSignal() {
         return signal;
@@ -188,6 +189,21 @@ public class Item extends BasicInfo implements Comparable<Item>{
     public void setDividentYield(float dividentYield) {
         this.dividentYield = dividentYield;
     }
+
+    /**
+     * @return the bottom
+     */
+    public boolean isBottom() {
+        return bottom;
+    }
+
+    /**
+     * @param bottom the bottom to set
+     */
+    public void setBottom(boolean bottom) {
+        this.bottom = bottom;
+    }
+    
     public enum SignalType{
         BUY, SELL, HOLD, AVG, NA
     }

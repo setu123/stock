@@ -8,6 +8,7 @@ import com.mycompany.model.Item;
 import com.mycompany.model.Portfolio;
 import com.mycompany.model.PortfolioItem;
 import com.mycompany.service.calculator.SignalCalculator;
+import static com.mycompany.service.calculator.SignalCalculator.today;
 import com.mycompany.service.calculator.buy.Average;
 import com.mycompany.service.calculator.buy.BuySignalCalculator;
 import com.mycompany.service.calculator.buy.Consecutive1;
@@ -462,7 +463,7 @@ public class ScannerService {
         buyCalculators.add(new LargeCandle(this, oneYearData, portfolio));
         buyCalculators.add(new MultipleSma25Intersect(this, oneYearData, portfolio));
         buyCalculators.add(new SmaIntersect(this, oneYearData, portfolio));
-        buyCalculators.add(new Test1(this, oneYearData, portfolio));
+//        buyCalculators.add(new Test1(this, oneYearData, portfolio));
         buyCalculators.add(new Average(this, oneYearData, portfolio));
 
         List<SellSignalCalculator> sellCalculators = new ArrayList<>();
@@ -502,6 +503,7 @@ public class ScannerService {
             List<Item> copyOfSubList = new ArrayList<>(items);
             aCalculator.intializeVariables(copyOfSubList, null);
             item.setPotentiality(SignalCalculator.potentiality);
+            item.setBottom(isBottom(SignalCalculator.bottom, SignalCalculator.today));
 
             for (BuySignalCalculator calculator : buyCalculators) {
                 if (calculator.isBuyCandidate(items, null)) {
@@ -535,6 +537,14 @@ public class ScannerService {
         }
 
         return distinctItems;
+    }
+    
+    private boolean isBottom(Item bottom, Item today){
+        float changeWithBottom = ((today.getAdjustedClosePrice() - bottom.getAdjustedClosePrice()) / bottom.getAdjustedClosePrice()) * 100;
+        if(changeWithBottom <= SignalCalculator.bottomTolerationPercent)
+            return true;
+        
+        return false;
     }
 
     private float getUpperTail(Item item) {
@@ -961,6 +971,7 @@ public class ScannerService {
                         case SIGNAL:
                             to.setSignal(with.getSignal());
                             to.setPotentiality(with.isPotentiality());
+                            to.setBottom(with.isBottom());
                             break;
                         case VTC_SIGNAL:
                             to.setVtcSignal(with.getVtcSignal());
@@ -1245,7 +1256,23 @@ public class ScannerService {
         float todayLoss = (Math.abs(item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice()) - (item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice())) / 2;
         averageLoss = (previousAverageLoss * 13 + todayLoss) / (float)RSI_PERIOD;
 
+//        System.out.println("previousAverageLoss: " + previousAverageLoss + ", todayLoss: " + todayLoss + ", date: " + item.getDate() + ", item.getAdjustedClosePrice(): " + item.getAdjustedClosePrice() + ", item.getAdjustedYesterdayClosePrice(): " + item.getAdjustedYesterdayClosePrice());
         return averageLoss;
+    }
+    
+    private List<Item> getBottom(CustomHashMap cMap) {
+        List<Item> distinctItems = new ArrayList<>();
+        List<Item> items;
+        for (String code : cMap.keySet()) {
+            items = cMap.getItems(code);
+            Collections.sort(items);
+            Item item = new Item();
+            item.setCode(code);
+            item.setVolumeChange(calculateVolumeChange(items, TRADING_DAYS_IN_A_MONTH));
+            distinctItems.add(item);
+        }
+
+        return distinctItems;
     }
 
     private List<Item> getVolumeChange(CustomHashMap cMap) {

@@ -113,8 +113,8 @@ public class Sma25Trend extends BuySignalCalculator {
 //                && upperTail <= 1
 //                && acceptableItemSMA 
                 && acceptableDSEXSMA
-                && !today.getSector().equalsIgnoreCase("bank") 
-                && !today.getSector().equalsIgnoreCase("mutual funds")
+//                && !today.getSector().equalsIgnoreCase("bank") 
+//                && !today.getSector().equalsIgnoreCase("mutual funds")
 //                && sma25IntersectInLastFewDays >= 6
 //                && gap >=2 && gap<=3
 //                && todaychange >5 && todaychange<9
@@ -146,8 +146,8 @@ public class Sma25Trend extends BuySignalCalculator {
                 ) {
             setCause(this.getClass().getName());
             
-            if(today.getCode().equals("SAIFPOWER"))
-                System.out.println("sma25: " + sma25 + ", twoWeeksAgoSma25: " + twoWeeksAgoSma25 + ", oneMonthAgoSma25: " + oneMonthAgoSma25 + ", OneAndHalfMonthAgoSma25: " + OneAndHalfMonthAgoSma25 + ", twoMonthAgoSma25: " + twoMonthAgoSma25);
+//            if(today.getCode().equals("SAIFPOWER"))
+//                System.out.println("sma25: " + sma25 + ", twoWeeksAgoSma25: " + twoWeeksAgoSma25 + ", oneMonthAgoSma25: " + oneMonthAgoSma25 + ", OneAndHalfMonthAgoSma25: " + OneAndHalfMonthAgoSma25 + ", twoMonthAgoSma25: " + twoMonthAgoSma25);
             
             boolean maskPassed = isMaskPassed(today, portfolio);
             return maskPassed;
