@@ -55,10 +55,11 @@ public class Average extends BuySignalCalculator {
         float changeWithMaxPriceDay = ((todayClosePrice-maxPriceDayMax)/maxPriceDayMax)*100;
         float todaysmaDiff = ((sma25-sma10)/sma10)*100;
         float dsexSma25 = dsex.getSmaList().get(25);
+        float todayIndexGap = dsex.getClosePrice() - dsexYesterday.getClosePrice();
         
         
 
-        //System.out.println("date: " + today.getDate() + ", sma25: " + sma25 + ", yesterdaySma10: " + yesterdaySma10 + ", dayBeforeYesterdaySma10: " + dayBeforeYesterdaySma10 + ", smaTrend: " + smaTrend + ", halfway: " + halfway + ", low: " + today.getLow() + ", gap: " + todayGap);
+//        System.out.println("date: " + today.getDate() + "gain: " + gain + ", isbulltrap: " + isBullTrap + ", todayIndexGap: " + todayIndexGap);
 //        if(buyItem!=null && buyItem.getCode().equals("PADMAOIL"))
 //            System.out.println("date: " + today.getDate() + ", gain: " + gain);
 

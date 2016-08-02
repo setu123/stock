@@ -25,26 +25,33 @@ public class GreenAfterRsi30 extends BuySignalCalculator{
     @Override
     public boolean isBuyCandidate(List<Item> itemSubList, Item calculated) {
         //System.out.println("date: " + today.getDate() + ", todayGap: " + todayGap + ", Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()): " + Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()) + ", todayDseIndexChange: " + todayDseIndexChange);
+        float dsexChangeToday = ((dsex.getAdjustedClosePrice()-dsexYesterday.getAdjustedClosePrice())/dsexYesterday.getAdjustedClosePrice())*100;
+        float dsexChangeYesterday = ((dsexYesterday.getAdjustedClosePrice()-dsexDayBefore.getAdjustedClosePrice())/dsexDayBefore.getAdjustedClosePrice())*100;
+        float maxDsexChange = Math.max(dsexChangeToday, dsexChangeYesterday);
+//        System.out.println("maxDsexChange: " + maxDsexChange + ", dsexMinRsiInLast2Days: " + dsexMinRsiInLast2Days + ", yesterdayRsi: " + yesterdayRsi + ", today: " + today.getDate());
         if (
-                ((todayGap >= 1.2 || todaychange>=1) && dsex.getDayBeforeYesterdayRSI()<= 30 && dsexYesterday.getClosePrice()>dsexYesterday.getOpenPrice())
-                        && divergence <= 10
-                        && todayValue >= minValue
-                        && todayTrade >= minTrade
+                        (todayGap >= 1 || todaychange>=1)
+                        && yesterdayRsi <=30
+                        && dsexMinRsiInLast2Days <= 30
+                        && maxDsexChange >= 0.8
+//                        && divergence <= 10
+//                        && todayValue >= minValue
+//                        && todayTrade >= minTrade
 //                        && vtcRatio>0.8 && vtcRatio<2
-                        && rsi <=50
-                        && vChange >= minVChange && ((marketWasDown && vChange <= 4) || vChange <= 2)
-                        && volumePerTradeChange < 1.8
+                        && rsi <=40
+//                        && vChange >= minVChange && ((marketWasDown && vChange <= 4) || vChange <= 2)
+//                        && volumePerTradeChange < 1.8
                         //&& maxVChange > 0.5
-                        && diffWithPreviousLow10 <= 15 //&& Math.max(todayGap, yesterdayGap) >= 0.5
+//                        && diffWithPreviousLow10 <= 15 //&& Math.max(todayGap, yesterdayGap) >= 0.5
 //                        //&& upperTail < 4
-                        && acceptableItemSMA && acceptableDSEXSMA
-                        && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
+//                        && acceptableItemSMA && acceptableDSEXSMA
+//                        && dsexMaxRsiInLast2Days <= maxAllowedDsexRsi
                         //&& !((today.getHigh() - today.getAdjustedClosePrice()) >= (today.getAdjustedClosePrice() - today.getOpenPrice()))
                 ) {
                     //System.out.println("sma250000Date: " + today.getDate() + ", code: " + code + ", tchange: " + tradeChange + ", volumeChange: " + volumeChange + ", sma25: " + sma25);
                     setCause(this.getClass().getName());
-                    boolean maskPassed = isMaskPassed(today, portfolio);
-            return maskPassed;
+//                    boolean maskPassed = isMaskPassed(today, portfolio);
+            return true;
                 }
         return false;
     }

@@ -25,7 +25,8 @@ import com.mycompany.service.calculator.buy.Sma25Trend;
 import com.mycompany.service.calculator.buy.SmaIntersect;
 import com.mycompany.service.calculator.buy.SuddenHike;
 import com.mycompany.service.calculator.buy.Tail;
-import com.mycompany.service.calculator.buy.Test1;
+import com.mycompany.service.calculator.buy.Bottom;
+import com.mycompany.service.calculator.buy.ConsecutiveGreenAfterRSI30;
 import com.mycompany.service.calculator.buy.ThreeGreen;
 import com.mycompany.service.calculator.sell.ClusteredSellSignalCalculator;
 import com.mycompany.service.calculator.sell.SellSignalCalculator;
@@ -87,7 +88,7 @@ public class ScannerService {
         List<Item> items = getPressure();
         //CustomHashMap oneYearData = dao.getOneYearData();
         //Get 2 month data
-        CustomHashMap dataArchive = dao.getData(365);
+        CustomHashMap dataArchive = dao.getData(365+50);
         //System.out.println("up to one year data time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
         mergeItems(items, getHammer(), HAMMER);
         //System.out.println("up to hammer time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
@@ -454,34 +455,36 @@ public class ScannerService {
 
     private List<Item> getPurifiedSignal(CustomHashMap oneYearData) throws SQLException {
         List<BuySignalCalculator> buyCalculators = new ArrayList<>();
-        buyCalculators.add(new Consecutive1(this, oneYearData, portfolio));
-        buyCalculators.add(new Consecutive15(this, oneYearData, portfolio));
+//        buyCalculators.add(new Consecutive1(this, oneYearData, portfolio));
+//        buyCalculators.add(new Consecutive15(this, oneYearData, portfolio));
         buyCalculators.add(new ExtendedSMA25(this, oneYearData, portfolio));
-        buyCalculators.add(new Tail(this, oneYearData, portfolio));
-        buyCalculators.add(new ThreeGreen(this, oneYearData, portfolio));
-        buyCalculators.add(new Sma25Trend(this, oneYearData, portfolio));
+        buyCalculators.add(new GreenAfterRsi30(this, oneYearData, portfolio));
+//        buyCalculators.add(new Tail(this, oneYearData, portfolio));
+//        buyCalculators.add(new ThreeGreen(this, oneYearData, portfolio));
+//        buyCalculators.add(new Sma25Trend(this, oneYearData, portfolio));
         buyCalculators.add(new LargeCandle(this, oneYearData, portfolio));
+        buyCalculators.add(new ConsecutiveGreenAfterRSI30(this, oneYearData, portfolio));
         buyCalculators.add(new MultipleSma25Intersect(this, oneYearData, portfolio));
         buyCalculators.add(new SmaIntersect(this, oneYearData, portfolio));
-//        buyCalculators.add(new Test1(this, oneYearData, portfolio));
+        buyCalculators.add(new Bottom(this, oneYearData, portfolio));
         buyCalculators.add(new Average(this, oneYearData, portfolio));
 
         List<SellSignalCalculator> sellCalculators = new ArrayList<>();
         ClusteredSellSignalCalculator clusterSell = new ClusteredSellSignalCalculator();
-        sellCalculators.add(new ClusteredSellSignalCalculator.sell1(this, oneYearData, portfolio));
-        sellCalculators.add(new ClusteredSellSignalCalculator.sell2(this, oneYearData, portfolio));
-        sellCalculators.add(new ClusteredSellSignalCalculator.sell3(this, oneYearData, portfolio));
-        sellCalculators.add(new ClusteredSellSignalCalculator.sell4(this, oneYearData, portfolio));
-        sellCalculators.add(new ClusteredSellSignalCalculator.sell5(this, oneYearData, portfolio));
-        sellCalculators.add(new ClusteredSellSignalCalculator.sell55(this, oneYearData, portfolio));
-        sellCalculators.add(new ClusteredSellSignalCalculator.sell56(this, oneYearData, portfolio));
-        sellCalculators.add(new ClusteredSellSignalCalculator.sell6(this, oneYearData, portfolio));
-        sellCalculators.add(new ClusteredSellSignalCalculator.sell7(this, oneYearData, portfolio));
-        sellCalculators.add(new ClusteredSellSignalCalculator.sell8(this, oneYearData, portfolio));
+//        sellCalculators.add(new ClusteredSellSignalCalculator.sell1(this, oneYearData, portfolio));
+//        sellCalculators.add(new ClusteredSellSignalCalculator.sell2(this, oneYearData, portfolio));
+////        sellCalculators.add(new ClusteredSellSignalCalculator.sell3(this, oneYearData, portfolio));
+//        sellCalculators.add(new ClusteredSellSignalCalculator.sell4(this, oneYearData, portfolio));
+//        sellCalculators.add(new ClusteredSellSignalCalculator.sell5(this, oneYearData, portfolio));
+//        sellCalculators.add(new ClusteredSellSignalCalculator.sell55(this, oneYearData, portfolio));
+//        sellCalculators.add(new ClusteredSellSignalCalculator.sell56(this, oneYearData, portfolio));
+////        sellCalculators.add(new ClusteredSellSignalCalculator.sell6(this, oneYearData, portfolio));
+//        sellCalculators.add(new ClusteredSellSignalCalculator.sell7(this, oneYearData, portfolio));
+//        sellCalculators.add(new ClusteredSellSignalCalculator.sell8(this, oneYearData, portfolio));
 //        sellCalculators.add(new ClusteredSellSignalCalculator.sell9(this, oneYearData, portfolio));
-        sellCalculators.add(new ClusteredSellSignalCalculator.sell10(this, oneYearData, portfolio));
-        sellCalculators.add(new ClusteredSellSignalCalculator.sell11(this, oneYearData, portfolio));
-        sellCalculators.add(new ClusteredSellSignalCalculator.sell14(this, oneYearData, portfolio));
+//        sellCalculators.add(new ClusteredSellSignalCalculator.sell10(this, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.ProfitTake(this, oneYearData, portfolio));
+        sellCalculators.add(new ClusteredSellSignalCalculator.EndOfRise(this, oneYearData, portfolio));
         //sellCalculators.add(new ClusteredSellSignalCalculator.EOM(this, oneYearData, portfolio));
 
         List<Item> distinctItems = new ArrayList<>();
@@ -1194,6 +1197,23 @@ public class ScannerService {
             //System.out.println("rs: " + rs + ", code: " + items.get(items.size()-1).getCode());
         }
 
+        return rsi;
+    }
+    
+    public float calculateRSI(List<Item> items, int index) {
+        Collections.sort(items);
+        
+        List<Item> itemsCopy = new ArrayList<>(items);
+        for(int i=itemsCopy.size()-1; i>index; i--)
+            itemsCopy.remove(i);
+
+        float rs = getRS(itemsCopy);
+        float rsi = 100 - (100 / (1 + rs));
+        if (rsi == 0) {
+            //System.out.println("rs: " + rs + ", code: " + items.get(items.size()-1).getCode());
+        }
+
+//        System.out.println("setting rsi " + rsi + " to index " + index + ", date: " + items.get(index).getDate());
         return rsi;
     }
 

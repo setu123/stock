@@ -87,6 +87,10 @@ public class SignalCalculator {
 
     static protected float yesterdayRsi;
     static protected float dayBeforeRsi;
+    static protected float twoDayBeforeRsi;
+    static protected float threeDayBeforeRsi;
+    static protected float fourDayBeforeRsi;
+    static protected float fiveDayBeforeRsi;
 
     static protected float yesterdaySma10;
     static protected float yesterdaySma25;
@@ -106,6 +110,7 @@ public class SignalCalculator {
 
     static protected boolean marketWasDown;
     static protected float dsexMaxRsiInLast2Days;
+    static protected float dsexMinRsiInLast2Days;
     static protected int maxDivergence;
     static protected int maxRsi;
     static protected float maxAllowedDsexRsi;
@@ -147,10 +152,10 @@ public class SignalCalculator {
     static protected float sma25Diff;
     static protected int sma25IntersectInLastFewDays;
     static protected int greenCountInLastFewDays;
-    static final public int AVERAGE_ON_LOSS_PERCENT= 20;
+    static final public int AVERAGE_ON_LOSS_PERCENT= 15;
     static final public int DECISION_MAKING_TENURE= 30;
     static public Item bottom;
-    static final public int bottomTolerationPercent = 2;
+    static final public int bottomTolerationPercent = 3;
 
     public SignalCalculator(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
         this.scanner = scanner;
@@ -275,10 +280,10 @@ public class SignalCalculator {
         bottom = getLowest(items);
 
         //items are removed. so dont use items bellow this line
-        items.remove(items.size() - 1);
-        yesterdayRsi = scanner.calculateRSI(items);
-        yesterdaySma10 = calculateSMA(items, 10);
-        yesterdaySma25 = calculateSMA(items, 25);
+//        items.remove(items.size() - 1);
+        yesterdayRsi = scanner.calculateRSI(items, items.size()-2);
+        yesterdaySma10 = calculateSMA(items, 10, items.size()-1);
+        yesterdaySma25 = calculateSMA(items, 25, items.size()-1);
         lastMonthVariation = getLastFiewDaysVariation(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
         lastMonthSmaVariation = getLastFiewDaysSmaVariation(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
         //lastMonthSmaVariation is tuned for higher price stocks
@@ -286,15 +291,15 @@ public class SignalCalculator {
         lastTwoMonthVariation = getLastFiewDaysVariation(items, ScannerService.TRADING_DAYS_IN_A_MONTH * 2);
         lastMonthMaximum = getLastFiewDaysMaximumClosing(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
         lastTwoWeekMaximum = getLastFiewDaysMaximumClosing(items, ScannerService.TRADING_DAYS_IN_A_WEEK * 2);
-        items.remove(items.size() - 1);
-        dayBeforeRsi = scanner.calculateRSI(items);
-        dayBeforeYesterdaySma10 = calculateSMA(items, 10);
-        dayBeforeYesterdaySma25 = calculateSMA(items, 25);
+//        items.remove(items.size() - 1);
+        dayBeforeRsi = scanner.calculateRSI(items, items.size()-2);
+        dayBeforeYesterdaySma10 = calculateSMA(items, 10, items.size()-2);
+        dayBeforeYesterdaySma25 = calculateSMA(items, 25, items.size()-2);
 
-        items.remove(items.size() - 1);
-        items.remove(items.size() - 1);
-        items.remove(items.size() - 1);
-        oneWeekAgoSma25 = calculateSMA(items, 25);
+//        items.remove(items.size() - 1);
+//        items.remove(items.size() - 1);
+//        items.remove(items.size() - 1);
+        oneWeekAgoSma25 = calculateSMA(items, 25, items.size()-3);
 
         smaTrend = true;
         if (sma10 < yesterdaySma10 && yesterdaySma10 < dayBeforeYesterdaySma10) {
@@ -317,6 +322,7 @@ public class SignalCalculator {
 
         marketWasDown = Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()) <= 30;
         dsexMaxRsiInLast2Days = Math.max(Math.max(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()), dsex.getRSI());
+        dsexMinRsiInLast2Days = Math.min(Math.min(dsex.getYesterdayRSI(), dsex.getDayBeforeYesterdayRSI()), dsex.getRSI());
         maxDivergence = 10;
         maxRsi = 50;
         maxAllowedDsexRsi = 69;
@@ -368,6 +374,13 @@ public class SignalCalculator {
         potentiality = isPotential();
         //boolean maxvolum = maxVolumeChangeInLastWeek > today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_MONTH*1);
         sma25Diff = ((SignalCalculator.sma25 - SignalCalculator.oneWeekAgoSma25) / SignalCalculator.oneWeekAgoSma25) * 100;
+        
+//        items.remove(items.size() - 1);
+        threeDayBeforeRsi = scanner.calculateRSI(items, items.size()-1);
+//        items.remove(items.size()-1);
+        fourDayBeforeRsi = scanner.calculateRSI(items, items.size()-2);
+//        items.remove(items.size()-1);
+        fiveDayBeforeRsi = scanner.calculateRSI(items, items.size()-3);
 
         if (debugEnabled) {
 //            if(potentiality)
@@ -535,14 +548,14 @@ public class SignalCalculator {
     private static boolean isBullTrap() {
         float minDsexRsiInLast2Days = Math.min(dsexDayBefore.getRSI(), dsexYesterday.getRSI());
         minDsexRsiInLast2Days = Math.min(minDsexRsiInLast2Days, dsex.getRSI());
-        float todayIndexGap = dsex.getClosePrice() - dsex.getOpenPrice();
+        float todayIndexGap = dsex.getClosePrice() - dsexYesterday.getClosePrice();
         float yesterdayIndexChange = dsexYesterday.getClosePrice() - dsexDayBefore.getClosePrice();
         //System.out.println("minDsexRsiInLast2Days: " + minDsexRsiInLast2Days + ", todayIndexGap: " + todayIndexGap + ", indexFluctuation: " + indexFluctuation);
         if (minDsexRsiInLast2Days <= 30 && todayIndexGap > 0 && indexFluctuation > 1) {
             return true;
         }
 
-        if (minDsexRsiInLast2Days <= 30 && todayIndexGap > 0 && yesterdayIndexChange < 0) {
+        if (minDsexRsiInLast2Days <= 30 && todayIndexGap > 0 && todayIndexGap <0.8 && yesterdayIndexChange < 0) {
             return true;
         }
 
@@ -643,7 +656,7 @@ public class SignalCalculator {
 
         return minimum;
     }
-
+    
     protected float getLastFiewDaysVariation(List<Item> items, int days) {
         int size = items.size();
         int counter = 0;
@@ -851,6 +864,25 @@ public class SignalCalculator {
         float SMA = 0;
         for (int i = items.size() - 1; i >= (items.size() - limit); i--) {
             SMA += items.get(i).getAdjustedClosePrice();
+        }
+        SMA = SMA / limit;
+
+        return SMA;
+    }
+    
+    protected float calculateSMA(List<Item> items, int N, int index) {
+        List<Item> itemsCopy = new ArrayList<>(items);
+        for(int i=itemsCopy.size()-1; i>index; i--)
+            itemsCopy.remove(i);
+        
+        int limit = N;
+        if (itemsCopy.size() < limit) {
+            limit = itemsCopy.size();
+        }
+
+        float SMA = 0;
+        for (int i = itemsCopy.size() - 1; i >= (itemsCopy.size() - limit); i--) {
+            SMA += itemsCopy.get(i).getAdjustedClosePrice();
         }
         SMA = SMA / limit;
 

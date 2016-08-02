@@ -20,9 +20,9 @@ import java.util.concurrent.TimeUnit;
  * @date Dec 17, 2015
  * @author setu
  */
-public class Test1 extends BuySignalCalculator {
+public class Bottom extends BuySignalCalculator {
 
-    public Test1(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
+    public Bottom(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
         super(scanner, oneYearData, portfolio);
     }
 
@@ -41,7 +41,7 @@ public class Test1 extends BuySignalCalculator {
         float twoWeeksAgoSma25 = calculateBackdatedSMA(itemSubList, 25, ScannerService.TRADING_DAYS_IN_A_WEEK * 2);
         float OneAndHalfMonthAgoSma25 = calculateBackdatedSMA(itemSubList, 25, ScannerService.TRADING_DAYS_IN_A_MONTH + ScannerService.TRADING_DAYS_IN_A_WEEK);
         float twoMonthAgoSma25 = calculateBackdatedSMA(itemSubList, 25, ScannerService.TRADING_DAYS_IN_A_MONTH * 2);
-
+        
         float sma25DiffFor_0_2 = ((sma25 - twoWeeksAgoSma25) / twoWeeksAgoSma25) * 100;
         float sma25DiffFor_2_4 = ((twoWeeksAgoSma25 - oneMonthAgoSma25) / oneMonthAgoSma25) * 100;
         float sma25DiffFor_4_6 = ((oneMonthAgoSma25 - OneAndHalfMonthAgoSma25) / OneAndHalfMonthAgoSma25) * 100;
@@ -82,26 +82,43 @@ public class Test1 extends BuySignalCalculator {
         //Item bottom = getBottom(itemSubList);
         Item bottom = getLowest(itemSubList);
         long intervalFromBottom = getDateDiff(bottom.getDate(), today.getDate(), TimeUnit.DAYS);
-
+        boolean similarPriceBefore = similarPriceBefore(itemSubList);
+        
         if (bottom != null) {
             changeWithBottom = ((today.getAdjustedClosePrice() - bottom.getAdjustedClosePrice()) / bottom.getAdjustedClosePrice()) * 100;
-//            System.out.println("Date: " + today.getDate() + ", code: " + today.getCode() + ", bottomDay: " + bottom.getDate() + ", changeWithBottom: " + changeWithBottom + ", itemSubList: " + itemSubList.size());
+//            System.out.println("Date: " + today.getDate() + ", bottomDay: " + bottom.getDate() + ", changeWithBottom: " + changeWithBottom + ", similarPriceBefore: " + similarPriceBefore + ", isBullTrap: " + isBullTrap);
 //            System.out.println("today: " + today.getDate());
         }
 
         if ( //changeWithBottom>=-2 && changeWithBottom<=2
-                changeWithBottom < 0 && todayGap > 1 
+                changeWithBottom < bottomTolerationPercent && todayGap > 0.70 
 //                && vChange > 2
 //                && intervalFromBottom<90
+                && similarPriceBefore
                 && divergence < maxDivergence
-                && diffWithPreviousLow10 <= 10) {
+                && rsi >= (35 + todaychange)
+//                && diffWithPreviousLow10 <= 10
+                ) {
             setCause(this.getClass().getName());
 
             boolean maskPassed = isMaskPassed(today, portfolio);
             if (maskPassed) {
-                System.out.print(", Bottom day: " + bottom.getDate() + ", today: " + today.getDate() + ", interval: " + intervalFromBottom);
+//                System.out.print(", Bottom day: " + bottom.getDate() + ", today: " + today.getDate() + ", interval: " + intervalFromBottom);
             }
             return maskPassed;
+        }
+        return false;
+    }
+    
+    private boolean similarPriceBefore(List<Item> itemSubList){
+        int size = itemSubList.size();
+        for(int i=size-ScannerService.TRADING_DAYS_IN_A_WEEK*3; i>size-ScannerService.TRADING_DAYS_IN_A_MONTH*2&&i>=0; i--){
+            Item anItem = itemSubList.get(i);
+            float priceDiff = ((anItem.getAdjustedClosePrice() - today.getAdjustedClosePrice())/today.getAdjustedClosePrice())*100;
+            if(priceDiff>=-bottomTolerationPercent && priceDiff<=bottomTolerationPercent){
+//                System.out.println("today: " + today.getDate() + ", anItem: " + anItem.getDate() + ", priceDiff: " + priceDiff);
+                return true;
+            }
         }
         return false;
     }
@@ -114,8 +131,10 @@ public class Test1 extends BuySignalCalculator {
     private Item getLowest(List<Item> items) {
         Item minimum = new Item();
         minimum.setAdjustedClosePrice(1000000);
-        for (int i = items.size() - 1; i >= 0; i--) {
+//        System.out.println("finidng minimum on " + today.getDate() + ", itemSize: " + items.size() + ", top item: " + items.get(items.size()-1).getDate());
+        for (int i = items.size() - ScannerService.TRADING_DAYS_IN_A_WEEK; i >= 0; i--) {
             if (items.get(i).getAdjustedClosePrice() < minimum.getAdjustedClosePrice()) {
+//                System.out.println("minimum is: " + items.get(i).getAdjustedClosePrice() + ", date: " + items.get(i).getDate());
                 minimum = items.get(i);
             }
         }

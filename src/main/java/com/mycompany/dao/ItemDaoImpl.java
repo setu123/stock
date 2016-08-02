@@ -19,7 +19,7 @@ import java.util.List;
  * @date Apr 18, 2015
  * @author Setu
  */
-public class ItemDaoImpl extends BasicDaoImpl{
+public class ItemDaoImpl extends BasicDaoImpl {
 
     public ItemDaoImpl() {
     }
@@ -457,7 +457,7 @@ public class ItemDaoImpl extends BasicDaoImpl{
     public CustomHashMap getData(int days) throws SQLException, ClassNotFoundException {
         //String sql = "SELECT CODE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, DATE FROM bs_pressure WHERE DATE IN (SELECT * FROM (SELECT DISTINCT(DATE) FROM bs_pressure ORDER BY DATE ) AS T) ORDER BY DATE;";
         String sql = "SELECT pressure.DATE, pressure.CODE, OPEN_PRICE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, YESTERDAY_CLOSE_PRICE, DAY_LOW, DAY_HIGH, pressure.DATE, VOLUME, TRADE, VALUE, PRESSURE, "
-                + "TOTALSECURITY, DIRECTOR, GOVERNMENT, INSTITUTE, FOREIN, PUBLIC, SECTOR "
+                + "TOTALSECURITY, DIRECTOR, GOVERNMENT, INSTITUTE, FOREIN, PUBLIC, SECTOR, PAIDUPCAPITAL "
                 + "FROM bs_pressure pressure "
                 + "LEFT JOIN year_statistics statistics ON pressure.CODE = statistics.CODE "
                 + "WHERE pressure.DATE >= ? ORDER BY pressure.DATE ";
@@ -476,44 +476,45 @@ public class ItemDaoImpl extends BasicDaoImpl{
                 items.add(item);
             }
         }
-
+        
         CustomHashMap cMap = getItemizedData(items);
-//        for (String code : cMap.keySet()) {
-//            items = cMap.getItems(code);
-//            items.get(0).setAdjustedYesterdayClosePrice(items.get(0).getYesterdayClosePrice());
-//            for (int i = 1; i < items.size(); i++) {
-//                calculateAdjustedYesterdayClosePrice(items.get(i), items.get(i - 1).getDate());
-//            }
-//        }
+        for (String code : cMap.keySet()) {
+            items = cMap.getItems(code);
+            items.get(0).setAdjustedYesterdayClosePrice(items.get(0).getYesterdayClosePrice());
+            for (int i = 1; i < items.size(); i++) {
+                calculateAdjustedYesterdayClosePrice(items.get(i), items.get(i - 1).getDate());
+            }
+        }
 
         return cMap;
     }
 
     private Item populateItem(ResultSet rs) throws SQLException {
-                Item item = new Item();
-                item.setDate(rs.getDate("date"));
-                item.setCode(rs.getString("code"));
-                item.setOpenPrice(rs.getFloat("open_price"));
-                item.setClosePrice(rs.getFloat("close_price"));
-                item.setYesterdayClosePrice(rs.getFloat("yesterday_close_price"));
+        Item item = new Item();
+        item.setDate(rs.getDate("date"));
+        item.setCode(rs.getString("code"));
+        item.setOpenPrice(rs.getFloat("open_price"));
+        item.setClosePrice(rs.getFloat("close_price"));
+        item.setYesterdayClosePrice(rs.getFloat("yesterday_close_price"));
         item.setDayLow(rs.getFloat("day_low"));
         item.setDayHigh(rs.getFloat("day_high"));
-                item.setDate(rs.getDate("date"));
-                item.setVolume(rs.getInt("volume"));
-                item.setValue(rs.getFloat("value"));
-                item.setTrade(rs.getInt("trade"));
-                item.setPressure(rs.getInt("pressure"));
-                item.setTotalSecurity(rs.getInt("totalSecurity"));
-                item.getSharePercentage().setDirector(rs.getFloat("director"));
-                item.getSharePercentage().setGovernment(rs.getFloat("government"));
-                item.getSharePercentage().setInstitute(rs.getFloat("institute"));
-                item.getSharePercentage().setForeign(rs.getFloat("forein"));
-                item.getSharePercentage().setPublics(rs.getFloat("public"));
-                item.setSector(rs.getString("sector"));
-                calculateAdjustedClosePrice(item);
-                calculateAdjustedVolume(item);
+        item.setDate(rs.getDate("date"));
+        item.setVolume(rs.getInt("volume"));
+        item.setValue(rs.getFloat("value"));
+        item.setTrade(rs.getInt("trade"));
+        item.setPressure(rs.getInt("pressure"));
+        item.setTotalSecurity(rs.getInt("totalSecurity"));
+        item.getSharePercentage().setDirector(rs.getFloat("director"));
+        item.getSharePercentage().setGovernment(rs.getFloat("government"));
+        item.getSharePercentage().setInstitute(rs.getFloat("institute"));
+        item.getSharePercentage().setForeign(rs.getFloat("forein"));
+        item.getSharePercentage().setPublics(rs.getFloat("public"));
+        item.setSector(rs.getString("sector"));
+        item.setPaidUpCapital(rs.getFloat("paidUpCapital"));
+        calculateAdjustedClosePrice(item);
+        calculateAdjustedVolume(item);
         return item;
-            }
+    }
 
     public Item getItem(String code, java.util.Date date) throws SQLException {
         String sql = "SELECT pressure.DATE, pressure.CODE, OPEN_PRICE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, YESTERDAY_CLOSE_PRICE, DAY_LOW, DAY_HIGH, pressure.DATE, VOLUME, TRADE, VALUE, PRESSURE, "
@@ -521,13 +522,13 @@ public class ItemDaoImpl extends BasicDaoImpl{
                 + "FROM bs_pressure pressure "
                 + "LEFT JOIN year_statistics statistics ON pressure.CODE = statistics.CODE "
                 + "WHERE pressure.DATE = ? && pressure.code = ?";
-        
+
         Item item = null;
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
             preparedStatement.setDate(1, getSqlDate(date));
             preparedStatement.setString(2, code);
             ResultSet rs = preparedStatement.executeQuery();
-            
+
             while (rs.next()) {
                 item = populateItem(rs);
             }
@@ -536,7 +537,7 @@ public class ItemDaoImpl extends BasicDaoImpl{
         //This might return null, which is expected and should be handled carefully in the caller method
         return item;
     }
-    
+
     private CustomHashMap getItemizedData(List<Item> items) {
         CustomHashMap cMap = new CustomHashMap();
         for (Item item : items) {
@@ -548,33 +549,33 @@ public class ItemDaoImpl extends BasicDaoImpl{
     private void calculateAdjustedYesterdayClosePrice(Item item, java.util.Date yesterday) {
         List<DividentHistory> history = Utils.getDividentHistory(item.getCode());
 
-        float adjustedPrice = item.getYesterdayClosePrice();
+        float adjustedYesterdayClose = item.getYesterdayClosePrice();
         float factor;
         java.util.Date today = new java.util.Date();
         for (DividentHistory divident : history) {
             if (yesterday.before(divident.getDate()) && divident.getDate().before(today)) {
                 switch (divident.getType()) {
-                    case CASH:
-                        adjustedPrice = adjustedPrice - (FACE_VALUE * divident.getPercent()) / 100;
-                        break;
-                    case STOCK:
-                        factor = 1 / (1 + (divident.getPercent() / 100));
-                        adjustedPrice = adjustedPrice * factor;
-                        break;
-                    case RIGHT:
-                        int baseQuantity = Math.round(100 / divident.getPercent());
-                        adjustedPrice = ((adjustedPrice * baseQuantity) + item.getIssuePrice()) / (baseQuantity + 1);
-                        break;
-                    case SPLIT:
-                        factor = 1 / (1 + (divident.getPercent() / 100));
-                        adjustedPrice = adjustedPrice * factor;
-                        break;
-                }
+                        case CASH:
+                            adjustedYesterdayClose = adjustedYesterdayClose - (FACE_VALUE * divident.getPercent()) / 100;
+                            break;
+                        case STOCK:
+                            factor = 1 / (1 + (divident.getPercent() / 100));
+                            adjustedYesterdayClose = adjustedYesterdayClose * factor;
+                            break;
+                        case RIGHT:
+                            factor = 1 / (1 + (divident.getPercent() / 100));
+                            adjustedYesterdayClose = (adjustedYesterdayClose + divident.getIssuePrice()) * factor;
+                            break;
+                        case SPLIT:
+                            factor = 1 / (1 + (divident.getPercent() / 100));
+                            adjustedYesterdayClose = adjustedYesterdayClose * factor;
+                            break;
+                    }
             }
         }
         //if(item.getCode().equals("NPOLYMAR"))
         //System.out.println("Code: " + item.getCode() + ", date: " + item.getDate() + ", closePrice: " + item.getClosePrice() + ", adjustedPrice: " + adjustedPrice);
-        item.setAdjustedYesterdayClosePrice(adjustedPrice);
+        item.setAdjustedYesterdayClosePrice(adjustedYesterdayClose);
     }
 
     private void calculateAdjustedClosePrice(Item item) {

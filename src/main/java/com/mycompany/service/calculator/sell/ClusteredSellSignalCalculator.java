@@ -306,6 +306,25 @@ public class ClusteredSellSignalCalculator {
             return false;
         }
     }
+    
+    public static class BellowSMA25 extends SellSignalCalculator {
+
+        public BellowSMA25(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
+            super(scanner, oneYearData, portfolio);
+        }
+
+        @Override
+        public boolean isSellCandidate(List<Item> itemSubList, Item calItem) {
+            //super.initializeVariables(itemSubList, calItem);
+            // @12. DSEX index is below both SMA
+            //System.out.println("sell11date: " + today.getDate() + ", belowBothSMA: " + belowBothSMA + ", belowDSEXBothSMA: " + belowDSEXBothSMA);
+            if (belowSMA25 && gain>=10 && yesterday.getAdjustedClosePrice()>sma25) {
+                setCause(this.getClass().getName());
+                return true;
+            }
+            return false;
+        }
+    }
 
     public static class sell13 extends SellSignalCalculator {
 
@@ -416,6 +435,27 @@ public class ClusteredSellSignalCalculator {
             float bottomTail = ((Math.min(today.getOpenPrice(), today.getAdjustedClosePrice()) - today.getDayLow()) / Math.min(today.getOpenPrice(), today.getAdjustedClosePrice())) * 100;
 //            System.out.println("gain: " + gain + ", topTail: " + topTail);
             float maxRsi = Math.max(yesterdayRsi, dayBeforeRsi);
+            
+            float lastWeekMaxRsi = Math.max(threeDayBeforeRsi, fourDayBeforeRsi);
+            lastWeekMaxRsi = Math.max(fiveDayBeforeRsi, lastWeekMaxRsi);
+            
+            float lastWeekRsi70 = 0;
+            lastWeekRsi70 = (yesterdayRsi>=70?++lastWeekRsi70:lastWeekRsi70);
+            lastWeekRsi70 = (dayBeforeRsi>=70?++lastWeekRsi70:lastWeekRsi70);
+            lastWeekRsi70 = (twoDayBeforeRsi>=70?++lastWeekRsi70:lastWeekRsi70);
+            lastWeekRsi70 = (threeDayBeforeRsi>=70?++lastWeekRsi70:lastWeekRsi70);
+            lastWeekRsi70 = (fourDayBeforeRsi>=70?++lastWeekRsi70:lastWeekRsi70);
+            lastWeekRsi70 = (fiveDayBeforeRsi>=70?++lastWeekRsi70:lastWeekRsi70);
+            float lastWeekMinimum = Math.min(yesterday.getAdjustedClosePrice(), dayBeforeYesterday.getAdjustedClosePrice());
+            lastWeekMinimum = Math.min(lastWeekMinimum, twoDayBeforeYesterday.getAdjustedClosePrice());
+            lastWeekMinimum = Math.min(lastWeekMinimum, threeDayBeforeYesterday.getAdjustedClosePrice());
+            lastWeekMinimum = Math.min(lastWeekMinimum, fourDayBeforeYesterday.getAdjustedClosePrice());
+            
+            float changeWithMinimum = ((today.getAdjustedClosePrice()-lastWeekMinimum)/lastWeekMinimum)*100;
+            
+            
+            
+//            System.out.println("today: " + today.getDate() + ", code: " + today.getCode() + ", lastWeekMaxRsi: " + lastWeekMaxRsi + ", todayRsi: " + rsi);
 //            if (gain >= 8 && gain <= 13
 //                    && (todayGap < 0 || topTail >= 2)) {
 //                setCause(this.getClass().getName());
@@ -428,6 +468,12 @@ public class ClusteredSellSignalCalculator {
                 setCause(this.getClass().getName());
                 //boolean mask = isMaskPassed2(today, portfolio);
 //                System.out.println(", sell14date: " + today.getDate() + ", mask: " + mask + ", gain: " + gain);
+                return true;
+            }else if(gain >= 5 && lastWeekRsi70>=2 && rsi<70){
+                setCause(this.getClass().getName() + ", updated");
+                return true;
+            }else if(gain >= 5 && changeWithMinimum>=20 && rsi>=80 && today.getPaidUpCapital()>=400){
+                setCause(this.getClass().getName() + ", extraHike");
                 return true;
             }
             

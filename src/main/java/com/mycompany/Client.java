@@ -77,23 +77,23 @@ public class Client {
         ScannerService scanerService = new ScannerService();
         Portfolio portfolio = new Portfolio();
         List<BuySignalCalculator> buyCalculators = new ArrayList<>();
-//        buyCalculators.add(new Consecutive1(scanerService, oneYearData, portfolio));
-//        buyCalculators.add(new Consecutive15(scanerService, oneYearData, portfolio));
-//////        buyCalculators.add(new Consecutive2(scanerService, oneYearData, portfolio));
-//////        buyCalculators.add(new Consecutive3(scanerService, oneYearData, portfolio));
-//////        buyCalculators.add(new GreenAfterRsi30(scanerService, oneYearData, portfolio));
-//////        buyCalculators.add(new Macd(scanerService, oneYearData, portfolio));
-//        buyCalculators.add(new ExtendedSMA25(scanerService, oneYearData, portfolio));
-//////        buyCalculators.add(new Sma10(scanerService, oneYearData, portfolio));
-//////        buyCalculators.add(new SuddenHike(scanerService, oneYearData, portfolio));
-//        buyCalculators.add(new Tail(scanerService, oneYearData, portfolio));
-//        buyCalculators.add(new ThreeGreen(scanerService, oneYearData, portfolio));
-//        buyCalculators.add(new Sma25Trend(scanerService, oneYearData, portfolio));
-//        buyCalculators.add(new LargeCandle(scanerService, oneYearData, portfolio));
-//////        buyCalculators.add(new ConsecutiveGreenAfterRSI30(scanerService, oneYearData, portfolio));
-//        buyCalculators.add(new MultipleSma25Intersect(scanerService, oneYearData, portfolio));
-//        buyCalculators.add(new SmaIntersect(scanerService, oneYearData, portfolio));
-          buyCalculators.add(new Test1(scanerService, oneYearData, portfolio));
+//        buyCalculators.add(new Consecutive1(scanerService, oneYearData, portfolio));        //5.37
+//        buyCalculators.add(new Consecutive15(scanerService, oneYearData, portfolio));       //5.14
+//        buyCalculators.add(new Consecutive2(scanerService, oneYearData, portfolio));        //-1.27
+//        buyCalculators.add(new Consecutive3(scanerService, oneYearData, portfolio));        //2.01
+//        buyCalculators.add(new GreenAfterRsi30(scanerService, oneYearData, portfolio));     //9.87
+//        buyCalculators.add(new Macd(scanerService, oneYearData, portfolio));                //3.71
+//        buyCalculators.add(new ExtendedSMA25(scanerService, oneYearData, portfolio));     //13.61
+//        buyCalculators.add(new Sma10(scanerService, oneYearData, portfolio));           //4.42
+//        buyCalculators.add(new SuddenHike(scanerService, oneYearData, portfolio));        //-2.81
+//        buyCalculators.add(new Tail(scanerService, oneYearData, portfolio));            //5.83
+//        buyCalculators.add(new ThreeGreen(scanerService, oneYearData, portfolio));      //4.65
+//        buyCalculators.add(new Sma25Trend(scanerService, oneYearData, portfolio));      //4.34
+//        buyCalculators.add(new LargeCandle(scanerService, oneYearData, portfolio));     //100
+//        buyCalculators.add(new ConsecutiveGreenAfterRSI30(scanerService, oneYearData, portfolio));  //100
+//        buyCalculators.add(new MultipleSma25Intersect(scanerService, oneYearData, portfolio));  //16.16
+//        buyCalculators.add(new SmaIntersect(scanerService, oneYearData, portfolio));    //9.79
+          buyCalculators.add(new Bottom(scanerService, oneYearData, portfolio));        //7.35
           buyCalculators.add(new Average(scanerService, oneYearData, portfolio));
 
 
@@ -116,12 +116,13 @@ public class Client {
 //        sellCalculators.add(new ClusteredSellSignalCalculator.sell14(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.ProfitTake(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.EndOfRise(scanerService, oneYearData, portfolio));
+//        sellCalculators.add(new ClusteredSellSignalCalculator.BellowSMA25(scanerService, oneYearData, portfolio));
 //        sellCalculators.add(new ClusteredSellSignalCalculator.BellowEitherItemOrDsexBothSMA(scanerService, oneYearData, portfolio));
 //        sellCalculators.add(new ClusteredSellSignalCalculator.StopLoss(scanerService, oneYearData, portfolio));
 //        sellCalculators.add(new ClusteredSellSignalCalculator.RSIDrop(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.EOM(scanerService, oneYearData, portfolio));
 
-        String script = "GPHISPAT";
+        String script = "PENINSULA";
         profit = 0;
         loss = 0;
         totalBuy = 0;
@@ -132,8 +133,8 @@ public class Client {
         
         lastTradingDay = Calendar.getInstance();
         lastTradingDay.set(Calendar.YEAR, 2016);
-        lastTradingDay.set(Calendar.MONTH, 4);
-        lastTradingDay.set(Calendar.DAY_OF_MONTH, 30);
+        lastTradingDay.set(Calendar.MONTH, 6);
+        lastTradingDay.set(Calendar.DAY_OF_MONTH, 28);
         
         Calendar start = Calendar.getInstance();
         start.set(Calendar.YEAR, 2015);
@@ -223,7 +224,7 @@ public class Client {
                             signalType = Item.SignalType.HOLD;
                             System.out.println("");
                             System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + causeDetails);
-                        }else if(SignalCalculator.gain>-10){
+                        }else if(SignalCalculator.gain>-SignalCalculator.AVERAGE_ON_LOSS_PERCENT){
                             signalType = Item.SignalType.BUY;
                             System.out.println("");
                             System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + causeDetails);
