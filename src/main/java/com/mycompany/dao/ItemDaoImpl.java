@@ -457,7 +457,7 @@ public class ItemDaoImpl extends BasicDaoImpl {
     public CustomHashMap getData(int days) throws SQLException, ClassNotFoundException {
         //String sql = "SELECT CODE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, DATE FROM bs_pressure WHERE DATE IN (SELECT * FROM (SELECT DISTINCT(DATE) FROM bs_pressure ORDER BY DATE ) AS T) ORDER BY DATE;";
         String sql = "SELECT pressure.DATE, pressure.CODE, OPEN_PRICE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, YESTERDAY_CLOSE_PRICE, DAY_LOW, DAY_HIGH, pressure.DATE, VOLUME, TRADE, VALUE, PRESSURE, "
-                + "TOTALSECURITY, DIRECTOR, GOVERNMENT, INSTITUTE, FOREIN, PUBLIC, SECTOR, PAIDUPCAPITAL "
+                + "TOTALSECURITY, DIRECTOR, GOVERNMENT, INSTITUTE, FOREIN, PUBLIC, SECTOR, PAIDUPCAPITAL, RESERVE, PE "
                 + "FROM bs_pressure pressure "
                 + "LEFT JOIN year_statistics statistics ON pressure.CODE = statistics.CODE "
                 + "WHERE pressure.DATE >= ? ORDER BY pressure.DATE ";
@@ -511,6 +511,8 @@ public class ItemDaoImpl extends BasicDaoImpl {
         item.getSharePercentage().setPublics(rs.getFloat("public"));
         item.setSector(rs.getString("sector"));
         item.setPaidUpCapital(rs.getFloat("paidUpCapital"));
+        item.setReserve(rs.getFloat("reserve"));
+        item.setPE(rs.getFloat("pe"));
         calculateAdjustedClosePrice(item);
         calculateAdjustedVolume(item);
         return item;

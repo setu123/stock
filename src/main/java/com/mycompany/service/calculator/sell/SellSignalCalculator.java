@@ -287,7 +287,7 @@ public abstract class SellSignalCalculator extends SignalCalculator implements D
         else {
             float gain = ((item.getAdjustedClosePrice() - buyItem.getAverageBuyPrice()) / buyItem.getAverageBuyPrice()) * 100;
             
-            if (gain < 8) {
+            if (gain < PROFIT_TAKE_PERCENT) {
                 return false;
             }
         }

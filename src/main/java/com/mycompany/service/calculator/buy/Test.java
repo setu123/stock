@@ -9,7 +9,9 @@ import com.mycompany.service.CustomHashMap;
 import com.mycompany.service.ScannerService;
 import com.mycompany.service.calculator.SignalCalculator;
 import static com.mycompany.service.calculator.SignalCalculator.averageValuePerTrade;
+import static com.mycompany.service.calculator.SignalCalculator.bottomTolerationPercent;
 import static com.mycompany.service.calculator.SignalCalculator.maxPriceDay;
+import static com.mycompany.service.calculator.SignalCalculator.oneMonthAgoSma25;
 import static com.mycompany.service.calculator.SignalCalculator.sma25;
 import static com.mycompany.service.calculator.SignalCalculator.today;
 import java.util.Date;
@@ -20,9 +22,9 @@ import java.util.concurrent.TimeUnit;
  * @date Dec 17, 2015
  * @author setu
  */
-public class Bottom extends BuySignalCalculator {
+public class Test extends BuySignalCalculator {
 
-    public Bottom(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
+    public Test(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
         super(scanner, oneYearData, portfolio);
     }
 

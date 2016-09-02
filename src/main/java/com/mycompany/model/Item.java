@@ -37,6 +37,7 @@ public class Item extends BasicInfo implements Comparable<Item>{
     private int adjustedVolume;
     private float adjustedYesterdayClosePrice;
     private SignalType signal;
+    private String signalReason;
     private float vtcRatio;
     private SignalType vtcSignal;
     private Date date;
@@ -202,6 +203,20 @@ public class Item extends BasicInfo implements Comparable<Item>{
      */
     public void setBottom(boolean bottom) {
         this.bottom = bottom;
+    }
+
+    /**
+     * @return the signalReason
+     */
+    public String getSignalReason() {
+        return signalReason;
+    }
+
+    /**
+     * @param signalReason the signalReason to set
+     */
+    public void setSignalReason(String signalReason) {
+        this.signalReason = signalReason;
     }
     
     public enum SignalType{

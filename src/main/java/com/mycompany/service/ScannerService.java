@@ -8,6 +8,7 @@ import com.mycompany.model.Item;
 import com.mycompany.model.Portfolio;
 import com.mycompany.model.PortfolioItem;
 import com.mycompany.service.calculator.SignalCalculator;
+import static com.mycompany.service.calculator.SignalCalculator.AVERAGE_ON_LOSS_PERCENT;
 import static com.mycompany.service.calculator.SignalCalculator.today;
 import com.mycompany.service.calculator.buy.Average;
 import com.mycompany.service.calculator.buy.BuySignalCalculator;
@@ -27,6 +28,7 @@ import com.mycompany.service.calculator.buy.SuddenHike;
 import com.mycompany.service.calculator.buy.Tail;
 import com.mycompany.service.calculator.buy.Bottom;
 import com.mycompany.service.calculator.buy.ConsecutiveGreenAfterRSI30;
+import com.mycompany.service.calculator.buy.PotentialGap;
 import com.mycompany.service.calculator.buy.ThreeGreen;
 import com.mycompany.service.calculator.sell.ClusteredSellSignalCalculator;
 import com.mycompany.service.calculator.sell.SellSignalCalculator;
@@ -455,13 +457,17 @@ public class ScannerService {
 
     private List<Item> getPurifiedSignal(CustomHashMap oneYearData) throws SQLException {
         List<BuySignalCalculator> buyCalculators = new ArrayList<>();
-//        buyCalculators.add(new Consecutive1(this, oneYearData, portfolio));
+        buyCalculators.add(new Consecutive1(this, oneYearData, portfolio));
 //        buyCalculators.add(new Consecutive15(this, oneYearData, portfolio));
-        buyCalculators.add(new ExtendedSMA25(this, oneYearData, portfolio));
+        buyCalculators.add(new Consecutive3(this, oneYearData, portfolio));
+        buyCalculators.add(new PotentialGap(this, oneYearData, portfolio));
+        buyCalculators.add(new Sma25(this, oneYearData, portfolio));
+//        buyCalculators.add(new ExtendedSMA25(this, oneYearData, portfolio));
         buyCalculators.add(new GreenAfterRsi30(this, oneYearData, portfolio));
-//        buyCalculators.add(new Tail(this, oneYearData, portfolio));
-//        buyCalculators.add(new ThreeGreen(this, oneYearData, portfolio));
-//        buyCalculators.add(new Sma25Trend(this, oneYearData, portfolio));
+        buyCalculators.add(new SuddenHike(this, oneYearData, portfolio));
+        buyCalculators.add(new Tail(this, oneYearData, portfolio));
+        buyCalculators.add(new ThreeGreen(this, oneYearData, portfolio));
+        buyCalculators.add(new Sma25Trend(this, oneYearData, portfolio));
         buyCalculators.add(new LargeCandle(this, oneYearData, portfolio));
         buyCalculators.add(new ConsecutiveGreenAfterRSI30(this, oneYearData, portfolio));
         buyCalculators.add(new MultipleSma25Intersect(this, oneYearData, portfolio));
@@ -513,6 +519,7 @@ public class ScannerService {
                     //System.out.println("date: " + SignalCalculator.today.getDate() + ", code: " + code + ", gain: " + SignalCalculator.gain + ", buycause: " + calculator.getCause() + ", pItem: " + pItem);
                     if (pItem == null) {
                         item.setSignal(Item.SignalType.BUY);
+                        item.setSignalReason(calculator.getClass().getSimpleName());
                     } else if (SignalCalculator.gain >= 0) {
                         item.setSignal(Item.SignalType.HOLD);
                     } else {
@@ -520,6 +527,9 @@ public class ScannerService {
                     }
 
                     //if(!today.getDate().after(SignalCalculator.lastTradingDay.getTime()))
+                    continue outerloop;
+                }else if(pItem!=null && SignalCalculator.gain<-AVERAGE_ON_LOSS_PERCENT){
+                    item.setSignal(Item.SignalType.AVG);
                     continue outerloop;
                 }
             }
@@ -973,6 +983,7 @@ public class ScannerService {
                             break;
                         case SIGNAL:
                             to.setSignal(with.getSignal());
+                            to.setSignalReason(with.getSignalReason());
                             to.setPotentiality(with.isPotentiality());
                             to.setBottom(with.isBottom());
                             break;

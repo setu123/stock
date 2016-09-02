@@ -9,9 +9,11 @@ import com.mycompany.model.Item;
 import com.mycompany.model.Portfolio;
 import com.mycompany.service.CustomHashMap;
 import com.mycompany.service.ScannerService;
+import static com.mycompany.service.calculator.SignalCalculator.DECISION_MAKING_TENURE;
 import static com.mycompany.service.calculator.SignalCalculator.gain;
 import static com.mycompany.service.calculator.SignalCalculator.lastTradingDay;
 import static com.mycompany.service.calculator.SignalCalculator.today;
+import static com.mycompany.service.calculator.SignalCalculator.vChange;
 import java.util.List;
 
 /**
@@ -373,6 +375,33 @@ public class ClusteredSellSignalCalculator {
             return false;
         }
     }
+    
+    public static class WasWrongBuy extends SellSignalCalculator {
+
+        public WasWrongBuy(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
+            super(scanner, oneYearData, portfolio);
+        }
+
+        @Override
+        public boolean isSellCandidate(List<Item> itemSubList, Item calItem) {
+            //super.initializeVariables(itemSubList, calItem);
+
+            float yesterdayVChange = yesterday.getVolumeChange();
+            float todayVChange = today.getVolumeChange();
+            float volumeDrop = todayVChange / yesterdayVChange;
+            long tenure = today.getDate().getTime() - buyItem.getDate().getTime();
+            tenure = tenure / 86400000;
+
+            if (gain > 1 && gain <= 5 && tenure > DECISION_MAKING_TENURE) {
+//                System.out.println("Going to check sell4.date: " + today.getDate());
+                setCause(this.getClass().getName());
+//                boolean mask = isMaskPassed(today, portfolio);
+//                System.out.println(", sell14date: " + today.getDate() + ", mask: " + mask + ", gain: " + gain);
+                return true;
+            }
+            return false;
+        }
+    }
 
     public static class ProfitTake extends SellSignalCalculator {
 
@@ -402,7 +431,7 @@ public class ClusteredSellSignalCalculator {
 //            }
             
             if (
-                    gain >= 10
+                    gain >= PROFIT_TAKE_PERCENT
                     && (todayGap < 0 || topTail >= 2)
                     && diffWithSma10<2
                     ) {
@@ -476,6 +505,10 @@ public class ClusteredSellSignalCalculator {
                 setCause(this.getClass().getName() + ", extraHike");
                 return true;
             }
+            else if(gain >= 5 && rsi>=70 && todayGap<=0 && yesterdayGap<=0 && dayBeforeYesterdayGap<=0){
+                setCause(this.getClass().getName() + ", HikeEnded");
+                return true;
+            }
             
             return false;
         }
@@ -530,6 +563,39 @@ public class ClusteredSellSignalCalculator {
                 boolean mask = isMaskPassed(today, portfolio);
 //                System.out.println(", sell14date: " + today.getDate() + ", mask: " + mask + ", gain: " + gain);
                 return mask;
+            }
+            return false;
+        }
+    }
+    
+    public static class Sma25Counter extends SellSignalCalculator {
+
+        public Sma25Counter(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
+            super(scanner, oneYearData, portfolio);
+        }
+
+        @Override
+        public boolean isSellCandidate(List<Item> itemSubList, Item calItem) {
+            boolean downToBellowSma25 = false;
+            
+            for(int i=itemSubList.size()-2; i>0; i--){
+                Item anItem = itemSubList.get(i);
+                Float anItemSma25 = anItem.getSmaList().get(25);
+                
+                if(anItemSma25!= null && anItem.getAdjustedClosePrice() < anItemSma25){
+                    downToBellowSma25 = true;
+                    break;
+                }
+                
+                if(anItem.getDate().equals(buyItem.getDate()))
+                    break;
+            }
+            
+            if (gain>=2 && downToBellowSma25) {
+                setCause(this.getClass().getName());
+                //boolean mask = isMaskPassed(today, portfolio);
+//                System.out.println(", sell14date: " + today.getDate() + ", mask: " + mask + ", gain: " + gain);
+                return true;
             }
             return false;
         }

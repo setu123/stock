@@ -153,9 +153,11 @@ public class SignalCalculator {
     static protected int sma25IntersectInLastFewDays;
     static protected int greenCountInLastFewDays;
     static final public int AVERAGE_ON_LOSS_PERCENT= 15;
-    static final public int DECISION_MAKING_TENURE= 30;
+    static final public int PROFIT_TAKE_PERCENT= 10;
+    static final public int DECISION_MAKING_TENURE= ScannerService.TRADING_DAYS_IN_A_WEEK*2;
     static public Item bottom;
-    static final public int bottomTolerationPercent = 3;
+    static final public int bottomTolerationPercent = 5;
+    static public float averagePriceOnLastFewDays;
 
     public SignalCalculator(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
         this.scanner = scanner;
@@ -291,6 +293,7 @@ public class SignalCalculator {
         lastTwoMonthVariation = getLastFiewDaysVariation(items, ScannerService.TRADING_DAYS_IN_A_MONTH * 2);
         lastMonthMaximum = getLastFiewDaysMaximumClosing(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
         lastTwoWeekMaximum = getLastFiewDaysMaximumClosing(items, ScannerService.TRADING_DAYS_IN_A_WEEK * 2);
+        averagePriceOnLastFewDays = getAverageOnLasFewDays(items, ScannerService.TRADING_DAYS_IN_A_MONTH * 2);
 //        items.remove(items.size() - 1);
         dayBeforeRsi = scanner.calculateRSI(items, items.size()-2);
         dayBeforeYesterdaySma10 = calculateSMA(items, 10, items.size()-2);
@@ -384,7 +387,7 @@ public class SignalCalculator {
 
         if (debugEnabled) {
 //            if(potentiality)
-            System.out.print("\ncode: " + today.getCode() + ", date: " + today.getDate() + ", close: " + today.getAdjustedClosePrice() + ", tchange: " + df.format(today.getTradeChange()) + ", vchange: " + df.format(today.getVolumeChange()) + ", weekVchange: " + today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK) + ", vtc: " + volumePerTradeChange + ", publicShare: " + publicShare + ", div: " + divergence + ", trade: " + today.getTrade() + ", value: " + today.getValue() + ", minValue: " + minValue + ", minTrade: " + minTrade + ", minSmaDiffWithClose: " + minSmaDiffWithClose + ", minDsexSmaDiffWithClose: " + minDsexSmaDiffWithClose + ", gain: " + gain + ", uppertail: " + upperTail + ", vtcRatio: " + vtcRatio + ", rsi: " + rsi + ", div: " + divergence + ", lastMonthSmaVariation: " + lastMonthSmaVariation + ", lastMonthMaximum: " + lastMonthMaximum + ", smaTrend: " + smaTrend + ", sma10: " + sma10 + ", sma25: " + sma25 + ", ex: " + (lastMonthSmaVariation <= 3.7 && lastMonthMaximum <= todayClosePrice) + ", indexFluctuation: " + indexFluctuation + ", oneMonthBackSma25Change: " + oneMonthBackSma25Change + ", dsexyesopen: " + dsexYesterday.getOpenPrice() + ", dsexyesclose: " + dsexYesterday.getClosePrice() + ", isBullTrap: " + isBullTrap + ", maxVolumeChangeInLast3days: " + maxVolumeChangeInLast3days + ", diffWithLastMonthHigh: " + diffWithLastMonthHigh + ", isMarketDown: " + isMarketDown + ", maxGain: " + maxGainAfterBuy + ", poten: " + potentiality + ", avgvaluePerTrade: " + averageValuePerTrade + ", sma25Diff: " + sma25Diff + ", todayGap: " + todayGap + ", diffWithPreviousLow10:" + diffWithPreviousLow10 + ", todayChange: " + todaychange);
+            System.out.print("\ncode: " + today.getCode() + ", date: " + today.getDate() + ", close: " + today.getAdjustedClosePrice() + ", tchange: " + df.format(today.getTradeChange()) + ", vchange: " + df.format(today.getVolumeChange()) + ", weekVchange: " + today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK) + ", vtc: " + volumePerTradeChange + ", publicShare: " + publicShare + ", div: " + divergence + ", trade: " + today.getTrade() + ", value: " + today.getValue() + ", minValue: " + minValue + ", minTrade: " + minTrade + ", minSmaDiffWithClose: " + minSmaDiffWithClose + ", minDsexSmaDiffWithClose: " + minDsexSmaDiffWithClose + ", gain: " + gain + ", uppertail: " + upperTail + ", vtcRatio: " + vtcRatio + ", rsi: " + rsi + ", div: " + divergence + ", lastMonthSmaVariation: " + lastMonthSmaVariation + ", lastMonthMaximum: " + lastMonthMaximum + ", smaTrend: " + smaTrend + ", sma10: " + sma10 + ", sma25: " + sma25 + ", ex: " + (lastMonthSmaVariation <= 3.7 && lastMonthMaximum <= todayClosePrice) + ", indexFluctuation: " + indexFluctuation + ", oneMonthBackSma25Change: " + oneMonthBackSma25Change + ", dsexyesopen: " + dsexYesterday.getOpenPrice() + ", dsexyesclose: " + dsexYesterday.getClosePrice() + ", isBullTrap: " + isBullTrap + ", maxVolumeChangeInLast3days: " + maxVolumeChangeInLast3days + ", diffWithLastMonthHigh: " + diffWithLastMonthHigh + ", isMarketDown: " + isMarketDown + ", maxGain: " + maxGainAfterBuy + ", poten: " + potentiality + ", avgvaluePerTrade: " + averageValuePerTrade + ", sma25Diff: " + sma25Diff + ", todayGap: " + todayGap + ", diffWithPreviousLow10:" + diffWithPreviousLow10 + ", todayChange: " + todaychange + ", ema200: " + today.getEmaList().get(200));
         }
     }
     
@@ -396,6 +399,18 @@ public class SignalCalculator {
                 minimum = itemss.get(i);
         }
         return minimum;
+    }
+    
+    private float getAverageOnLasFewDays(List<Item> items, int days) {
+        float total = 0;
+        for (int i = items.size()-2; i >=(items.size()-days-1); i--) {
+            Item itm = items.get(i);
+            total += itm.getAdjustedClosePrice();
+        }
+
+        float average = total/days;
+        float percent = ((items.get(items.size()-1).getAdjustedClosePrice()-average)/average)*100;
+        return percent;
     }
     
     private int getGreenCountInLastFewDays(List<Item> items, int days) {
