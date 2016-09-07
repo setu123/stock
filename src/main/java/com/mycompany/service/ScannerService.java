@@ -506,6 +506,7 @@ public class ScannerService {
             PortfolioItem pItem = portfolio.getPortfolioItems().get(code);
             if (pItem != null) {
                 item.setSignal(Item.SignalType.HOLD);
+                item.setSignalReason(Math.round(SignalCalculator.gain) + "");
             }
 
             SignalCalculator aCalculator = buyCalculators.get(0);
@@ -522,14 +523,21 @@ public class ScannerService {
                         item.setSignalReason(calculator.getClass().getSimpleName());
                     } else if (SignalCalculator.gain >= 0) {
                         item.setSignal(Item.SignalType.HOLD);
+                        item.setSignalReason(Math.round(SignalCalculator.gain) + "");
                     } else {
                         item.setSignal(Item.SignalType.AVG);
+                        item.setSignalReason(Math.round(SignalCalculator.gain) + "");
                     }
 
                     //if(!today.getDate().after(SignalCalculator.lastTradingDay.getTime()))
                     continue outerloop;
                 }else if(pItem!=null && SignalCalculator.gain<-AVERAGE_ON_LOSS_PERCENT){
                     item.setSignal(Item.SignalType.AVG);
+                    item.setSignalReason(Math.round(SignalCalculator.gain) + "");
+                    continue outerloop;
+                }else if(pItem!=null && SignalCalculator.gain>=-AVERAGE_ON_LOSS_PERCENT){
+                    item.setSignal(Item.SignalType.HOLD);
+                    item.setSignalReason(Math.round(SignalCalculator.gain) + "");
                     continue outerloop;
                 }
             }
@@ -542,6 +550,7 @@ public class ScannerService {
             for (SellSignalCalculator calculator : sellCalculators) {
                 if (calculator.isSellCandidate(items, null)) {
                     item.setSignal(Item.SignalType.SELL);
+                    item.setSignalReason(Math.round(SignalCalculator.gain) + "");
                     String cause = calculator.getClass().getName();
                     cause = cause.substring(cause.indexOf("$") + 1);
                     continue outerloop;

@@ -180,6 +180,29 @@ public class ImportService {
         }
 
     }
+    
+    public String importArchiveAsNeeded(){
+        int daysNeededToImport = 0;
+        
+        try {
+            dao.open();
+            Calendar lastDateInDB = Calendar.getInstance();
+            lastDateInDB.setTime(dao.getToday());
+            Calendar today = Calendar.getInstance();
+            daysNeededToImport = today.get(Calendar.DAY_OF_YEAR) - lastDateInDB.get(Calendar.DAY_OF_YEAR);
+            dao.close();
+        } catch (SQLException ex) {
+            Logger.getLogger(ImportService.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (ClassNotFoundException ex) {
+            Logger.getLogger(ImportService.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        if(daysNeededToImport == 0)
+            return "Database is up to date. No need to import";
+        
+        importArchive(daysNeededToImport);
+        return "Data archive imported for All for " + daysNeededToImport + " days";
+    }
 
     public void importArchive(int day) {
         try {

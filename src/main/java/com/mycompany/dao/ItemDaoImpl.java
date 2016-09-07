@@ -520,7 +520,7 @@ public class ItemDaoImpl extends BasicDaoImpl {
 
     public Item getItem(String code, java.util.Date date) throws SQLException {
         String sql = "SELECT pressure.DATE, pressure.CODE, OPEN_PRICE, CLOSEPRICE(LAST_PRICE, CLOSE_PRICE) AS CLOSE_PRICE, YESTERDAY_CLOSE_PRICE, DAY_LOW, DAY_HIGH, pressure.DATE, VOLUME, TRADE, VALUE, PRESSURE, "
-                + "TOTALSECURITY, DIRECTOR, GOVERNMENT, INSTITUTE, FOREIN, PUBLIC, SECTOR "
+                + "TOTALSECURITY, DIRECTOR, GOVERNMENT, INSTITUTE, FOREIN, PUBLIC, SECTOR, PAIDUPCAPITAL, RESERVE, PE "
                 + "FROM bs_pressure pressure "
                 + "LEFT JOIN year_statistics statistics ON pressure.CODE = statistics.CODE "
                 + "WHERE pressure.DATE = ? && pressure.code = ?";

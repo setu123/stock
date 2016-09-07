@@ -122,6 +122,19 @@ public class ImportServlet extends HttpServlet {
                 out.println("</body>");
                 out.println("</html>");
             }
+        }else if(uri.endsWith("/archive/asNeeded")){
+            String message = importService.importArchiveAsNeeded();
+            try (PrintWriter out = response.getWriter()) {
+                out.println("<!DOCTYPE html>");
+                out.println("<html>");
+                out.println("<head>");
+                out.println("<title>Servlet SyncServlet</title>");
+                out.println("</head>");
+                out.println("<body>");
+                out.println("<h1>" + message + "</h1>");
+                out.println("</body>");
+                out.println("</html>");
+            }
         }
     }
 
