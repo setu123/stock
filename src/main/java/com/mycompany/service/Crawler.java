@@ -97,6 +97,7 @@ public class Crawler extends Thread {
     private final static String DSEX_DATA_ARCHIVE_DATE_PATTERN = "MMM dd, yyyy";
     private final static String PORTFOLIO_DATE_PATTERN = "dd/MM/yyyy";
     private final static String DSEX_DATA_SYNC_DATE_PATTERN = "MMM dd, yyyy";
+    private final static String SHARE_HOLDING_DATE_PATTERN = "MMM dd, yyyy";
     private final String SKIP_CODE_PATTERN = "(T\\d+Y\\d+|.*dse.*|DEB.*)";
     private final long HTTP_TIMEOUT_1_MINUTE = 60000;
     private Map params;
@@ -623,6 +624,14 @@ public class Crawler extends Thread {
             str = variable.toString();
             str = variable.toString().substring(str.indexOf("\n") + 1);
             float publics = Float.parseFloat(str);
+            
+            variable = (ListVariable) scraper.getContext().get("shareHoldingDate");
+            str = variable.toString();
+            str = variable.toString().substring(str.indexOf("on") + 3);
+            str = str.substring(0, str.length()-1);
+            DateFormat dateFormat = new SimpleDateFormat(SHARE_HOLDING_DATE_PATTERN);
+            Date date = dateFormat.parse(str);
+//            System.out.println("code: " + item.getCode() + ", date: " + date);
 
             item.setYearLow(low);
             item.setYearHigh(high);
@@ -635,7 +644,7 @@ public class Crawler extends Thread {
             item.setReserve(reserve);
             item.setPE(PE);
             item.setCategory(category);
-            SharePercentage percentage = new SharePercentage(director, government, institute, foreign, publics);
+            SharePercentage percentage = new SharePercentage(director, government, institute, foreign, publics, date);
             item.setSharePercentage(percentage);
 
         } catch (Exception ex) {

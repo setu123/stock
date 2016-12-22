@@ -85,7 +85,7 @@ public class PotentialGap extends BuySignalCalculator {
 //                && yesterdayGap > 0
 //                && changeWithBottom <= 10
 //                && vChange > 2
-                && vChange <= 2
+                && vChange <= 5
 //                && todaychange > 4
 //                && lastMonthMaxDiv <= 0.5
                 && rsi < 70

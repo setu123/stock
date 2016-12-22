@@ -482,7 +482,7 @@ public class ClusteredSellSignalCalculator {
             
             float changeWithMinimum = ((today.getAdjustedClosePrice()-lastWeekMinimum)/lastWeekMinimum)*100;
             
-            
+//            System.out.println("today: " + today.getDate() + ", lastWeekRsi70: " + lastWeekRsi70);
             
 //            System.out.println("today: " + today.getDate() + ", code: " + today.getCode() + ", lastWeekMaxRsi: " + lastWeekMaxRsi + ", todayRsi: " + rsi);
 //            if (gain >= 8 && gain <= 13
@@ -498,15 +498,29 @@ public class ClusteredSellSignalCalculator {
                 //boolean mask = isMaskPassed2(today, portfolio);
 //                System.out.println(", sell14date: " + today.getDate() + ", mask: " + mask + ", gain: " + gain);
                 return true;
-            }else if(gain >= 5 && lastWeekRsi70>=2 && rsi<70){
-                setCause(this.getClass().getName() + ", updated");
+            }
+            else if(gain >= 20 && lastWeekRsi70>=2 && rsi<70){
+                setCause(this.getClass().getName() + ", updated1");
                 return true;
-            }else if(gain >= 5 && changeWithMinimum>=20 && rsi>=80 && today.getPaidUpCapital()>=400){
+            }
+            else if(gain >= 5 && lastWeekRsi70>=2 && rsi<70 && changeWithMinimum>=15){
+                setCause(this.getClass().getName() + ", updated2");
+                return true;
+            }
+            else if(gain >= 5 && lastWeekRsi70>=2 && rsi<70 && (yesterdaychange<0||yesterdayGap<0)){
+                setCause(this.getClass().getName() + ", updated3");
+                return true;
+            }
+            else if(gain >= 5 && changeWithMinimum>=20 && rsi>=80 && today.getPaidUpCapital()>=400){
                 setCause(this.getClass().getName() + ", extraHike");
                 return true;
             }
             else if(gain >= 5 && rsi>=70 && todayGap<=0 && yesterdayGap<=0 && dayBeforeYesterdayGap<=0){
                 setCause(this.getClass().getName() + ", HikeEnded");
+                return true;
+            }
+            else if(gain >= 5 && lastWeekRsi70>=1 && todayClosePrice<sma10){
+                setCause(this.getClass().getName() + ", Going down");
                 return true;
             }
             
@@ -598,6 +612,20 @@ public class ClusteredSellSignalCalculator {
                 return true;
             }
             return false;
+        }
+    }
+    
+    public static class FixedProfit extends SellSignalCalculator {
+
+        public FixedProfit(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
+            super(scanner, oneYearData, portfolio);
+        }
+
+        @Override
+        public boolean isSellCandidate(List<Item> itemSubList, Item calItem) {
+            //super.initializeVariables(itemSubList, calItem);
+            setCause(this.getClass().getName());
+            return gain >= 5;
         }
     }
 

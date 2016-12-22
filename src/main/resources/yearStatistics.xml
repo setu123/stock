@@ -150,4 +150,11 @@
             </xpath>
         </text>
     </var-def>
+    <var-def name="shareHoldingDate">
+        <text>
+            <xpath expression="//table[11]/tbody/tr[2]/td/table/tbody/tr[last()-1]/td[1]/font/text()">
+                <var name="page"/>
+            </xpath>
+        </text>
+    </var-def>
 </config>

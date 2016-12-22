@@ -4,22 +4,19 @@ import com.mycompany.dao.ItemDaoImpl;
 import com.mycompany.dao.PortfolioDaoImpl;
 import com.mycompany.model.ChangesInVolumePerTrade;
 import com.mycompany.model.DividentHistory;
+import com.mycompany.model.HoldingChange;
 import com.mycompany.model.Item;
 import com.mycompany.model.Portfolio;
 import com.mycompany.model.PortfolioItem;
 import com.mycompany.service.calculator.SignalCalculator;
 import static com.mycompany.service.calculator.SignalCalculator.AVERAGE_ON_LOSS_PERCENT;
-import static com.mycompany.service.calculator.SignalCalculator.today;
+import com.mycompany.service.calculator.buy.AroundSma25;
 import com.mycompany.service.calculator.buy.Average;
 import com.mycompany.service.calculator.buy.BuySignalCalculator;
 import com.mycompany.service.calculator.buy.Consecutive1;
-import com.mycompany.service.calculator.buy.Consecutive15;
-import com.mycompany.service.calculator.buy.Consecutive2;
 import com.mycompany.service.calculator.buy.Consecutive3;
-import com.mycompany.service.calculator.buy.ExtendedSMA25;
 import com.mycompany.service.calculator.buy.GreenAfterRsi30;
 import com.mycompany.service.calculator.buy.LargeCandle;
-import com.mycompany.service.calculator.buy.Macd;
 import com.mycompany.service.calculator.buy.MultipleSma25Intersect;
 import com.mycompany.service.calculator.buy.Sma25;
 import com.mycompany.service.calculator.buy.Sma25Trend;
@@ -58,6 +55,7 @@ public class ScannerService {
     private final String SIGNAL = "SIGNAL";
     private final String VTC_SIGNAL = "VTC_SIGNAL";
     private final String DIVIDENT_YIELD = "DIVIDENT_YIELD";
+    private final String HOLDING_CHANGE = "HOLDING_CHANGE";
     public static final int RSI_PERIOD = 14;
     public static final int TRADING_DAYS_IN_A_YEAR = 250;
     //public static final int TRADING_DAYS_IN_2_MONTH = 44;
@@ -72,11 +70,11 @@ public class ScannerService {
     public ScannerService() {
         dao = new ItemDaoImpl();
         portfolioDao = new PortfolioDaoImpl();
-        try{
-        portfolioDao.open();
-        portfolio = portfolioDao.getPortfolio(SyncService.PORTFOLIO_ID);
-        portfolioDao.close();
-        }catch(Exception ex){
+        try {
+            portfolioDao.open();
+            portfolio = portfolioDao.getPortfolio(SyncService.PORTFOLIO_ID);
+            portfolioDao.close();
+        } catch (Exception ex) {
             System.out.println("Exception caught: " + ex.getMessage());
         }
     }
@@ -86,11 +84,11 @@ public class ScannerService {
         dao.open();
 
         Utils.updateDates(dao);
-        
+
         List<Item> items = getPressure();
         //CustomHashMap oneYearData = dao.getOneYearData();
         //Get 2 month data
-        CustomHashMap dataArchive = dao.getData(365+50);
+        CustomHashMap dataArchive = dao.getData(365 + 50);
         //System.out.println("up to one year data time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
         mergeItems(items, getHammer(), HAMMER);
         //System.out.println("up to hammer time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
@@ -112,16 +110,18 @@ public class ScannerService {
         //System.out.println("up to getPurifiedSignal time elapsed " + (Calendar.getInstance().getTimeInMillis()-start.getTimeInMillis())/1000 + " seconds");
         //mergeItems(items, getVolumePerTradeChangeBasedSignal(items, dataArchive), VTC_SIGNAL);
         mergeItems(items, getDividentYield(dataArchive), DIVIDENT_YIELD);
+        
+        mergeItems(items, getHoldingChange(), HOLDING_CHANGE);
 
         dao.close();
         interceptDSEXItem(items);
         return items;
     }
-    
-    private List<Item> getDividentYield(CustomHashMap oneYearData){
+
+    private List<Item> getDividentYield(CustomHashMap oneYearData) {
         Date latestDividentDate;
         DividentHistory latestCashHistory;
-        
+
         List<Item> distinctItems = new ArrayList<>();
         for (String code : oneYearData.keySet()) {
             if (code.equals("DSEX")) {
@@ -134,34 +134,36 @@ public class ScannerService {
             List<DividentHistory> histories = Utils.getDividentHistory(item.getCode());
             latestDividentDate = new Date(Long.MIN_VALUE);
             latestCashHistory = null;
-            
+
             //Find lastestDividentDate
-            for(DividentHistory history: histories){
-                if(!history.getDate().before(latestDividentDate) && history.getDate().before(item.getDate()))
+            for (DividentHistory history : histories) {
+                if (!history.getDate().before(latestDividentDate) && history.getDate().before(item.getDate())) {
                     latestDividentDate = history.getDate();
+                }
             }
-            
-            for(DividentHistory history: histories){
-                if(history.getDate().equals(latestDividentDate) && history.getType().equals(DividentHistory.DividentType.CASH))
+
+            for (DividentHistory history : histories) {
+                if (history.getDate().equals(latestDividentDate) && history.getType().equals(DividentHistory.DividentType.CASH)) {
                     latestCashHistory = history;
+                }
             }
-            
-            if(latestCashHistory != null){
+
+            if (latestCashHistory != null) {
                 float cashDivident = latestCashHistory.getPercent();
-                float dividentYield = (cashDivident*10)/item.getAdjustedClosePrice();
+                float dividentYield = (cashDivident * 10) / item.getAdjustedClosePrice();
                 String dividentYieldString = df.format(dividentYield);
-                
-                try{
+
+                try {
                     dividentYield = Float.parseFloat(dividentYieldString);
                     item.setDividentYield(dividentYield);
-                }catch(NumberFormatException nfe){
+                } catch (NumberFormatException nfe) {
                     System.out.println("NumberFormatException: " + nfe.getMessage() + ", dividentYield: " + dividentYield + ", code: " + item.getCode());
                 }
             }
-            
+
             distinctItems.add(item);
         }
-        
+
         return distinctItems;
     }
 
@@ -457,22 +459,23 @@ public class ScannerService {
 
     private List<Item> getPurifiedSignal(CustomHashMap oneYearData) throws SQLException {
         List<BuySignalCalculator> buyCalculators = new ArrayList<>();
+        buyCalculators.add(new MultipleSma25Intersect(this, oneYearData, portfolio));
+        buyCalculators.add(new GreenAfterRsi30(this, oneYearData, portfolio));
+        buyCalculators.add(new AroundSma25(this, oneYearData, portfolio));
+        buyCalculators.add(new ConsecutiveGreenAfterRSI30(this, oneYearData, portfolio));
+        buyCalculators.add(new LargeCandle(this, oneYearData, portfolio));
+        buyCalculators.add(new SuddenHike(this, oneYearData, portfolio));
+//        buyCalculators.add(new PotentialGap(this, oneYearData, portfolio));
+        buyCalculators.add(new SmaIntersect(this, oneYearData, portfolio));
+        buyCalculators.add(new Bottom(this, oneYearData, portfolio));
+        buyCalculators.add(new ThreeGreen(this, oneYearData, portfolio));
+        buyCalculators.add(new Sma25Trend(this, oneYearData, portfolio));
+        buyCalculators.add(new Sma25(this, oneYearData, portfolio));
+        buyCalculators.add(new Tail(this, oneYearData, portfolio));
         buyCalculators.add(new Consecutive1(this, oneYearData, portfolio));
 //        buyCalculators.add(new Consecutive15(this, oneYearData, portfolio));
         buyCalculators.add(new Consecutive3(this, oneYearData, portfolio));
-        buyCalculators.add(new PotentialGap(this, oneYearData, portfolio));
-        buyCalculators.add(new Sma25(this, oneYearData, portfolio));
 //        buyCalculators.add(new ExtendedSMA25(this, oneYearData, portfolio));
-        buyCalculators.add(new GreenAfterRsi30(this, oneYearData, portfolio));
-        buyCalculators.add(new SuddenHike(this, oneYearData, portfolio));
-        buyCalculators.add(new Tail(this, oneYearData, portfolio));
-        buyCalculators.add(new ThreeGreen(this, oneYearData, portfolio));
-        buyCalculators.add(new Sma25Trend(this, oneYearData, portfolio));
-        buyCalculators.add(new LargeCandle(this, oneYearData, portfolio));
-        buyCalculators.add(new ConsecutiveGreenAfterRSI30(this, oneYearData, portfolio));
-        buyCalculators.add(new MultipleSma25Intersect(this, oneYearData, portfolio));
-        buyCalculators.add(new SmaIntersect(this, oneYearData, portfolio));
-        buyCalculators.add(new Bottom(this, oneYearData, portfolio));
         buyCalculators.add(new Average(this, oneYearData, portfolio));
 
         List<SellSignalCalculator> sellCalculators = new ArrayList<>();
@@ -506,7 +509,7 @@ public class ScannerService {
             PortfolioItem pItem = portfolio.getPortfolioItems().get(code);
             if (pItem != null) {
                 item.setSignal(Item.SignalType.HOLD);
-                item.setSignalReason(Math.round(SignalCalculator.gain) + "");
+                item.setSignalReason(Math.round(SignalCalculator.gain) + ", " + SignalCalculator.today.getCode());
             }
 
             SignalCalculator aCalculator = buyCalculators.get(0);
@@ -517,29 +520,43 @@ public class ScannerService {
 
             for (BuySignalCalculator calculator : buyCalculators) {
                 if (calculator.isBuyCandidate(items, null)) {
-                    //System.out.println("date: " + SignalCalculator.today.getDate() + ", code: " + code + ", gain: " + SignalCalculator.gain + ", buycause: " + calculator.getCause() + ", pItem: " + pItem);
+//                    System.out.println("date: " + SignalCalculator.today.getDate() + ", code: " + code + ", gain: " + SignalCalculator.gain + ", buycause: " + calculator.getCause() + ", pItem: " + pItem);
                     if (pItem == null) {
                         item.setSignal(Item.SignalType.BUY);
                         item.setSignalReason(calculator.getClass().getSimpleName());
-                    } else if (SignalCalculator.gain >= 0) {
-                        item.setSignal(Item.SignalType.HOLD);
-                        item.setSignalReason(Math.round(SignalCalculator.gain) + "");
-                    } else {
+                    }
+                    else if(calculator.getClass().getName().contains("Average")){
                         item.setSignal(Item.SignalType.AVG);
                         item.setSignalReason(Math.round(SignalCalculator.gain) + "");
                     }
+                    else{
+                        item.setSignal(Item.SignalType.BUY);
+                        item.setSignalReason(calculator.getClass().getSimpleName());
+                    }
+//                    else if (SignalCalculator.gain >= 0) {
+//                        item.setSignal(Item.SignalType.HOLD);
+//                        item.setSignalReason(Math.round(SignalCalculator.gain) + "");
+//                    } else {
+//                        item.setSignal(Item.SignalType.AVG);
+//                        item.setSignalReason(Math.round(SignalCalculator.gain) + "");
+//                    }
 
                     //if(!today.getDate().after(SignalCalculator.lastTradingDay.getTime()))
                     continue outerloop;
-                }else if(pItem!=null && SignalCalculator.gain<-AVERAGE_ON_LOSS_PERCENT){
-                    item.setSignal(Item.SignalType.AVG);
-                    item.setSignalReason(Math.round(SignalCalculator.gain) + "");
-                    continue outerloop;
-                }else if(pItem!=null && SignalCalculator.gain>=-AVERAGE_ON_LOSS_PERCENT){
-                    item.setSignal(Item.SignalType.HOLD);
-                    item.setSignalReason(Math.round(SignalCalculator.gain) + "");
-                    continue outerloop;
                 }
+//                else if (pItem != null && SignalCalculator.gain < -AVERAGE_ON_LOSS_PERCENT) {
+//                    item.setSignal(Item.SignalType.AVG);
+//                    item.setSignalReason(Math.round(SignalCalculator.gain) + "");
+//                    continue outerloop;
+//                } else if (pItem != null && SignalCalculator.gain >= -AVERAGE_ON_LOSS_PERCENT) {
+//                    item.setSignal(Item.SignalType.HOLD);
+//                    item.setSignalReason(Math.round(SignalCalculator.gain) + "");
+//                    continue outerloop;
+//                }
+            }
+            
+            if(item.getSignal().equals(Item.SignalType.HOLD)){
+                item.setSignalReason(Math.round(SignalCalculator.gain) + "");
             }
 
             //No buy item, so not need to check sell
@@ -560,12 +577,13 @@ public class ScannerService {
 
         return distinctItems;
     }
-    
-    private boolean isBottom(Item bottom, Item today){
+
+    private boolean isBottom(Item bottom, Item today) {
         float changeWithBottom = ((today.getAdjustedClosePrice() - bottom.getAdjustedClosePrice()) / bottom.getAdjustedClosePrice()) * 100;
-        if(changeWithBottom <= SignalCalculator.bottomTolerationPercent)
+        if (changeWithBottom <= SignalCalculator.bottomTolerationPercent) {
             return true;
-        
+        }
+
         return false;
     }
 
@@ -1002,6 +1020,9 @@ public class ScannerService {
                         case DIVIDENT_YIELD:
                             to.setDividentYield(with.getDividentYield());
                             break;
+                        case HOLDING_CHANGE:
+                            to.setHoldingChange(with.getHoldingChange());
+                            break;
                         default:
                             break;
                     }
@@ -1031,6 +1052,20 @@ public class ScannerService {
         }
 
         return distinctItems;
+    }
+    
+    private List<Item> getHoldingChange(){
+        Map<String, HoldingChange> holdingChangeMap = Utils.getHoldingChangeMap();
+        List<Item> items = new ArrayList<>();
+        for (Map.Entry<String, HoldingChange> entrySet : holdingChangeMap.entrySet()) {
+            String key = entrySet.getKey();
+            HoldingChange value = entrySet.getValue();
+            Item anItem = new Item(key);
+            anItem.setHoldingChange(value);
+            items.add(anItem);
+        }
+        
+        return items;
     }
 
     /**
@@ -1219,13 +1254,14 @@ public class ScannerService {
 
         return rsi;
     }
-    
+
     public float calculateRSI(List<Item> items, int index) {
         Collections.sort(items);
-        
+
         List<Item> itemsCopy = new ArrayList<>(items);
-        for(int i=itemsCopy.size()-1; i>index; i--)
+        for (int i = itemsCopy.size() - 1; i > index; i--) {
             itemsCopy.remove(i);
+        }
 
         float rs = getRS(itemsCopy);
         float rsi = 100 - (100 / (1 + rs));
@@ -1260,14 +1296,14 @@ public class ScannerService {
                 totalGain += ((item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice()) + Math.abs(item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice())) / 2;
             }
 
-            averageGain = totalGain / (float)RSI_PERIOD;
+            averageGain = totalGain / (float) RSI_PERIOD;
             return averageGain;
         }
 
         float previousAverageGain = getAverageGain(items, index - 1);
         Item item = items.get(index - 1);
         float todayGain = ((item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice()) + Math.abs(item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice())) / 2;
-        averageGain = (previousAverageGain * 13 + todayGain) / (float)RSI_PERIOD;
+        averageGain = (previousAverageGain * 13 + todayGain) / (float) RSI_PERIOD;
         return averageGain;
     }
 
@@ -1287,19 +1323,19 @@ public class ScannerService {
                 totalLoss += (Math.abs(item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice()) - (item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice())) / 2;
             }
 
-            averageLoss = totalLoss / (float)RSI_PERIOD;
+            averageLoss = totalLoss / (float) RSI_PERIOD;
             return averageLoss;
         }
 
         float previousAverageLoss = getAverageLoss(items, index - 1);
         Item item = items.get(index - 1);
         float todayLoss = (Math.abs(item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice()) - (item.getAdjustedClosePrice() - item.getAdjustedYesterdayClosePrice())) / 2;
-        averageLoss = (previousAverageLoss * 13 + todayLoss) / (float)RSI_PERIOD;
+        averageLoss = (previousAverageLoss * 13 + todayLoss) / (float) RSI_PERIOD;
 
 //        System.out.println("previousAverageLoss: " + previousAverageLoss + ", todayLoss: " + todayLoss + ", date: " + item.getDate() + ", item.getAdjustedClosePrice(): " + item.getAdjustedClosePrice() + ", item.getAdjustedYesterdayClosePrice(): " + item.getAdjustedYesterdayClosePrice());
         return averageLoss;
     }
-    
+
     private List<Item> getBottom(CustomHashMap cMap) {
         List<Item> distinctItems = new ArrayList<>();
         List<Item> items;
@@ -1377,9 +1413,9 @@ public class ScannerService {
             ++count;
             firstDay = items.get(i);
         }
-        float avgVolume = (float)totalVolume / (float)count;
+        float avgVolume = (float) totalVolume / (float) count;
         //System.out.println("code: " + items.get(0).getCode() + ", totalVolume: " + totalVolume + ", avgVolume: " + avgVolume);
-        float ratio = ((float)items.get(items.size() - 1).getAdjustedVolume()) / avgVolume;
+        float ratio = ((float) items.get(items.size() - 1).getAdjustedVolume()) / avgVolume;
 
         Item today = items.get(items.size() - 1);
         Calendar cal = Calendar.getInstance();

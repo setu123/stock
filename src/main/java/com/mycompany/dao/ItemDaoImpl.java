@@ -3,6 +3,7 @@ package com.mycompany.dao;
 import com.mycompany.model.DividentHistory;
 import com.mycompany.model.Item;
 import com.mycompany.model.BasicInfo;
+import com.mycompany.model.HoldingChange;
 import com.mycompany.service.CustomHashMap;
 import com.mycompany.service.Utils;
 import java.sql.Date;
@@ -13,7 +14,9 @@ import java.sql.Statement;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @date Apr 18, 2015
@@ -342,6 +345,44 @@ public class ItemDaoImpl extends BasicDaoImpl {
         }
     }
 
+    public void setShareHoldingHistory(List<Item> items) throws SQLException {
+        String latestHistorySql = "SELECT * FROM share_holding_history WHERE CODE=? ORDER BY DATE DESC LIMIT 1";
+        String insertHistory = "INSERT INTO share_holding_history(CODE, DATE, LAST_UPDATED, DIRECTOR, GOVERNMENT, INSTITUTE, FOREIN, PUBLIC) VALUES(?, ?, ?, ?, ?, ?, ?, ?)";
+        PreparedStatement latestHistoryStmt;
+        PreparedStatement insertHistoryStmt;
+        Date today = new Date(new java.util.Date().getTime());
+
+        try {
+            latestHistoryStmt = connection.prepareStatement(latestHistorySql);
+            insertHistoryStmt = connection.prepareStatement(insertHistory);
+
+            for (BasicInfo item : items) {
+                latestHistoryStmt.setString(1, item.getCode());
+                ResultSet historyResultSet = latestHistoryStmt.executeQuery();
+                if (historyResultSet.next()) {
+                    java.util.Date date = historyResultSet.getDate("date");
+                    if (date.equals(item.getSharePercentage().getDate())) {
+                        continue;
+                    }
+                }
+
+                insertHistoryStmt.setString(1, item.getCode());
+                insertHistoryStmt.setDate(2, new Date(item.getSharePercentage().getDate().getTime()));
+                insertHistoryStmt.setDate(3, today);
+                insertHistoryStmt.setFloat(4, item.getSharePercentage().getDirector());
+                insertHistoryStmt.setFloat(5, item.getSharePercentage().getGovernment());
+                insertHistoryStmt.setFloat(6, item.getSharePercentage().getInstitute());
+                insertHistoryStmt.setFloat(7, item.getSharePercentage().getForeign());
+                insertHistoryStmt.setFloat(8, item.getSharePercentage().getPublics());
+                insertHistoryStmt.addBatch();
+            }
+
+            insertHistoryStmt.executeBatch();
+        } finally {
+
+        }
+    }
+
     public void setYearStatistics(List<Item> items) throws ClassNotFoundException, SQLException {
         //Insert codes
         insertCodesToYearStatistics(getCodes(items));
@@ -476,7 +517,7 @@ public class ItemDaoImpl extends BasicDaoImpl {
                 items.add(item);
             }
         }
-        
+
         CustomHashMap cMap = getItemizedData(items);
         for (String code : cMap.keySet()) {
             items = cMap.getItems(code);
@@ -557,22 +598,22 @@ public class ItemDaoImpl extends BasicDaoImpl {
         for (DividentHistory divident : history) {
             if (yesterday.before(divident.getDate()) && divident.getDate().before(today)) {
                 switch (divident.getType()) {
-                        case CASH:
-                            adjustedYesterdayClose = adjustedYesterdayClose - (FACE_VALUE * divident.getPercent()) / 100;
-                            break;
-                        case STOCK:
-                            factor = 1 / (1 + (divident.getPercent() / 100));
-                            adjustedYesterdayClose = adjustedYesterdayClose * factor;
-                            break;
-                        case RIGHT:
-                            factor = 1 / (1 + (divident.getPercent() / 100));
-                            adjustedYesterdayClose = (adjustedYesterdayClose + divident.getIssuePrice()) * factor;
-                            break;
-                        case SPLIT:
-                            factor = 1 / (1 + (divident.getPercent() / 100));
-                            adjustedYesterdayClose = adjustedYesterdayClose * factor;
-                            break;
-                    }
+                    case CASH:
+                        adjustedYesterdayClose = adjustedYesterdayClose - (FACE_VALUE * divident.getPercent()) / 100;
+                        break;
+                    case STOCK:
+                        factor = 1 / (1 + (divident.getPercent() / 100));
+                        adjustedYesterdayClose = adjustedYesterdayClose * factor;
+                        break;
+                    case RIGHT:
+                        factor = 1 / (1 + (divident.getPercent() / 100));
+                        adjustedYesterdayClose = (adjustedYesterdayClose + divident.getIssuePrice()) * factor;
+                        break;
+                    case SPLIT:
+                        factor = 1 / (1 + (divident.getPercent() / 100));
+                        adjustedYesterdayClose = adjustedYesterdayClose * factor;
+                        break;
+                }
             }
         }
         //if(item.getCode().equals("NPOLYMAR"))
@@ -617,11 +658,11 @@ public class ItemDaoImpl extends BasicDaoImpl {
 //                        break;
                     case RIGHT:
                         factor = 1 / (1 + (divident.getPercent() / 100));
-                        adjustedClosePrice = (adjustedClosePrice+divident.getIssuePrice()) * factor;
-                        adjustedOpenPrice = (adjustedOpenPrice+divident.getIssuePrice()) * factor;
-                        adjustedHigh = (adjustedHigh+divident.getIssuePrice()) * factor;
-                        adjustedLow = (adjustedLow+divident.getIssuePrice()) * factor;
-                        adjustedYesterdayClose = (adjustedYesterdayClose+divident.getIssuePrice()) * factor;
+                        adjustedClosePrice = (adjustedClosePrice + divident.getIssuePrice()) * factor;
+                        adjustedOpenPrice = (adjustedOpenPrice + divident.getIssuePrice()) * factor;
+                        adjustedHigh = (adjustedHigh + divident.getIssuePrice()) * factor;
+                        adjustedLow = (adjustedLow + divident.getIssuePrice()) * factor;
+                        adjustedYesterdayClose = (adjustedYesterdayClose + divident.getIssuePrice()) * factor;
                         break;
                     case SPLIT:
                         factor = 1 / (1 + (divident.getPercent() / 100));
@@ -771,6 +812,33 @@ public class ItemDaoImpl extends BasicDaoImpl {
         }
 
         return dividents;
+    }
+
+    public Map<String, HoldingChange> getHoldingChangeList() throws SQLException, ClassNotFoundException {
+        String sql = "select h1.code, h1.date, h2.date as previousDate, h1.last_updated, (h1.public-h2.public) as public, (h1.forein-h2.forein) as forein, (h1.institute-h2.institute) as institute, (h1.government-h2.government) as government, (h1.director-h2.director) as director\n"
+                + "from share_holding_history h1, share_holding_history h2\n"
+                + "where h1.date = (select max(date) from share_holding_history where h1.code = code)\n"
+                + "and h2.date = (select max(date) from share_holding_history where h2.code = code and date <(select max(date) from share_holding_history where h2.code = code))\n"
+                + "and h1.code = h2.code";
+        Map<String, HoldingChange> holdingChangeMap = new HashMap<>();
+        try (Statement stmt = connection.createStatement()) {
+            ResultSet rs = stmt.executeQuery(sql);
+            while (rs.next()) {
+                String code = rs.getString("code");
+                HoldingChange holdingChange = new HoldingChange();                
+                holdingChange.setDate(rs.getDate("date"));
+                holdingChange.setPreviousDate(rs.getDate("previousDate"));
+                holdingChange.setLastUpdated(rs.getDate("last_updated"));
+                holdingChange.setGovernment(rs.getFloat("government"));
+                holdingChange.setDirector(rs.getFloat("director"));
+                holdingChange.setInstitute(rs.getFloat("institute"));
+                holdingChange.setForeign(rs.getFloat("forein"));
+                holdingChange.setPublics(rs.getFloat("public"));
+                holdingChangeMap.put(code, holdingChange);
+            }
+        }
+
+        return holdingChangeMap;
     }
 
     private DividentHistory.DividentType getDividentType(String type) {

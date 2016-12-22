@@ -50,6 +50,7 @@ public class Item extends BasicInfo implements Comparable<Item>{
     private boolean potentiality;
     private float dividentYield;
     private boolean bottom;
+    private HoldingChange holdingChange;
 
     public SignalType getSignal() {
         return signal;
@@ -218,7 +219,21 @@ public class Item extends BasicInfo implements Comparable<Item>{
     public void setSignalReason(String signalReason) {
         this.signalReason = signalReason;
     }
-    
+
+    /**
+     * @return the holdingChange
+     */
+    public HoldingChange getHoldingChange() {
+        return holdingChange;
+    }
+
+    /**
+     * @param holdingChange the holdingChange to set
+     */
+    public void setHoldingChange(HoldingChange holdingChange) {
+        this.holdingChange = holdingChange;
+    }
+
     public enum SignalType{
         BUY, SELL, HOLD, AVG, NA
     }

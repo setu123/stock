@@ -81,7 +81,7 @@ public class Bottom extends BuySignalCalculator {
         float changeWithBottom = 100;
         //Item bottom = getBottom(itemSubList);
         Item bottom = getLowest(itemSubList);
-        long intervalFromBottom = getDateDiff(bottom.getDate(), today.getDate(), TimeUnit.DAYS);
+        //long intervalFromBottom = getDateDiff(bottom.getDate(), today.getDate(), TimeUnit.DAYS);
         boolean similarPriceBefore = similarPriceBefore(itemSubList);
         
         int publicSecurity = (int) ((today.getTotalSecurity() * today.getSharePercentage().getPublics())/100);
@@ -97,13 +97,15 @@ public class Bottom extends BuySignalCalculator {
         }
 
         if ( //changeWithBottom>=-2 && changeWithBottom<=2
-                changeWithBottom < bottomTolerationPercent && todayGap > 0.70 
+                changeWithBottom < bottomTolerationPercent 
+                && todayGap > 0.70 
+                && yesterdayGap > 0
 //                && vChange > 2
 //                && intervalFromBottom<90
                 && similarPriceBefore
                 && divergence < maxDivergence
                 && rsi >= (35 + todaychange)
-                && ((today.getPaidUpCapital()<600 && publicShareAmount<600000000) || today.getSharePercentage().getGovernment()>10)
+                && ((today.getPaidUpCapital()<600 || publicShareAmount<600000000) || today.getSharePercentage().getGovernment()>10)
 //                && today.getPaidUpCapital() < 300
 //                && publicShareAmount < 300000000
 //                && diffWithPreviousLow10 <= 10

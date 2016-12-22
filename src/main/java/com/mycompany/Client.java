@@ -77,26 +77,27 @@ public class Client {
         ScannerService scanerService = new ScannerService();
         Portfolio portfolio = new Portfolio();
         List<BuySignalCalculator> buyCalculators = new ArrayList<>();
-//        buyCalculators.add(new Consecutive1(scanerService, oneYearData, portfolio));        //21
+//        buyCalculators.add(new Consecutive1(scanerService, oneYearData, portfolio));        //21    Average:52
 //        buyCalculators.add(new Consecutive15(scanerService, oneYearData, portfolio));       //17
 //        buyCalculators.add(new Consecutive2(scanerService, oneYearData, portfolio));        //6
-//        buyCalculators.add(new Consecutive3(scanerService, oneYearData, portfolio));        //19
-//        buyCalculators.add(new PotentialGap(scanerService, oneYearData, portfolio));        //26
-//        buyCalculators.add(new Sma25(scanerService, oneYearData, portfolio));           //21
+//        buyCalculators.add(new Consecutive3(scanerService, oneYearData, portfolio));        //15
+//        buyCalculators.add(new PotentialGap(scanerService, oneYearData, portfolio));        //26  Average: 66
+//        buyCalculators.add(new Sma25(scanerService, oneYearData, portfolio));           //21        Average: 30
 //        buyCalculators.add(new ExtendedSMA25(scanerService, oneYearData, portfolio));     //10
-//        buyCalculators.add(new GreenAfterRsi30(scanerService, oneYearData, portfolio));     //38
-//        buyCalculators.add(new SuddenHike(scanerService, oneYearData, portfolio));        //27
-//        buyCalculators.add(new Tail(scanerService, oneYearData, portfolio));            //18
-//        buyCalculators.add(new ThreeGreen(scanerService, oneYearData, portfolio));      //22
-//        buyCalculators.add(new Sma25Trend(scanerService, oneYearData, portfolio));      //19
-//        buyCalculators.add(new LargeCandle(scanerService, oneYearData, portfolio));     //29
-//        buyCalculators.add(new ConsecutiveGreenAfterRSI30(scanerService, oneYearData, portfolio));  //31
-//        buyCalculators.add(new MultipleSma25Intersect(scanerService, oneYearData, portfolio));  //59
-//        buyCalculators.add(new SmaIntersect(scanerService, oneYearData, portfolio));    //24
-//        buyCalculators.add(new Bottom(scanerService, oneYearData, portfolio));        //24
+//        buyCalculators.add(new GreenAfterRsi30(scanerService, oneYearData, portfolio));     //38    Average: 14
+//        buyCalculators.add(new SuddenHike(scanerService, oneYearData, portfolio));        //27        Average: 60
+//        buyCalculators.add(new Tail(scanerService, oneYearData, portfolio));            //18        Average: 0
+//        buyCalculators.add(new ThreeGreen(scanerService, oneYearData, portfolio));      //22        Average: 16
+//        buyCalculators.add(new Sma25Trend(scanerService, oneYearData, portfolio));      //19        Average: 17
+//        buyCalculators.add(new LargeCandle(scanerService, oneYearData, portfolio));     //29          Average: 83
+//        buyCalculators.add(new ConsecutiveGreenAfterRSI30(scanerService, oneYearData, portfolio));  //31    Average: 0
+//        buyCalculators.add(new MultipleSma25Intersect(scanerService, oneYearData, portfolio));  //59    Average: 20
+//        buyCalculators.add(new SmaIntersect(scanerService, oneYearData, portfolio));    //24            Average: 20
+//        buyCalculators.add(new Bottom(scanerService, oneYearData, portfolio));        //24              Average: 17
         buyCalculators.add(new Average(scanerService, oneYearData, portfolio));
 //        buyCalculators.add(new Macd(scanerService, oneYearData, portfolio));                //10
 //        buyCalculators.add(new Sma10(scanerService, oneYearData, portfolio));           //16
+//        buyCalculators.add(new AroundSma25(scanerService, oneYearData, portfolio));        //38         Average: 15
         buyCalculators.add(new Test(scanerService, oneYearData, portfolio));        //7.35
           
 
@@ -126,9 +127,10 @@ public class Client {
 //        sellCalculators.add(new ClusteredSellSignalCalculator.BellowEitherItemOrDsexBothSMA(scanerService, oneYearData, portfolio));
 //        sellCalculators.add(new ClusteredSellSignalCalculator.StopLoss(scanerService, oneYearData, portfolio));
 //        sellCalculators.add(new ClusteredSellSignalCalculator.RSIDrop(scanerService, oneYearData, portfolio));
+//        sellCalculators.add(new ClusteredSellSignalCalculator.FixedProfit(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.EOM(scanerService, oneYearData, portfolio));
 
-        String script = "ORIONINFU";
+        String script = "RSRMSTEEL";
         profit = 0;
         loss = 0;
         totalBuy = 0;
@@ -139,8 +141,8 @@ public class Client {
         
         lastTradingDay = Calendar.getInstance();
         lastTradingDay.set(Calendar.YEAR, 2016);
-        lastTradingDay.set(Calendar.MONTH, 7);
-        lastTradingDay.set(Calendar.DAY_OF_MONTH, 31);
+        lastTradingDay.set(Calendar.MONTH, 10);
+        lastTradingDay.set(Calendar.DAY_OF_MONTH, 28);
         
         Calendar start = Calendar.getInstance();
         start.set(Calendar.YEAR, 2015);
@@ -162,16 +164,16 @@ public class Client {
             }
             
             
-//            if (!code.equals(script)) {
-//                SignalCalculator.debugEnabled = true;
-//                continue;
-//            }
+            if (!code.equals(script)) {
+                SignalCalculator.debugEnabled = true;
+                continue;
+            }
             
             //Skip codes
-            List<String> skipCodes = new ArrayList<>();
-            skipCodes.add("PRIMELIFE");
-            if(skipCodes.contains(code))
-                continue;
+//            List<String> skipCodes = new ArrayList<>();
+//            skipCodes.add("PRIMELIFE");
+//            if(skipCodes.contains(code))
+//                continue;
 
             List<Item> items = oneYearData.getItems(code);
             scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
@@ -217,7 +219,7 @@ public class Client {
                         
                         float todayValuePerTrade = today.getValue()/today.getTrade();
                         float ratio = todayValuePerTrade/SignalCalculator.averageValuePerTrade;
-                        String causeDetails = parseCause(calculator) + "(t:" + df.format(SignalCalculator.tChange) + ", v:" + df.format(SignalCalculator.vChange) + ", wv:" + df.format(SignalCalculator.today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK)) + ", averageDiff: " + SignalCalculator.averagePriceOnLastFewDays + ")";
+                        String causeDetails = parseCause(calculator) + "(t:" + df.format(SignalCalculator.tChange) + ", v:" + df.format(SignalCalculator.vChange) + ", gain:" + SignalCalculator.gain + ", averageDiff: " + SignalCalculator.averagePriceOnLastFewDays + ")";
                         //System.out.println(", date: " + today.getDate() + ", buycause: " + SignalCalculator.getCause() + ", pItem: " + pItem);
                         if (pItem == null) {
                             pItem = createPortfolioItem(today);
@@ -234,7 +236,16 @@ public class Client {
                             signalType = Item.SignalType.BUY;
                             System.out.println("");
                             System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + causeDetails);
-                        }else if(SignalCalculator.gain<=-SignalCalculator.AVERAGE_ON_LOSS_PERCENT){
+//                        }else if(SignalCalculator.gain<=-SignalCalculator.AVERAGE_ON_LOSS_PERCENT){
+//                            float earlierBuyPrice = pItem.getAverageBuyPrice();
+//                            float todayBuyPrice = today.getAdjustedClosePrice()*1.005f;
+//                            float avgPrice = (earlierBuyPrice + todayBuyPrice)/2f;
+//                            pItem.setAverageBuyPrice(avgPrice);
+//                            ++totalAvg;
+//                            signalType = Item.SignalType.AVG;
+//                            System.out.println("");
+//                            System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", avg: " + avgPrice + ", cause: " + causeDetails);
+                        }else if(calculator.getClass().getName().contains("Average")){
                             float earlierBuyPrice = pItem.getAverageBuyPrice();
                             float todayBuyPrice = today.getAdjustedClosePrice()*1.005f;
                             float avgPrice = (earlierBuyPrice + todayBuyPrice)/2f;
@@ -242,7 +253,7 @@ public class Client {
                             ++totalAvg;
                             signalType = Item.SignalType.AVG;
                             System.out.println("");
-                            System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", avg: " + avgPrice + ", cause: " + causeDetails);
+                            System.out.print(signalType + " # " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", avg: " + avgPrice + ", cause: " + causeDetails);
                         }
                         
                         //if(!today.getDate().after(SignalCalculator.lastTradingDay.getTime()))
@@ -308,8 +319,14 @@ public class Client {
         
         float profitRate = summery / totalBuy;
         float transactionInAYear = 365f/averageTenure;
-        float profitWeight = (profitRate*transactionInAYear)*(80f/100f);
-        System.out.println("\nsummery: " + summery + ", totalBuy: " + totalBuy + ", totalAvg: " + totalAvg + ", totalSell: " + totalSell + ", profitRate: " + profitRate + ", profit:loss= " + profit + " : " + loss + " gainPercent: " + df.format(gainPercent) + ", averageTenure: " + averageTenure + ", averagePercent: " + averagePercent + "\nprofitWeight: " + profitWeight);
+        
+//        float profitWeight = (profitRate*transactionInAYear)*(80f/100f);
+        float reduceFactor = 10+averagePercent/2f;
+        reduceFactor = 100-reduceFactor;
+        
+        float profitWeight = (profitRate*transactionInAYear)*(reduceFactor/100f);
+        
+        System.out.println("\nsummery: " + summery + ", totalBuy: " + totalBuy + ", totalAvg: " + totalAvg + ", totalSell: " + totalSell + ", profitRate: " + profitRate + ", profit:loss= " + profit + " : " + loss + " gainPercent: " + df.format(gainPercent) + ", averageTenure: " + averageTenure + ", averagePercent: " + averagePercent + ", reduceFactor: " + reduceFactor + "\nprofitWeight: " + profitWeight);
         System.out.println("losscounter: " + lossCounter);
         System.out.println("proftcounter: " + profitCounter);
     }

@@ -70,6 +70,7 @@ public class Sma25 extends BuySignalCalculator {
                 && yesterdayGap > 0
                 && changeWithBottom <= 10
                 && vChange <= 5
+                && vChange >= 1.5
                 && todaychange <= 5
                 && today.getAdjustedClosePrice() < 500
 //                && averagePriceOnLastFewDays > 0

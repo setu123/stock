@@ -83,17 +83,14 @@ public class Test extends BuySignalCalculator {
         float changeWithBottom = 100;
         //Item bottom = getBottom(itemSubList);
         Item bottom = getLowest(itemSubList);
-        long intervalFromBottom = getDateDiff(bottom.getDate(), today.getDate(), TimeUnit.DAYS);
+        //long intervalFromBottom = getDateDiff(bottom.getDate(), today.getDate(), TimeUnit.DAYS);
         boolean similarPriceBefore = similarPriceBefore(itemSubList);
         
         int publicSecurity = (int) ((today.getTotalSecurity() * today.getSharePercentage().getPublics())/100);
         float publicShareAmount = publicSecurity * today.getAdjustedClosePrice();
         
-        Item lowest = getLowest(itemSubList);
-        float priceDiffWithMinimum = ((today.getAdjustedClosePrice() - lowest.getAdjustedClosePrice())/lowest.getAdjustedClosePrice())*100;
-        
-        float eps = today.getAdjustedClosePrice()/today.getPE();
-        
+//        int publicSecurity = (int) ((today.getTotalSecurity() * today.getSharePercentage().getPublics())/100);
+//        float publicShareAmount = publicSecurity * today.getAdjustedClosePrice();
         
         if (bottom != null) {
             changeWithBottom = ((today.getAdjustedClosePrice() - bottom.getAdjustedClosePrice()) / bottom.getAdjustedClosePrice()) * 100;
@@ -101,29 +98,27 @@ public class Test extends BuySignalCalculator {
 //            System.out.println("today: " + today.getDate());
         }
 
-        if (
-                (todayGap >= 2 && oneFourthWay > sma25 && today.getOpenPrice() <= (sma25 * 1.015))
-                && divergence <= maxDivergence
-                && diffWithPreviousLow10 <= 12 //&& Math.max(todayGap, yesterdayGap) >= 0.5
-                && upperTail < 4
-//                && vChange > 2
-                && priceDiffWithMinimum <=10
-//                && todayClosePrice > lastMonthMaximum
-//                && today.getEmaList().get(9) < 0
+        if ( //changeWithBottom>=-2 && changeWithBottom<=2
+                changeWithBottom < bottomTolerationPercent 
+                && todayGap > 0.70 
                 && yesterdayGap > 0
-                && changeWithBottom <= 10
-                && vChange <= 5
-                && todaychange <= 5
-                && today.getAdjustedClosePrice() < 500
-//                && (today.getReserve()/today.getPaidUpCapital()) < 1
-//                && today.getSharePercentage().getGovernment() >= 50
-//                && today.getSharePercentage().getPublics()<30
-//                && averagePriceOnLastFewDays > 0
+//                && vChange > 2
+//                && intervalFromBottom<90
+                && similarPriceBefore
+                && divergence < maxDivergence
+                && rsi >= (35 + todaychange)
+                && ((today.getPaidUpCapital()<600 || publicShareAmount<600000000) || today.getSharePercentage().getGovernment()>10)
+//                && today.getPaidUpCapital() < 300
 //                && publicShareAmount < 300000000
-//                && today.getPE() > 40
+//                && diffWithPreviousLow10 <= 10
+//                && today.getReserve()/today.getPaidUpCapital() > 1.2
                 ) {
             setCause(this.getClass().getName());
+
             boolean maskPassed = isMaskPassed(today, portfolio);
+            if (maskPassed) {
+//                System.out.print(", Bottom day: " + bottom.getDate() + ", today: " + today.getDate() + ", interval: " + intervalFromBottom);
+            }
             return maskPassed;
         }
         return false;

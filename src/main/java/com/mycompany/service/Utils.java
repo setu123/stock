@@ -3,6 +3,7 @@ package com.mycompany.service;
 import com.mycompany.dao.ItemDaoImpl;
 import com.mycompany.model.BasicInfo;
 import com.mycompany.model.DividentHistory;
+import com.mycompany.model.HoldingChange;
 import com.mycompany.model.Item;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -30,6 +31,7 @@ public class Utils {
     public static Date today;
     public static Date yesterday;
     private static List<Item> allItems;
+    private static Map<String, HoldingChange> holdingChangeMap;
 
     private static List<DividentHistory> getDividentHistory() {
         if (dividentHistory == null) {
@@ -101,16 +103,25 @@ public class Utils {
         }
         return dividentMap.get(code);
     }
+    
+    public static Map<String, HoldingChange> getHoldingChangeMap(){
+        return holdingChangeMap;
+    }
 
     public static void updateDates(ItemDaoImpl itemDao) throws SQLException {
         today = itemDao.getToday();
         yesterday = itemDao.getYesterday();
+    }
+    
+    private static void setHoldingChangeMap() throws SQLException, ClassNotFoundException{
+        holdingChangeMap = dao.getHoldingChangeList();
     }
 
     static {
         try {
             dao.open();
             updateDates(dao);
+            setHoldingChangeMap();
             dao.close();
         } catch (SQLException | ClassNotFoundException ex) {
             Logger.getLogger(Utils.class.getName()).log(Level.SEVERE, null, ex);

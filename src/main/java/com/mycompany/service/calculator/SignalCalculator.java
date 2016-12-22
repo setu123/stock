@@ -5,19 +5,23 @@
  */
 package com.mycompany.service.calculator;
 
+import com.mycompany.model.DividentHistory;
 import com.mycompany.model.Item;
 import com.mycompany.model.Portfolio;
 import com.mycompany.model.PortfolioItem;
 import com.mycompany.service.CustomHashMap;
 import com.mycompany.service.ScannerService;
+import com.mycompany.service.Utils;
 import static com.mycompany.service.calculator.DecisionMaker.df;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Queue;
+import org.apache.commons.collections4.queue.CircularFifoQueue;
 
 /**
  * @date Dec 16, 2015
@@ -152,12 +156,14 @@ public class SignalCalculator {
     static protected float sma25Diff;
     static protected int sma25IntersectInLastFewDays;
     static protected int greenCountInLastFewDays;
-    static final public int AVERAGE_ON_LOSS_PERCENT= 15;
+    static final public int AVERAGE_ON_LOSS_PERCENT= 20;
     static final public int PROFIT_TAKE_PERCENT= 10;
     static final public int DECISION_MAKING_TENURE= ScannerService.TRADING_DAYS_IN_A_WEEK*2;
     static public Item bottom;
     static final public int bottomTolerationPercent = 5;
+    static final public int bottomAverage = 3;
     static public float averagePriceOnLastFewDays;
+    static protected float dividentYield;
 
     public SignalCalculator(ScannerService scanner, CustomHashMap oneYearData, Portfolio portfolio) {
         this.scanner = scanner;
@@ -255,6 +261,7 @@ public class SignalCalculator {
         sma25 = calculateSMA(items, 25);
         today.getSmaList().put(10, sma10);
         today.getSmaList().put(25, sma25);
+//        today.getSmaList().put(50, calculateSMA(items, 50));
 
         halfway = (today.getAdjustedClosePrice() - today.getOpenPrice()) / 2 + today.getOpenPrice();
         lastGreenMinimum = getLastGreenMinimum(items);
@@ -279,7 +286,8 @@ public class SignalCalculator {
         greenCountInLastFewDays = getGreenCountInLastFewDays(items, ScannerService.TRADING_DAYS_IN_A_WEEK*2);
         oneMonthAgoSma25 = calculateBackdatedSMA(items, 25, ScannerService.TRADING_DAYS_IN_A_MONTH);
         
-        bottom = getLowest(items);
+//        bottom = getLowest(items);
+        bottom = getAverageOfLowest(items);
 
         //items are removed. so dont use items bellow this line
 //        items.remove(items.size() - 1);
@@ -295,7 +303,7 @@ public class SignalCalculator {
         lastTwoWeekMaximum = getLastFiewDaysMaximumClosing(items, ScannerService.TRADING_DAYS_IN_A_WEEK * 2);
         averagePriceOnLastFewDays = getAverageOnLasFewDays(items, ScannerService.TRADING_DAYS_IN_A_MONTH * 2);
 //        items.remove(items.size() - 1);
-        dayBeforeRsi = scanner.calculateRSI(items, items.size()-2);
+        dayBeforeRsi = scanner.calculateRSI(items, items.size()-3);
         dayBeforeYesterdaySma10 = calculateSMA(items, 10, items.size()-2);
         dayBeforeYesterdaySma25 = calculateSMA(items, 25, items.size()-2);
 
@@ -378,16 +386,19 @@ public class SignalCalculator {
         //boolean maxvolum = maxVolumeChangeInLastWeek > today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_MONTH*1);
         sma25Diff = ((SignalCalculator.sma25 - SignalCalculator.oneWeekAgoSma25) / SignalCalculator.oneWeekAgoSma25) * 100;
         
+        twoDayBeforeRsi = scanner.calculateRSI(items, items.size()-4);
 //        items.remove(items.size() - 1);
-        threeDayBeforeRsi = scanner.calculateRSI(items, items.size()-1);
+        threeDayBeforeRsi = scanner.calculateRSI(items, items.size()-5);
 //        items.remove(items.size()-1);
-        fourDayBeforeRsi = scanner.calculateRSI(items, items.size()-2);
+        fourDayBeforeRsi = scanner.calculateRSI(items, items.size()-6);
 //        items.remove(items.size()-1);
-        fiveDayBeforeRsi = scanner.calculateRSI(items, items.size()-3);
+        fiveDayBeforeRsi = scanner.calculateRSI(items, items.size()-7);
+        
+//        dividentYield = getDividentYield();
 
         if (debugEnabled) {
 //            if(potentiality)
-            System.out.print("\ncode: " + today.getCode() + ", date: " + today.getDate() + ", close: " + today.getAdjustedClosePrice() + ", tchange: " + df.format(today.getTradeChange()) + ", vchange: " + df.format(today.getVolumeChange()) + ", weekVchange: " + today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK) + ", vtc: " + volumePerTradeChange + ", publicShare: " + publicShare + ", div: " + divergence + ", trade: " + today.getTrade() + ", value: " + today.getValue() + ", minValue: " + minValue + ", minTrade: " + minTrade + ", minSmaDiffWithClose: " + minSmaDiffWithClose + ", minDsexSmaDiffWithClose: " + minDsexSmaDiffWithClose + ", gain: " + gain + ", uppertail: " + upperTail + ", vtcRatio: " + vtcRatio + ", rsi: " + rsi + ", div: " + divergence + ", lastMonthSmaVariation: " + lastMonthSmaVariation + ", lastMonthMaximum: " + lastMonthMaximum + ", smaTrend: " + smaTrend + ", sma10: " + sma10 + ", sma25: " + sma25 + ", ex: " + (lastMonthSmaVariation <= 3.7 && lastMonthMaximum <= todayClosePrice) + ", indexFluctuation: " + indexFluctuation + ", oneMonthBackSma25Change: " + oneMonthBackSma25Change + ", dsexyesopen: " + dsexYesterday.getOpenPrice() + ", dsexyesclose: " + dsexYesterday.getClosePrice() + ", isBullTrap: " + isBullTrap + ", maxVolumeChangeInLast3days: " + maxVolumeChangeInLast3days + ", diffWithLastMonthHigh: " + diffWithLastMonthHigh + ", isMarketDown: " + isMarketDown + ", maxGain: " + maxGainAfterBuy + ", poten: " + potentiality + ", avgvaluePerTrade: " + averageValuePerTrade + ", sma25Diff: " + sma25Diff + ", todayGap: " + todayGap + ", diffWithPreviousLow10:" + diffWithPreviousLow10 + ", todayChange: " + todaychange + ", ema200: " + today.getEmaList().get(200));
+            System.out.print("\ncode: " + today.getCode() + ", date: " + today.getDate() + ", close: " + today.getAdjustedClosePrice() + ", tchange: " + df.format(today.getTradeChange()) + ", vchange: " + df.format(today.getVolumeChange()) + ", weekVchange: " + today.getVolumeChanges().get(ScannerService.TRADING_DAYS_IN_A_WEEK) + ", vtc: " + volumePerTradeChange + ", publicShare: " + publicShare + ", div: " + divergence + ", trade: " + today.getTrade() + ", value: " + today.getValue() + ", minValue: " + minValue + ", minTrade: " + minTrade + ", minSmaDiffWithClose: " + minSmaDiffWithClose + ", minDsexSmaDiffWithClose: " + minDsexSmaDiffWithClose + ", gain: " + gain + ", uppertail: " + upperTail + ", vtcRatio: " + vtcRatio + ", rsi: " + rsi + ", div: " + divergence + ", lastMonthSmaVariation: " + lastMonthSmaVariation + ", lastMonthMaximum: " + lastMonthMaximum + ", smaTrend: " + smaTrend + ", sma10: " + sma10 + ", sma25: " + sma25 + ", ex: " + (lastMonthSmaVariation <= 3.7 && lastMonthMaximum <= todayClosePrice) + ", indexFluctuation: " + indexFluctuation + ", oneMonthBackSma25Change: " + oneMonthBackSma25Change + ", dsexyesopen: " + dsexYesterday.getOpenPrice() + ", dsexyesclose: " + dsexYesterday.getClosePrice() + ", isBullTrap: " + isBullTrap + ", maxVolumeChangeInLast3days: " + maxVolumeChangeInLast3days + ", diffWithLastMonthHigh: " + diffWithLastMonthHigh + ", isMarketDown: " + isMarketDown + ", maxGain: " + maxGainAfterBuy + ", poten: " + potentiality + ", avgvaluePerTrade: " + averageValuePerTrade + ", sma25Diff: " + sma25Diff + ", todayGap: " + todayGap + ", diffWithPreviousLow10:" + diffWithPreviousLow10 + ", todayChange: " + todaychange + ", ema200: " + today.getEmaList().get(200) + ", rsi: " + rsi);
         }
     }
     
@@ -401,6 +412,29 @@ public class SignalCalculator {
         return minimum;
     }
     
+    private Item getAverageOfLowest(List<Item> itemss){
+        int queueSize = bottomAverage;
+        Queue queue = new CircularFifoQueue(queueSize);
+        
+        Item minimum = new Item();
+        minimum.setAdjustedClosePrice(1000000);
+        for(int i=itemss.size()-1; i>=0; i--){
+            if(itemss.get(i).getAdjustedClosePrice() < minimum.getAdjustedClosePrice()){
+                minimum = itemss.get(i);
+                queue.add(minimum);
+            }
+        }
+        
+        Iterator itr = queue.iterator();
+        float total = 0;
+        while(itr.hasNext()){
+            total += ((Item)itr.next()).getAdjustedClosePrice();
+        }
+        minimum.setAdjustedClosePrice(total/queue.size());
+        
+        return minimum;
+    }
+    
     private float getAverageOnLasFewDays(List<Item> items, int days) {
         float total = 0;
         for (int i = items.size()-2; i >=(items.size()-days-1); i--) {
@@ -411,6 +445,41 @@ public class SignalCalculator {
         float average = total/days;
         float percent = ((items.get(items.size()-1).getAdjustedClosePrice()-average)/average)*100;
         return percent;
+    }
+    
+    private float getDividentYield() {
+        List<DividentHistory> histories = Utils.getDividentHistory(today.getCode());
+            Date latestDividentDate = new Date(Long.MIN_VALUE);
+            DividentHistory latestCashHistory = null;
+            dividentYield = 0;
+
+            //Find lastestDividentDate
+            for (DividentHistory history : histories) {
+                if (!history.getDate().before(latestDividentDate) && history.getDate().before(today.getDate())) {
+                    latestDividentDate = history.getDate();
+                }
+            }
+
+            for (DividentHistory history : histories) {
+                if (history.getDate().equals(latestDividentDate) && history.getType().equals(DividentHistory.DividentType.CASH)) {
+                    latestCashHistory = history;
+                }
+            }
+
+            if (latestCashHistory != null) {
+                float cashDivident = latestCashHistory.getPercent();
+                dividentYield = (cashDivident * 10) / today.getAdjustedClosePrice();
+                String dividentYieldString = df.format(dividentYield);
+
+                try {
+                    dividentYield = Float.parseFloat(dividentYieldString);
+                } catch (NumberFormatException nfe) {
+                    System.out.println("NumberFormatException: " + nfe.getMessage() + ", dividentYield: " + dividentYield + ", code: " + item.getCode());
+                    dividentYield = 0;
+                }
+            }
+            
+            return dividentYield;
     }
     
     private int getGreenCountInLastFewDays(List<Item> items, int days) {

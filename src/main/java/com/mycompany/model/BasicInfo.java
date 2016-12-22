@@ -180,4 +180,4 @@ public class BasicInfo {
         this.yearLow = yearLow;
     }
 
-}
+    }

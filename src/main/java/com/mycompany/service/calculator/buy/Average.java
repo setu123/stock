@@ -62,14 +62,21 @@ public class Average extends BuySignalCalculator {
 //        System.out.println("date: " + today.getDate() + "gain: " + gain + ", isbulltrap: " + isBullTrap + ", todayIndexGap: " + todayIndexGap);
 //        if(buyItem!=null && buyItem.getCode().equals("PADMAOIL"))
 //            System.out.println("date: " + today.getDate() + ", gain: " + gain);
+//        System.out.println("code : " + today.getCode() + ", buyItem: " + buyItem + ", gain: " + gain + ", todayClosePrice: " + todayClosePrice + ", sma25: " + sma25);
 
-        if (buyItem!=null && gain<-AVERAGE_ON_LOSS_PERCENT) {
+//        if (buyItem!=null && gain<-AVERAGE_ON_LOSS_PERCENT) {
+        if (
+                buyItem!=null 
+                && (gain<-AVERAGE_ON_LOSS_PERCENT || (gain<-(AVERAGE_ON_LOSS_PERCENT-5) && todayClosePrice>sma25))
+           ) {
             
             //float newAveragePrice = (float) (buyItem.getAverageBuyPrice()/2 + buyItem.getAverageBuyPrice()*0.01);
 //            System.out.println("halfing buy price");
             //buyItem.setAverageBuyPrice(newAveragePrice);
             setCause(this.getClass().getName());
-            boolean maskPassed = isMaskPassed(today, portfolio);
+//            boolean maskPassed = isMaskPassed(today, portfolio);
+            boolean maskPassed = true;
+//            System.out.println("average passed; code: " + today.getCode());
 //            if(buyItem.getCode().equals("PADMAOIL"))
 //                System.out.println("average_code: " + buyItem.getCode() + today.getDate() + ", maskPassed: " + maskPassed + ", isBullTrap: " + isBullTrap);
             return maskPassed;

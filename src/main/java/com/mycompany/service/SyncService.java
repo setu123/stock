@@ -159,10 +159,11 @@ public class SyncService implements Job {
             
             List<Item> itemSublist = new ArrayList<>();
             
+//            for (int i = 0; i < 50; i++) {
             for (int i = 0; i < items.size(); i++) {
                 if(i%chunkSize == 0){
                     if(itemSublist.size()>0){
-                        System.out.println("going to fetch items untill: " + i);
+                        System.out.println("going to fetch items untill:: " + i);
                         fetchYearStatistics(itemSublist);
                     }
                     
@@ -178,6 +179,7 @@ public class SyncService implements Job {
             itemDao.open();
             //System.out.println("in syncyear percentage: " + items.get(0).getSharePercentage());
             itemDao.setYearStatistics(items);
+            itemDao.setShareHoldingHistory(items);
             itemDao.close();
         } catch (MalformedURLException | InterruptedException | ClassNotFoundException | SQLException ex) {
             Logger.getLogger(SyncService.class.getName()).log(Level.SEVERE, null, ex);

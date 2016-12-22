@@ -95,7 +95,7 @@ public class Sma25Trend extends BuySignalCalculator {
                 && todayTrade >= minTrade
 //                && yesterday.getVolumeChange() >=1.5
                 && weeklyVChange > 1.5
-//                && vChange>2 
+                && vChange >= 1.5 
                 && todayDsexTopTail<0.50 && yesterdayDsexTopTail<0.50 && dayBeforeDsexTopTail<0.50
                 && rsi <= 60
                 && signalLine > 0
