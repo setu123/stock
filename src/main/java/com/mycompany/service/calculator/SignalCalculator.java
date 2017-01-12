@@ -160,7 +160,7 @@ public class SignalCalculator {
     static final public int PROFIT_TAKE_PERCENT= 10;
     static final public int DECISION_MAKING_TENURE= ScannerService.TRADING_DAYS_IN_A_WEEK*2;
     static public Item bottom;
-    static final public int bottomTolerationPercent = 5;
+    static final public int bottomTolerationPercent = 10;
     static final public int bottomAverage = 3;
     static public float averagePriceOnLastFewDays;
     static protected float dividentYield;

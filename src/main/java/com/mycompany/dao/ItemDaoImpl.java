@@ -346,7 +346,7 @@ public class ItemDaoImpl extends BasicDaoImpl {
     }
 
     public void setShareHoldingHistory(List<Item> items) throws SQLException {
-        String latestHistorySql = "SELECT * FROM share_holding_history WHERE CODE=? ORDER BY DATE DESC LIMIT 1";
+        String latestHistorySql = "SELECT * FROM share_holding_history WHERE CODE=? ORDER BY DATE DESC ";
         String insertHistory = "INSERT INTO share_holding_history(CODE, DATE, LAST_UPDATED, DIRECTOR, GOVERNMENT, INSTITUTE, FOREIN, PUBLIC) VALUES(?, ?, ?, ?, ?, ?, ?, ?)";
         PreparedStatement latestHistoryStmt;
         PreparedStatement insertHistoryStmt;
@@ -356,13 +356,14 @@ public class ItemDaoImpl extends BasicDaoImpl {
             latestHistoryStmt = connection.prepareStatement(latestHistorySql);
             insertHistoryStmt = connection.prepareStatement(insertHistory);
 
+            outerloop:
             for (BasicInfo item : items) {
                 latestHistoryStmt.setString(1, item.getCode());
                 ResultSet historyResultSet = latestHistoryStmt.executeQuery();
-                if (historyResultSet.next()) {
+                while (historyResultSet.next()) {
                     java.util.Date date = historyResultSet.getDate("date");
                     if (date.equals(item.getSharePercentage().getDate())) {
-                        continue;
+                        continue outerloop;
                     }
                 }
 
@@ -413,6 +414,8 @@ public class ItemDaoImpl extends BasicDaoImpl {
                 preparedStatement.setFloat(17, item.getSharePercentage().getPublics());
                 preparedStatement.setString(18, item.getCode());
                 //System.out.println("code: " + item.getCode() + "governament: " + item.getSharePercentage().getGovernment() + ", insti: " + item.getSharePercentage().getInstitute() + ", foreign: " + item.getSharePercentage().getForeign());
+                if(item.getSector() == null)
+                    System.out.println("code: " + item.getCode());
                 preparedStatement.addBatch();
             }
             preparedStatement.executeBatch();

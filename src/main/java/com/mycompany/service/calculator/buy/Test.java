@@ -83,6 +83,9 @@ public class Test extends BuySignalCalculator {
         float changeWithBottom = 100;
         //Item bottom = getBottom(itemSubList);
         Item bottom = getLowest(itemSubList);
+        Item lowestSma10 = getLowestSma10(itemSubList);
+        Item highestSma10 = getHighestSma10(itemSubList);
+        float smaDiff = ((highestSma10.getSmaList().get(10)-lowestSma10.getSmaList().get(10))/lowestSma10.getSmaList().get(10))*100;
         //long intervalFromBottom = getDateDiff(bottom.getDate(), today.getDate(), TimeUnit.DAYS);
         boolean similarPriceBefore = similarPriceBefore(itemSubList);
         
@@ -99,20 +102,26 @@ public class Test extends BuySignalCalculator {
         }
 
         if ( //changeWithBottom>=-2 && changeWithBottom<=2
-                changeWithBottom < bottomTolerationPercent 
-                && todayGap > 0.70 
-                && yesterdayGap > 0
-//                && vChange > 2
-//                && intervalFromBottom<90
-                && similarPriceBefore
-                && divergence < maxDivergence
-                && rsi >= (35 + todaychange)
-                && ((today.getPaidUpCapital()<600 || publicShareAmount<600000000) || today.getSharePercentage().getGovernment()>10)
+//                changeWithBottom < bottomTolerationPercent 
+//                && todayGap > 0.70 
+//                && yesterdayGap > 0
+////                && vChange > 2
+////                && intervalFromBottom<90
+//                && similarPriceBefore
+//                && divergence < maxDivergence
+//                && rsi >= (35 + todaychange)
+//                && ((today.getPaidUpCapital()<600 || publicShareAmount<600000000) || today.getSharePercentage().getGovernment()>10)
 //                && today.getPaidUpCapital() < 300
 //                && publicShareAmount < 300000000
 //                && diffWithPreviousLow10 <= 10
 //                && today.getReserve()/today.getPaidUpCapital() > 1.2
+                smaDiff <= 7
+                && lowestSma10.getDate() != null
+                && highestSma10.getDate() != null
+                && rsi <= 60
+                && divergence < maxDivergence
                 ) {
+            System.out.println("code: " + today.getCode() + ", minday: " + lowestSma10.getDate() + ", sma10: " + lowestSma10.getSmaList().get(10) + ", maxday: " + highestSma10.getDate() + ", sma10: " + highestSma10.getSmaList().get(10));
             setCause(this.getClass().getName());
 
             boolean maskPassed = isMaskPassed(today, portfolio);
@@ -153,6 +162,32 @@ public class Test extends BuySignalCalculator {
             }
         }
         return minimum;
+    }
+    
+    private Item getLowestSma10(List<Item> items) {
+        Item minimum = new Item();
+        minimum.getSmaList().put(10, 100000f);
+//        System.out.println("finidng minimum on " + today.getDate() + ", itemSize: " + items.size() + ", top item: " + items.get(items.size()-1).getDate());
+        for (int i = items.size() - 1; i >= (items.size() - ScannerService.TRADING_DAYS_IN_A_MONTH*4) && i>=0 && items.size()>ScannerService.TRADING_DAYS_IN_A_MONTH*4; i--) {
+            if (items.get(i).getSmaList().get(10)!= null && items.get(i).getSmaList().get(10) < minimum.getSmaList().get(10)) {
+//                System.out.println("minimum is: " + items.get(i).getAdjustedClosePrice() + ", date: " + items.get(i).getDate());
+                minimum = items.get(i);
+            }
+        }
+        return minimum;
+    }
+    
+    private Item getHighestSma10(List<Item> items) {
+        Item maximum = new Item();
+        maximum.getSmaList().put(10, 0f);
+//        System.out.println("finidng minimum on " + today.getDate() + ", itemSize: " + items.size() + ", top item: " + items.get(items.size()-1).getDate());
+        for (int i = items.size() - 1; i >= (items.size() - ScannerService.TRADING_DAYS_IN_A_MONTH*4) && i>=0 && items.size()>ScannerService.TRADING_DAYS_IN_A_MONTH*4; i--) {
+            if (items.get(i).getSmaList().get(10)!= null && items.get(i).getSmaList().get(10) > maximum.getSmaList().get(10)) {
+//                System.out.println("minimum is: " + items.get(i).getAdjustedClosePrice() + ", date: " + items.get(i).getDate());
+                maximum = items.get(i);
+            }
+        }
+        return maximum;
     }
 
     private Item getBottom(List<Item> items) {

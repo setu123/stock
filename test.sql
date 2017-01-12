@@ -5,3 +5,24 @@ where h1.code = h2.code
 and h1.public < h2.public
 and h1.date > h2.date
 order by (h1.public - h2.public)
+
+
+
+
+select * from share_holding_history s2
+where 
+1=1
+
+#code = 'dbh'
+
+and id < (select max(id) from share_holding_history s1
+where code = s2.code
+and date = (select date from share_holding_history
+where code = s1.code
+group by date
+having count(date) > 1)) 
+
+and date = (select date from share_holding_history
+where code = s2.code
+group by date
+having count(date) > 1) 

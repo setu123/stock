@@ -98,7 +98,8 @@ public class Client {
 //        buyCalculators.add(new Macd(scanerService, oneYearData, portfolio));                //10
 //        buyCalculators.add(new Sma10(scanerService, oneYearData, portfolio));           //16
 //        buyCalculators.add(new AroundSma25(scanerService, oneYearData, portfolio));        //38         Average: 15
-        buyCalculators.add(new Test(scanerService, oneYearData, portfolio));        //7.35
+//        buyCalculators.add(new SteadySma10(scanerService, oneYearData, portfolio));        //27
+        buyCalculators.add(new SteadySma10(scanerService, oneYearData, portfolio));   
           
 
 
@@ -130,7 +131,7 @@ public class Client {
 //        sellCalculators.add(new ClusteredSellSignalCalculator.FixedProfit(scanerService, oneYearData, portfolio));
         sellCalculators.add(new ClusteredSellSignalCalculator.EOM(scanerService, oneYearData, portfolio));
 
-        String script = "RSRMSTEEL";
+        String script = "ICB";
         profit = 0;
         loss = 0;
         totalBuy = 0;
@@ -164,10 +165,10 @@ public class Client {
             }
             
             
-            if (!code.equals(script)) {
-                SignalCalculator.debugEnabled = true;
-                continue;
-            }
+//            if (!code.equals(script)) {
+//                SignalCalculator.debugEnabled = true;
+//                continue;
+//            }
             
             //Skip codes
 //            List<String> skipCodes = new ArrayList<>();
@@ -321,7 +322,7 @@ public class Client {
         float transactionInAYear = 365f/averageTenure;
         
 //        float profitWeight = (profitRate*transactionInAYear)*(80f/100f);
-        float reduceFactor = 10+averagePercent/2f;
+        float reduceFactor = 15+averagePercent/2f;
         reduceFactor = 100-reduceFactor;
         
         float profitWeight = (profitRate*transactionInAYear)*(reduceFactor/100f);

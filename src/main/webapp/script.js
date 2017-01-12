@@ -100,8 +100,12 @@ var rsi = Ext.create('Ext.grid.column.Column', {header: 'RSI', dataIndex: 'rsi',
 var divergence = Ext.create('Ext.grid.column.Column', {header: 'Divergence', dataIndex: 'divergence', width: 60, readOnly: true, filter: {}});
 var signal = Ext.create('Ext.grid.column.Column', {header: 'Signal', dataIndex: 'signal', width: 60, readOnly: true, filter: {}, renderer: function (value, comp, record) {
         var reason = record.get('signalReason');
-        if (value === 'BUY')
-            value = "<span style='color:green' title='"+reason+"'>" + value + "</span>";
+        if (value === 'BUY'){
+            if(reason === 'SteadySma10')
+                value = "<span style='color:skyblue' title='"+reason+"'>" + value + "</span>";
+            else
+                value = "<span style='color:green' title='"+reason+"'>" + value + "</span>";
+        }
         else if (value === 'AVG')
             value = "<span style='color:#AA0' title='"+reason+"'>" + value + "</span>";
         else if (value === 'SELL')

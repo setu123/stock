@@ -9,7 +9,6 @@ import com.mycompany.model.Item;
 import com.mycompany.model.Portfolio;
 import com.mycompany.model.PortfolioItem;
 import com.mycompany.service.calculator.SignalCalculator;
-import static com.mycompany.service.calculator.SignalCalculator.AVERAGE_ON_LOSS_PERCENT;
 import com.mycompany.service.calculator.buy.AroundSma25;
 import com.mycompany.service.calculator.buy.Average;
 import com.mycompany.service.calculator.buy.BuySignalCalculator;
@@ -25,7 +24,7 @@ import com.mycompany.service.calculator.buy.SuddenHike;
 import com.mycompany.service.calculator.buy.Tail;
 import com.mycompany.service.calculator.buy.Bottom;
 import com.mycompany.service.calculator.buy.ConsecutiveGreenAfterRSI30;
-import com.mycompany.service.calculator.buy.PotentialGap;
+import com.mycompany.service.calculator.buy.SteadySma10;
 import com.mycompany.service.calculator.buy.ThreeGreen;
 import com.mycompany.service.calculator.sell.ClusteredSellSignalCalculator;
 import com.mycompany.service.calculator.sell.SellSignalCalculator;
@@ -475,6 +474,7 @@ public class ScannerService {
         buyCalculators.add(new Consecutive1(this, oneYearData, portfolio));
 //        buyCalculators.add(new Consecutive15(this, oneYearData, portfolio));
         buyCalculators.add(new Consecutive3(this, oneYearData, portfolio));
+        buyCalculators.add(new SteadySma10(this, oneYearData, portfolio));
 //        buyCalculators.add(new ExtendedSMA25(this, oneYearData, portfolio));
         buyCalculators.add(new Average(this, oneYearData, portfolio));
 

@@ -12,6 +12,7 @@ import static com.mycompany.service.calculator.SignalCalculator.averageValuePerT
 import static com.mycompany.service.calculator.SignalCalculator.maxPriceDay;
 import static com.mycompany.service.calculator.SignalCalculator.sma25;
 import static com.mycompany.service.calculator.SignalCalculator.today;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -143,7 +144,9 @@ public class Bottom extends BuySignalCalculator {
         Item minimum = new Item();
         minimum.setAdjustedClosePrice(1000000);
 //        System.out.println("finidng minimum on " + today.getDate() + ", itemSize: " + items.size() + ", top item: " + items.get(items.size()-1).getDate());
-        for (int i = items.size() - ScannerService.TRADING_DAYS_IN_A_WEEK; i >= 0; i--) {
+        Calendar oneYearBack = Calendar.getInstance();
+        oneYearBack.add(Calendar.YEAR, -1);
+        for (int i = items.size() - 1; i >= 0 && oneYearBack.getTime().before(items.get(i).getDate()); i--) {
             if (items.get(i).getAdjustedClosePrice() < minimum.getAdjustedClosePrice()) {
 //                System.out.println("minimum is: " + items.get(i).getAdjustedClosePrice() + ", date: " + items.get(i).getDate());
                 minimum = items.get(i);

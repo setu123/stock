@@ -1,5 +1,2 @@
-1. Hammer scanner
-2. Volume change scanner
-3. Change length scanner (close_price-open_price should be bigger than average)
-4. 2 day green
-5. Trade change
+1. Find out stocks which sma25 variation is less than 10% within last 4 months
+2. Find out stocks which public holding decreased less than 5% in last month and current price is within 10% of last month minimum
