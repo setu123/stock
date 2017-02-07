@@ -190,6 +190,8 @@ function decorateNAVColumn(headerCt) {
     navColumn.renderer = function(value, comp, record){
         if(value >= record.get('lastprice')*2)
             value = "<span style='color:green'>" + value + "</span>";
+        else if(value >= record.get('lastprice')*1.5)
+            value = "<span style='color:skyblue'>" + value + "</span>";
         return value;
     };
 }

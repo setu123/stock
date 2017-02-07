@@ -99,7 +99,7 @@ public class Client {
 //        buyCalculators.add(new Sma10(scanerService, oneYearData, portfolio));           //16
 //        buyCalculators.add(new AroundSma25(scanerService, oneYearData, portfolio));        //38         Average: 15
 //        buyCalculators.add(new SteadySma10(scanerService, oneYearData, portfolio));        //27
-        buyCalculators.add(new SteadySma10(scanerService, oneYearData, portfolio));   
+        buyCalculators.add(new Test(scanerService, oneYearData, portfolio));   
           
 
 
@@ -141,9 +141,9 @@ public class Client {
         Map<String, Integer> profitCounter = new HashMap<>();
         
         lastTradingDay = Calendar.getInstance();
-        lastTradingDay.set(Calendar.YEAR, 2016);
-        lastTradingDay.set(Calendar.MONTH, 10);
-        lastTradingDay.set(Calendar.DAY_OF_MONTH, 28);
+        lastTradingDay.set(Calendar.YEAR, 2017);
+        lastTradingDay.set(Calendar.MONTH, 0);
+        lastTradingDay.set(Calendar.DAY_OF_MONTH, 26);
         
         Calendar start = Calendar.getInstance();
         start.set(Calendar.YEAR, 2015);

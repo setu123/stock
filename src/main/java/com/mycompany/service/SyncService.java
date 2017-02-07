@@ -30,7 +30,7 @@ import org.webharvest.definition.ScraperConfiguration;
 public class SyncService implements Job {
 
     private static final String WATCH_MATRIX_URL = "http://www.stockbangladesh.com/grids/watch";
-    private static final int NUMBER_OF_ITEM_TO_CRAWL = 330; //Means all
+    private static final int NUMBER_OF_ITEM_TO_CRAWL = 350; //Means all
     public static final int PORTFOLIO_ID = 1;
 
     ObjectMapper objectMapper;
@@ -214,7 +214,7 @@ public class SyncService implements Job {
         for (Item item : items) {
             if (item.isValid()) {
                 validItems.add(item);
-            }
+        }
         }
 
         return validItems;

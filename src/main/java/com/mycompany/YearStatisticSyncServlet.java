@@ -8,6 +8,8 @@ package com.mycompany;
 import com.mycompany.service.SyncService;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Calendar;
+import java.util.Date;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -33,16 +35,36 @@ public class YearStatisticSyncServlet extends HttpServlet {
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
-        
+
+        System.out.println("remote ip: " + request.getRemoteAddr() + ", time: " + new Date());
+        System.out.println("user-agent: " + request.getHeader("User-Agent"));
+        System.out.println("request url: " + request.getRequestURL());
+        System.out.println("request uri: " + request.getRequestURI());
+
+        Calendar now = Calendar.getInstance();
+        if (now.get(Calendar.HOUR_OF_DAY) >= 6 && now.get(Calendar.HOUR_OF_DAY) < 15) {
+            try (PrintWriter out = response.getWriter()) {
+                out.println("<!DOCTYPE html>");
+                out.println("<html>");
+                out.println("<head>");
+                out.println("<title>Servlet YearStatisticSyncServlet</title>");
+                out.println("</head>");
+                out.println("<body>");
+                out.println("<h1>Servlet YearStatisticSyncServlet can not be served from 6.00 AM to 2.59 PM</h1>");
+                out.println("</body>");
+                out.println("</html>");
+            }
+        }
+
         SyncService service = new SyncService(getServletContext());
         service.syncYearStatistics();
-        
+
         try (PrintWriter out = response.getWriter()) {
             /* TODO output your page here. You may use following sample code. */
             out.println("<!DOCTYPE html>");
             out.println("<html>");
             out.println("<head>");
-            out.println("<title>Servlet YearStatisticSyncServlet</title>");            
+            out.println("<title>Servlet YearStatisticSyncServlet</title>");
             out.println("</head>");
             out.println("<body>");
             out.println("<h1>Servlet YearStatisticSyncServlet at " + request.getContextPath() + "</h1>");

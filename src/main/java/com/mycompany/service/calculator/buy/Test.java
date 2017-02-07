@@ -100,6 +100,8 @@ public class Test extends BuySignalCalculator {
 //            System.out.println("Date: " + today.getDate() + ", bottomDay: " + bottom.getDate() + ", changeWithBottom: " + changeWithBottom + ", similarPriceBefore: " + similarPriceBefore + ", isBullTrap: " + isBullTrap);
 //            System.out.println("today: " + today.getDate());
         }
+        
+        boolean wentAboveRSI70 = wentAboveRSI70(itemSubList);
 
         if ( //changeWithBottom>=-2 && changeWithBottom<=2
 //                changeWithBottom < bottomTolerationPercent 
@@ -115,13 +117,10 @@ public class Test extends BuySignalCalculator {
 //                && publicShareAmount < 300000000
 //                && diffWithPreviousLow10 <= 10
 //                && today.getReserve()/today.getPaidUpCapital() > 1.2
-                smaDiff <= 7
-                && lowestSma10.getDate() != null
-                && highestSma10.getDate() != null
-                && rsi <= 60
-                && divergence < maxDivergence
+                wentAboveRSI70 == false
+                && today.getDate().getTime()> 1485300000000l
                 ) {
-            System.out.println("code: " + today.getCode() + ", minday: " + lowestSma10.getDate() + ", sma10: " + lowestSma10.getSmaList().get(10) + ", maxday: " + highestSma10.getDate() + ", sma10: " + highestSma10.getSmaList().get(10));
+//            System.out.println("code: " + today.getCode() + ", minday: " + lowestSma10.getDate() + ", sma10: " + lowestSma10.getSmaList().get(10) + ", maxday: " + highestSma10.getDate() + ", sma10: " + highestSma10.getSmaList().get(10));
             setCause(this.getClass().getName());
 
             boolean maskPassed = isMaskPassed(today, portfolio);
@@ -130,6 +129,18 @@ public class Test extends BuySignalCalculator {
             }
             return maskPassed;
         }
+        return false;
+    }
+    
+    private boolean wentAboveRSI70(List<Item> itemSubList){
+        
+        int size = itemSubList.size();
+        for(int i=size-1; i>size-ScannerService.TRADING_DAYS_IN_A_MONTH*6&&i>=0; i--){
+            Item anItem = itemSubList.get(i);
+            if(anItem.getRSI() >= 72)
+                return true;
+        }
+        
         return false;
     }
     
