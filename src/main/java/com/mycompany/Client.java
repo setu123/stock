@@ -68,18 +68,24 @@ public class Client {
             ex.printStackTrace();
         }
     }
-    
-    private static void importMerchantIds() throws InterruptedException{
+
+    private static void importMerchantIds() throws InterruptedException {
         String path = Utils.getConfigFilesPath();
         ScraperConfiguration config = null;
         try {
+            config = Crawler.getScraperConfig(null, path, Crawler.CrawlType.LOGIN);
+            Crawler loginCrawler = new Crawler(config, null, Crawler.CrawlType.LOGIN, null);
+            loginCrawler.start();
+            loginCrawler.join();
+            
             config = Crawler.getScraperConfig(null, path, Crawler.CrawlType.MERCHANT_PORTFOLIO_TOTAL_PURCHASE);
+            Crawler crawler = new Crawler(config, null, Crawler.CrawlType.MERCHANT_PORTFOLIO_TOTAL_PURCHASE, loginCrawler.getParams());
+            crawler.start();
+            crawler.join();
         } catch (FileNotFoundException ex) {
             System.err.println("Config file for news not found");;
         }
-        Crawler crawler = new Crawler(config, null, Crawler.CrawlType.MERCHANT_PORTFOLIO_TOTAL_PURCHASE, null);
-        crawler.start();
-        crawler.join();
+
     }
 
     private static void calculateBuySell() throws SQLException, ClassNotFoundException, InterruptedException {
@@ -113,9 +119,7 @@ public class Client {
 //        buyCalculators.add(new Sma10(scanerService, oneYearData, portfolio));           //16
 //        buyCalculators.add(new AroundSma25(scanerService, oneYearData, portfolio));        //38         Average: 15
 //        buyCalculators.add(new SteadySma10(scanerService, oneYearData, portfolio));        //27
-        buyCalculators.add(new Test(scanerService, oneYearData, portfolio));   
-          
-
+        buyCalculators.add(new Test(scanerService, oneYearData, portfolio));
 
         List<SellSignalCalculator> sellCalculators = new ArrayList<>();
         ClusteredSellSignalCalculator clusterSell = new ClusteredSellSignalCalculator();
@@ -150,25 +154,25 @@ public class Client {
         loss = 0;
         totalBuy = 0;
         summery = 0;
-        
+
         Map<String, Integer> lossCounter = new HashMap<>();
         Map<String, Integer> profitCounter = new HashMap<>();
-        
+
         lastTradingDay = Calendar.getInstance();
         lastTradingDay.set(Calendar.YEAR, 2017);
         lastTradingDay.set(Calendar.MONTH, 0);
         lastTradingDay.set(Calendar.DAY_OF_MONTH, 26);
-        
+
         Calendar start = Calendar.getInstance();
         start.set(Calendar.YEAR, 2015);
         start.set(Calendar.MONTH, 4);
         start.set(Calendar.DAY_OF_MONTH, 1);
-        
+
         Calendar end = Calendar.getInstance();
         end.set(Calendar.YEAR, 2015);
         end.set(Calendar.MONTH, 4);
         end.set(Calendar.DAY_OF_MONTH, 31);
-        
+
 //        Map<String, List<ItemNews>> newsMap = getNews();
         Map<String, List<ItemNews>> newsMap = new HashMap<>();
 
@@ -177,19 +181,16 @@ public class Client {
             if (code.equals(DSEX_CODE)) {
                 continue;
             }
-            
-            
+
 //            if (!code.equals(script)) {
 //                SignalCalculator.debugEnabled = true;
 //                continue;
 //            }
-            
             //Skip codes
 //            List<String> skipCodes = new ArrayList<>();
 //            skipCodes.add("PRIMELIFE");
 //            if(skipCodes.contains(code))
 //                continue;
-
             List<Item> items = oneYearData.getItems(code);
             scanerService.calculateVolumePerTradeChange(items, ScannerService.TRADING_DAYS_IN_A_MONTH);
 
@@ -207,33 +208,35 @@ public class Client {
                 Collections.sort(itemSubList);
                 Item today = itemSubList.get(itemSubList.size() - 1);
                 PortfolioItem pItem = portfolio.getPortfolioItems().get(today.getCode());
-                
+
                 SignalCalculator aCalculator = buyCalculators.get(0);
                 //System.out.println("lastItems: " + itemSubList.get(itemSubList.size()-1).getDate() + ", items size: " + items.size());
                 //Item[] sublist = new Item[itemSubList.size()];
                 //sublist = itemSubList.toArray(sublist);
                 List<Item> copyOfSubList = new ArrayList<>(itemSubList);
-                aCalculator.intializeVariables(copyOfSubList, null);  
-                
+                aCalculator.intializeVariables(copyOfSubList, null);
+
                 //System.out.println("firstdate: " + copyOfSubList.get(0).getDate() + ", lastdate: " + copyOfSubList.get(copyOfSubList.size()-1).getDate() + ", size: " + copyOfSubList.size() + ", pItem= " + pItem + ", lasttradeday: " + SignalCalculator.lastTradingDay.getTime());
                 Item.SignalType signalType = Item.SignalType.NA;
-                
+
                 boolean isBadEps = isBadEps(today, newsMap);
 //                if(today.getCode().equals("ISLAMIINS"))
 //                    System.out.println("date: " + today.getDate() + "isBadEps: " + isBadEps);
-                float sma25Diff = ((SignalCalculator.sma25-SignalCalculator.oneWeekAgoSma25)/SignalCalculator.oneWeekAgoSma25)*100;
-                
+                float sma25Diff = ((SignalCalculator.sma25 - SignalCalculator.oneWeekAgoSma25) / SignalCalculator.oneWeekAgoSma25) * 100;
+
                 for (BuySignalCalculator calculator : buyCalculators) {
                     if (calculator.isBuyCandidate(copyOfSubList, null)) {
-                        if(isBadEps)
+                        if (isBadEps) {
                             continue;
-                        
+                        }
+
                         //Dont buy in May 2015
-                        if(today.getDate().after(start.getTime()) && today.getDate().before(end.getTime()))
+                        if (today.getDate().after(start.getTime()) && today.getDate().before(end.getTime())) {
                             continue;
-                        
-                        float todayValuePerTrade = today.getValue()/today.getTrade();
-                        float ratio = todayValuePerTrade/SignalCalculator.averageValuePerTrade;
+                        }
+
+                        float todayValuePerTrade = today.getValue() / today.getTrade();
+                        float ratio = todayValuePerTrade / SignalCalculator.averageValuePerTrade;
                         String causeDetails = parseCause(calculator) + "(t:" + df.format(SignalCalculator.tChange) + ", v:" + df.format(SignalCalculator.vChange) + ", gain:" + SignalCalculator.gain + ", averageDiff: " + SignalCalculator.averagePriceOnLastFewDays + ")";
                         //System.out.println(", date: " + today.getDate() + ", buycause: " + SignalCalculator.getCause() + ", pItem: " + pItem);
                         if (pItem == null) {
@@ -243,11 +246,11 @@ public class Client {
                             signalType = Item.SignalType.BUY;
                             System.out.println("");
                             System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + causeDetails);
-                        }else if(SignalCalculator.gain>=0){
+                        } else if (SignalCalculator.gain >= 0) {
                             signalType = Item.SignalType.HOLD;
                             System.out.println("");
                             System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + causeDetails);
-                        }else if(SignalCalculator.gain>-SignalCalculator.AVERAGE_ON_LOSS_PERCENT){
+                        } else if (SignalCalculator.gain > -SignalCalculator.AVERAGE_ON_LOSS_PERCENT) {
                             signalType = Item.SignalType.BUY;
                             System.out.println("");
                             System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + causeDetails);
@@ -260,22 +263,22 @@ public class Client {
 //                            signalType = Item.SignalType.AVG;
 //                            System.out.println("");
 //                            System.out.print(signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", avg: " + avgPrice + ", cause: " + causeDetails);
-                        }else if(calculator.getClass().getName().contains("Average")){
+                        } else if (calculator.getClass().getName().contains("Average")) {
                             float earlierBuyPrice = pItem.getAverageBuyPrice();
-                            float todayBuyPrice = today.getAdjustedClosePrice()*1.005f;
-                            float avgPrice = (earlierBuyPrice + todayBuyPrice)/2f;
+                            float todayBuyPrice = today.getAdjustedClosePrice() * 1.005f;
+                            float avgPrice = (earlierBuyPrice + todayBuyPrice) / 2f;
                             pItem.setAverageBuyPrice(avgPrice);
                             ++totalAvg;
                             signalType = Item.SignalType.AVG;
                             System.out.println("");
                             System.out.print(signalType + " # " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", avg: " + avgPrice + ", cause: " + causeDetails);
                         }
-                        
+
                         //if(!today.getDate().after(SignalCalculator.lastTradingDay.getTime()))
                         continue outerloop;
                     }
                 }
-                
+
                 //System.out.println("Nobuyfound date: " + today.getDate() + ", pItem: " + pItem);
                 //No buy item, so not need to check sell
                 if (pItem == null) {
@@ -286,34 +289,37 @@ public class Client {
                 for (SellSignalCalculator calculator : sellCalculators) {
                     if (calculator.isSellCandidate(copyOfSubList, null)) {
                         signalType = Item.SignalType.SELL;
-                        
+
                         String cause = parseCause(calculator);
-                        
+
                         float gain = calculateGain(pItem, today);
-                        if(gain > maxGain)
+                        if (gain > maxGain) {
                             maxGain = gain;
+                        }
                         summery += gain;
                         ++totalSell;
-                        
+
                         if (gain > 0) {
                             ++profit;
                             Integer profitCountObject = profitCounter.get(pItem.getCause());
-                            if(profitCountObject == null)
+                            if (profitCountObject == null) {
                                 profitCountObject = 0;
-                            profitCounter.put(pItem.getCause(), profitCountObject+1);
+                            }
+                            profitCounter.put(pItem.getCause(), profitCountObject + 1);
                         } else {
                             ++loss;
                             Integer lossCountObject = lossCounter.get(pItem.getCause());
-                            if(lossCountObject == null)
+                            if (lossCountObject == null) {
                                 lossCountObject = 0;
-                            lossCounter.put(pItem.getCause(), lossCountObject+1);
+                            }
+                            lossCounter.put(pItem.getCause(), lossCountObject + 1);
                         }
-                        
+
                         long tenure = today.getDate().getTime() - pItem.getDate().getTime();
-                        tenure = tenure/86400000;
+                        tenure = tenure / 86400000;
                         totalTenure += tenure;
-                        
-                        System.out.print("----" + signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + cause + ", gain: " + df.format(gain) + "%" + ", tenure: " + tenure );
+
+                        System.out.print("----" + signalType + " " + today.getCode() + " on " + today.getDate() + ", price: " + today.getAdjustedClosePrice() + ", cause: " + cause + ", gain: " + df.format(gain) + "%" + ", tenure: " + tenure);
                         portfolio.getPortfolioItems().remove(today.getCode());
                         continue outerloop;
                     }
@@ -326,26 +332,26 @@ public class Client {
         //float winPercentage = ((float)profit/(float)(profit+loss))*100;
         //System.out.println("Profit: " + profit + ", loss: " + loss + ", percentage: " + df.format(winPercentage) + "%");
         float gainPercent = ((float) profit / (float) (totalBuy)) * 100;
-        float averageTenure = (float)totalTenure/(float)totalSell;
-        float averagePercent = ((float)totalAvg/(float)totalBuy)*100;
-        
+        float averageTenure = (float) totalTenure / (float) totalSell;
+        float averagePercent = ((float) totalAvg / (float) totalBuy) * 100;
+
         //Deduct max gain for safety
         summery -= maxGain;
-        
+
         float profitRate = summery / totalBuy;
-        float transactionInAYear = 365f/averageTenure;
-        
+        float transactionInAYear = 365f / averageTenure;
+
 //        float profitWeight = (profitRate*transactionInAYear)*(80f/100f);
-        float reduceFactor = 15+averagePercent/2f;
-        reduceFactor = 100-reduceFactor;
-        
-        float profitWeight = (profitRate*transactionInAYear)*(reduceFactor/100f);
-        
+        float reduceFactor = 15 + averagePercent / 2f;
+        reduceFactor = 100 - reduceFactor;
+
+        float profitWeight = (profitRate * transactionInAYear) * (reduceFactor / 100f);
+
         System.out.println("\nsummery: " + summery + ", totalBuy: " + totalBuy + ", totalAvg: " + totalAvg + ", totalSell: " + totalSell + ", profitRate: " + profitRate + ", profit:loss= " + profit + " : " + loss + " gainPercent: " + df.format(gainPercent) + ", averageTenure: " + averageTenure + ", averagePercent: " + averagePercent + ", reduceFactor: " + reduceFactor + "\nprofitWeight: " + profitWeight);
         System.out.println("losscounter: " + lossCounter);
         System.out.println("proftcounter: " + profitCounter);
     }
-    
+
 //    private static boolean byPassDate(Date date){
 //        Calendar start = Calendar.getInstance();
 //        start.set(Calendar.YEAR, 2015);
@@ -359,17 +365,17 @@ public class Client {
 //        
 //        return date.after(start.getTime()) && date.before(end.getTime());
 //    }
-    
-    private static boolean isBadEps(Item item, Map<String, List<ItemNews>> newsMap){
+    private static boolean isBadEps(Item item, Map<String, List<ItemNews>> newsMap) {
         List<ItemNews> newses = newsMap.get(item.getCode());
 
-        if(newses == null)
+        if (newses == null) {
             return false;
-        
+        }
+
         Collections.sort(newses);
         Collections.reverse(newses);
-        for(ItemNews news: newses){
-            if(!news.getDate().after(item.getDate())){
+        for (ItemNews news : newses) {
+            if (!news.getDate().after(item.getDate())) {
                 EPSList epsList = news.getEpsList();
 //                if(item.getCode().equals("1STPRIMFMF")){
 //                    System.out.println("date: " + item.getDate() + ", epsList: " + epsList + ", isgood: " + isGoodEps(epsList));
@@ -379,18 +385,19 @@ public class Client {
         }
         return false;
     }
-    
-    private static String parseCause(SignalCalculator calculator){
+
+    private static String parseCause(SignalCalculator calculator) {
         String cause = SignalCalculator.getCause();
-        if(cause != null){
-            if(cause.contains("$"))
-                cause = cause.substring(cause.indexOf("$")+1);
-            if(cause.contains("."))
+        if (cause != null) {
+            if (cause.contains("$")) {
+                cause = cause.substring(cause.indexOf("$") + 1);
+            }
+            if (cause.contains(".")) {
                 cause = cause.substring(cause.lastIndexOf(".") + 1);
+            }
             return cause;
         }
-            
-        
+
 //        if(calculator instanceof BuySignalCalculator){
 //            //cause = calculator.getClass().getName();
 //            return cause.substring(cause.lastIndexOf(".")+1);
@@ -402,7 +409,6 @@ public class Client {
 //            //System.out.println("parsed cause: " + cause);
 //            return cause;
 //        }
-        
         return null;
     }
 
@@ -473,21 +479,22 @@ public class Client {
                 throw ex;
             }
             if (epsList != null) {
-                
+
                 List<ItemNews> newsList;
                 newsList = newsMap.get(itemNews.getCode());
-                if(newsList == null)
+                if (newsList == null) {
                     newsList = new ArrayList<>();
+                }
                 newsList.add(itemNews);
                 newsMap.put(itemNews.getCode(), newsList);
-                
+
                 boolean goodEps = isGoodEps(epsList);
 //                if (goodEps) {
 //                    System.out.println("Date: " + itemNews.getDate() + ", code: " + itemNews.getCode() + ", " + epsList + ", goodEps: " + goodEps);
 //                }
             }
         }
-        
+
         return newsMap;
     }
 
@@ -599,7 +606,8 @@ public class Client {
                 Collections.sort(itemSubList);
 
                 float volumePerTradeChange = today.getVolumePerTradeChange();
-                float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_A_MONTH);
+                float yesterdayVolumePerTradeChange = yesterday.getVolumePerTradeChange();
+                Item maximumVolumePerTradeChange = scanerService.getMaximumVolumePerTradeChange(items, i - 1, ScannerService.TRADING_DAYS_IN_A_MONTH);
 
                 float volumeChange = scanerService.calculateVolumeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
                 float tradeChange = scanerService.calculateTradeChange(itemSubList, ScannerService.TRADING_DAYS_IN_A_MONTH);
@@ -637,8 +645,9 @@ public class Client {
         int index = news.indexOf("EPS");
         if (index < 0) {
             index = news.toLowerCase().indexOf("earning per unit");
-            if(index<0)
+            if (index < 0) {
                 return null;
+            }
         }
 
         EPSList epsList = new EPSList();

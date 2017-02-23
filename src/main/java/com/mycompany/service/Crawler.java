@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,6 +40,7 @@ import org.w3c.dom.NodeList;
 import org.webharvest.definition.ScraperConfiguration;
 import org.webharvest.runtime.Scraper;
 import org.webharvest.runtime.variables.ListVariable;
+import org.webharvest.utils.KeyValuePair;
 import org.xml.sax.SAXException;
 
 /**
@@ -60,7 +62,7 @@ public class Crawler extends Thread {
 
     public enum CrawlType {
 
-        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, DSEX_DATA_ARCHIVE, DSEX_DATA_SYNC, CODE_NAMES, NEWS, PORTFOLIO_SYNC, MERCHANT_PORTFOLIO_TOTAL_PURCHASE
+        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, DSEX_DATA_ARCHIVE, DSEX_DATA_SYNC, CODE_NAMES, NEWS, PORTFOLIO_SYNC, MERCHANT_PORTFOLIO_TOTAL_PURCHASE, LOGIN
     }
 
     private static ScraperConfiguration PRESSURE_CONFIG;
@@ -72,6 +74,7 @@ public class Crawler extends Thread {
     private static ScraperConfiguration NEWS_CONFIG;
     private static ScraperConfiguration PORTFOLIO_CONFIG;
     private static ScraperConfiguration MERCHANT_PORTFOLIO_TOTAL_PURCHASE_CONFIG;
+    private static ScraperConfiguration LOGIN_CONFIG;
     private ScraperConfiguration scraperConfig = null;
 
     static final Logger logger = Logger.getLogger(Crawler.class.getName());
@@ -95,6 +98,7 @@ public class Crawler extends Thread {
     private final static String newsFile = "news.xml";
     private final static String portfolioFile = "portfolio.xml";
     private final static String merchantPortfolioTotalPurchaseFile = "merchant_portfolio_total_purchase.xml";
+    private final static String loginFile = "login.xml";
     private final static String DATA_ARCHIVE_DATE_PATTERN = "yyyy-MM-dd";
     private final static String DSEX_DATA_ARCHIVE_DATE_PATTERN = "MMM dd, yyyy";
     private final static String PORTFOLIO_DATE_PATTERN = "dd/MM/yyyy";
@@ -166,6 +170,11 @@ public class Crawler extends Thread {
                     MERCHANT_PORTFOLIO_TOTAL_PURCHASE_CONFIG = new ScraperConfiguration(configPath + merchantPortfolioTotalPurchaseFile);
                 }
                 return MERCHANT_PORTFOLIO_TOTAL_PURCHASE_CONFIG;
+            case LOGIN:
+                if (LOGIN_CONFIG == null) {
+                    LOGIN_CONFIG = new ScraperConfiguration(configPath + loginFile);
+                }
+                return LOGIN_CONFIG;
         }
 
         return null;
@@ -192,6 +201,8 @@ public class Crawler extends Thread {
                 crawlPortfolio();
             } else if (crawlType.equals(CrawlType.MERCHANT_PORTFOLIO_TOTAL_PURCHASE)) {
                 crawlMerchantPortfolioTotalPurchase();
+            } else if (crawlType.equals(CrawlType.LOGIN)) {
+                doLogin();
             }
             
         } catch (Exception ex) {
@@ -205,21 +216,53 @@ public class Crawler extends Thread {
         System.out.println("This is crawlMerchant");
         
         Scraper scraper = new Scraper(scraperConfig, "d:/expekt");
-        String url = "http://www.stockbangladesh.com/portfolios/performance/93722%20or%202=2";
-        scraper.addVariableToContext("url", url);
+        Scraper loginScraper = (Scraper) getParams().get("LOGIN_SCRAPER");
+        System.out.println("status: " + scraper.getStatus());
+        
+//        scraper.getHttpClientManager().getHttpClient().setHttpConnectionManager(loginScraper.getHttpClientManager().getHttpClient().getHttpConnectionManager());
+        scraper.getHttpClientManager().getHttpClient().setState(loginScraper.getHttpClientManager().getHttpClient().getState());
+        
+        
+        scraper.getConfiguration().setSourceFile(scraperConfig.getSourceFile());
+        System.out.println("new surce file is: " + scraperConfig.getSourceFile());
+        int portfolioId = 93522;
+        scraper.addVariableToContext("portfolioId", portfolioId);
         scraper.setDebug(true);
         synchronized (scraper) {
             scraper.execute();
         }
         
+        
+//        for(KeyValuePair pair: scraper.getHttpClientManager().getHttpClient().)
+//        System.out.println("headers: " + pair.getKey() + ", value: " + pair.getValue());
+        
         ListVariable variables = (ListVariable) scraper.getContext().get("totalPurchase");
         System.out.println("variables: " + variables);
+//        System.out.println("getVar: " + scraper.getContext().getVar("totalPurchase"));
         
         if(variables != null && !variables.toString().isEmpty()){
-            float totalPurchase = Float.parseFloat(variables.toString());
-            System.out.println("ID: 93722, totalPurchase: " + totalPurchase);
+            try {
+                String decimalPattern = "###,###,###.##";
+                DecimalFormat decimalFormat = new DecimalFormat(decimalPattern);
+                
+                float totalPurchase = decimalFormat.parse(variables.toString()).floatValue();
+                System.out.println("ID: 93722, totalPurchase: " + totalPurchase);
+            } catch (ParseException ex) {
+                System.out.println("Number parse exception: " + variables);
+            }
+        }
+    }
+    
+    private void doLogin(){
+        System.out.println("This is login");
+        
+        Scraper scraper = new Scraper(scraperConfig, "d:/expekt");
+        scraper.setDebug(true);
+        synchronized (scraper) {
+            scraper.execute();
         }
         
+        getParams().put("LOGIN_SCRAPER", scraper);
     }
 
     private void crawlPortfolio() {

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+	
+    <html-to-xml>
+        <http url="http://www.stockbangladesh.com/users/login" method="post">
+            <http-param name="data[User][username]">stockbangladesh123</http-param>
+            <http-param name="data[User][password]">stockbangladesh321</http-param>
+        </http>
+    </html-to-xml>         
+    
+</config>
