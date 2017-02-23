@@ -3,7 +3,7 @@ select h1.code, h1.date, h2.date, h1.last_updated, h1.director, h1.government, h
 from share_holding_history h1, share_holding_history h2
 where h1.code = h2.code
 and h1.public < h2.public
-and h1.date > h2.date
+and h1.date = '2017-01-31' and h2.date = '2016-12-29'
 order by (h1.public - h2.public)
 
 
