@@ -61,11 +61,25 @@ public class Client {
             //checkByScript3_4_5();
             //importDsexArchive();
             //getPortfolio();
-            calculateBuySell();
+//            calculateBuySell();
+            importMerchantIds();
         } catch (Exception ex) {
             System.err.println("Error caught: " + ex.getMessage());
             ex.printStackTrace();
         }
+    }
+    
+    private static void importMerchantIds() throws InterruptedException{
+        String path = Utils.getConfigFilesPath();
+        ScraperConfiguration config = null;
+        try {
+            config = Crawler.getScraperConfig(null, path, Crawler.CrawlType.MERCHANT_PORTFOLIO_TOTAL_PURCHASE);
+        } catch (FileNotFoundException ex) {
+            System.err.println("Config file for news not found");;
+        }
+        Crawler crawler = new Crawler(config, null, Crawler.CrawlType.MERCHANT_PORTFOLIO_TOTAL_PURCHASE, null);
+        crawler.start();
+        crawler.join();
     }
 
     private static void calculateBuySell() throws SQLException, ClassNotFoundException, InterruptedException {

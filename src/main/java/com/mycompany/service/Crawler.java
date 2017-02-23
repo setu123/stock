@@ -60,7 +60,7 @@ public class Crawler extends Thread {
 
     public enum CrawlType {
 
-        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, DSEX_DATA_ARCHIVE, DSEX_DATA_SYNC, CODE_NAMES, NEWS, PORTFOLIO_SYNC
+        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, DSEX_DATA_ARCHIVE, DSEX_DATA_SYNC, CODE_NAMES, NEWS, PORTFOLIO_SYNC, MERCHANT_PORTFOLIO_TOTAL_PURCHASE
     }
 
     private static ScraperConfiguration PRESSURE_CONFIG;
@@ -71,6 +71,7 @@ public class Crawler extends Thread {
     private static ScraperConfiguration CODE_NAMES_CONFIG;
     private static ScraperConfiguration NEWS_CONFIG;
     private static ScraperConfiguration PORTFOLIO_CONFIG;
+    private static ScraperConfiguration MERCHANT_PORTFOLIO_TOTAL_PURCHASE_CONFIG;
     private ScraperConfiguration scraperConfig = null;
 
     static final Logger logger = Logger.getLogger(Crawler.class.getName());
@@ -93,6 +94,7 @@ public class Crawler extends Thread {
     private final static String codeNamesFile = "codes.xml";
     private final static String newsFile = "news.xml";
     private final static String portfolioFile = "portfolio.xml";
+    private final static String merchantPortfolioTotalPurchaseFile = "merchant_portfolio_total_purchase.xml";
     private final static String DATA_ARCHIVE_DATE_PATTERN = "yyyy-MM-dd";
     private final static String DSEX_DATA_ARCHIVE_DATE_PATTERN = "MMM dd, yyyy";
     private final static String PORTFOLIO_DATE_PATTERN = "dd/MM/yyyy";
@@ -159,6 +161,11 @@ public class Crawler extends Thread {
                     PORTFOLIO_CONFIG = new ScraperConfiguration(configPath + portfolioFile);
                 }
                 return PORTFOLIO_CONFIG;
+            case MERCHANT_PORTFOLIO_TOTAL_PURCHASE:
+                if (MERCHANT_PORTFOLIO_TOTAL_PURCHASE_CONFIG == null) {
+                    MERCHANT_PORTFOLIO_TOTAL_PURCHASE_CONFIG = new ScraperConfiguration(configPath + merchantPortfolioTotalPurchaseFile);
+                }
+                return MERCHANT_PORTFOLIO_TOTAL_PURCHASE_CONFIG;
         }
 
         return null;
@@ -183,12 +190,36 @@ public class Crawler extends Thread {
                 crawlNews();
             } else if (crawlType.equals(CrawlType.PORTFOLIO_SYNC)) {
                 crawlPortfolio();
+            } else if (crawlType.equals(CrawlType.MERCHANT_PORTFOLIO_TOTAL_PURCHASE)) {
+                crawlMerchantPortfolioTotalPurchase();
             }
+            
         } catch (Exception ex) {
-            //System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem());
+            System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem());
             //ex.printStackTrace();
             //this.interrupt();
         }
+    }
+    
+    private void crawlMerchantPortfolioTotalPurchase(){
+        System.out.println("This is crawlMerchant");
+        
+        Scraper scraper = new Scraper(scraperConfig, "d:/expekt");
+        String url = "http://www.stockbangladesh.com/portfolios/performance/93722%20or%202=2";
+        scraper.addVariableToContext("url", url);
+        scraper.setDebug(true);
+        synchronized (scraper) {
+            scraper.execute();
+        }
+        
+        ListVariable variables = (ListVariable) scraper.getContext().get("totalPurchase");
+        System.out.println("variables: " + variables);
+        
+        if(variables != null && !variables.toString().isEmpty()){
+            float totalPurchase = Float.parseFloat(variables.toString());
+            System.out.println("ID: 93722, totalPurchase: " + totalPurchase);
+        }
+        
     }
 
     private void crawlPortfolio() {
