@@ -2,7 +2,6 @@ package com.mycompany.service;
 
 import com.mycompany.model.Item;
 import com.mycompany.model.ItemNews;
-import com.mycompany.model.Portfolio;
 import com.mycompany.model.PortfolioDetails;
 import com.mycompany.model.SharePercentage;
 import java.io.ByteArrayInputStream;
@@ -14,14 +13,12 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,7 +37,7 @@ import org.w3c.dom.NodeList;
 import org.webharvest.definition.ScraperConfiguration;
 import org.webharvest.runtime.Scraper;
 import org.webharvest.runtime.variables.ListVariable;
-import org.webharvest.utils.KeyValuePair;
+import org.webharvest.runtime.variables.Variable;
 import org.xml.sax.SAXException;
 
 /**
@@ -106,6 +103,8 @@ public class Crawler extends Thread {
     private final static String SHARE_HOLDING_DATE_PATTERN = "MMM dd, yyyy";
     private final String SKIP_CODE_PATTERN = "(T\\d+Y\\d+|.*dse.*|DEB.*)";
     private final long HTTP_TIMEOUT_1_MINUTE = 60000;
+    private final static String SCRAPER_OUTPUT_LOCATION = "d:/expekt";
+    private final static String PURCHANSE_AMOUNT_DECIMAL_PATTERN = "###,###,###.##";
     private Map params;
 
     final Pattern pattern = Pattern.compile("[^-,0-9]*(-?[0-9]*\\.[0-9]*)[^0-9]*");
@@ -212,20 +211,13 @@ public class Crawler extends Thread {
         }
     }
     
-    private void crawlMerchantPortfolioTotalPurchase(){
-        System.out.println("This is crawlMerchant");
+    private void crawlMerchantPortfolioTotalPurchase(){        
+        Scraper scraper = new Scraper(scraperConfig, SCRAPER_OUTPUT_LOCATION);
         
-        Scraper scraper = new Scraper(scraperConfig, "d:/expekt");
         Scraper loginScraper = (Scraper) getParams().get("LOGIN_SCRAPER");
-        System.out.println("status: " + scraper.getStatus());
-        
-//        scraper.getHttpClientManager().getHttpClient().setHttpConnectionManager(loginScraper.getHttpClientManager().getHttpClient().getHttpConnectionManager());
         scraper.getHttpClientManager().getHttpClient().setState(loginScraper.getHttpClientManager().getHttpClient().getState());
         
-        
-        scraper.getConfiguration().setSourceFile(scraperConfig.getSourceFile());
-        System.out.println("new surce file is: " + scraperConfig.getSourceFile());
-        int portfolioId = 93522;
+        int portfolioId = 93521;
         scraper.addVariableToContext("portfolioId", portfolioId);
         scraper.setDebug(true);
         synchronized (scraper) {
@@ -236,19 +228,15 @@ public class Crawler extends Thread {
 //        for(KeyValuePair pair: scraper.getHttpClientManager().getHttpClient().)
 //        System.out.println("headers: " + pair.getKey() + ", value: " + pair.getValue());
         
-        ListVariable variables = (ListVariable) scraper.getContext().get("totalPurchase");
-        System.out.println("variables: " + variables);
-//        System.out.println("getVar: " + scraper.getContext().getVar("totalPurchase"));
+        Variable variable = scraper.getContext().getVar("totalPurchase");
         
-        if(variables != null && !variables.toString().isEmpty()){
+        if(variable != null && !variable.toString().isEmpty()){
             try {
-                String decimalPattern = "###,###,###.##";
-                DecimalFormat decimalFormat = new DecimalFormat(decimalPattern);
-                
-                float totalPurchase = decimalFormat.parse(variables.toString()).floatValue();
+                DecimalFormat decimalFormat = new DecimalFormat(PURCHANSE_AMOUNT_DECIMAL_PATTERN);
+                float totalPurchase = decimalFormat.parse(variable.toString()).floatValue();
                 System.out.println("ID: 93722, totalPurchase: " + totalPurchase);
             } catch (ParseException ex) {
-                System.out.println("Number parse exception: " + variables);
+                System.out.println("Number parse exception: " + variable);
             }
         }
     }
