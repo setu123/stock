@@ -10,6 +10,7 @@ import com.mycompany.model.PortfolioItem;
 import com.mycompany.service.Crawler;
 import com.mycompany.service.CustomHashMap;
 import com.mycompany.service.ImportService;
+import com.mycompany.service.MerchantService;
 import com.mycompany.service.ScannerService;
 import com.mycompany.service.SyncService;
 import com.mycompany.service.Utils;
@@ -62,11 +63,17 @@ public class Client {
             //importDsexArchive();
             //getPortfolio();
 //            calculateBuySell();
-            importMerchantIds();
+            //importMerchantIds();
+            identifyMerchants();
         } catch (Exception ex) {
             System.err.println("Error caught: " + ex.getMessage());
             ex.printStackTrace();
         }
+    }
+    
+    private static void identifyMerchants(){
+        MerchantService merchantService = new MerchantService();
+        merchantService.identifyMerchatPortfolios();
     }
 
     private static void importMerchantIds() throws InterruptedException {
@@ -77,11 +84,23 @@ public class Client {
             Crawler loginCrawler = new Crawler(config, null, Crawler.CrawlType.LOGIN, null);
             loginCrawler.start();
             loginCrawler.join();
+
+            int portfolioStartFrom = 93722;
+            List<Crawler> crawlers = new ArrayList<>();
             
-            config = Crawler.getScraperConfig(null, path, Crawler.CrawlType.MERCHANT_PORTFOLIO_TOTAL_PURCHASE);
-            Crawler crawler = new Crawler(config, null, Crawler.CrawlType.MERCHANT_PORTFOLIO_TOTAL_PURCHASE, loginCrawler.getParams());
-            crawler.start();
-            crawler.join();
+            for (int portfolioId = portfolioStartFrom; portfolioId > portfolioStartFrom-100; portfolioId--) {
+                Map params = new HashMap(loginCrawler.getParams());
+                params.put("PORTFOLIO_ID", portfolioId);
+                config = Crawler.getScraperConfig(null, path, Crawler.CrawlType.MERCHANT_PORTFOLIO_IDENTIFIER);
+                Crawler crawler = new Crawler(config, null, Crawler.CrawlType.MERCHANT_PORTFOLIO_IDENTIFIER,params);
+                crawler.start();
+                crawlers.add(crawler);
+            }
+
+            for(Crawler crawler: crawlers){
+                crawler.join();
+            }
+            
         } catch (FileNotFoundException ex) {
             System.err.println("Config file for news not found");;
         }

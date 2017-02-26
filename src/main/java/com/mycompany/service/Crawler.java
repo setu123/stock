@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,6 +31,9 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
+import org.apache.commons.httpclient.params.HttpClientParams;
+import org.apache.commons.httpclient.params.HttpConnectionParams;
+import org.apache.commons.httpclient.params.HttpParams;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
@@ -44,7 +48,7 @@ import org.xml.sax.SAXException;
  * @date Apr 18, 2015
  * @author Setu
  */
-public class Crawler extends Thread {
+public class Crawler extends Thread implements Callable<Crawler> {
 
     public Map getParams() {
         if (params == null) {
@@ -59,7 +63,7 @@ public class Crawler extends Thread {
 
     public enum CrawlType {
 
-        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, DSEX_DATA_ARCHIVE, DSEX_DATA_SYNC, CODE_NAMES, NEWS, PORTFOLIO_SYNC, MERCHANT_PORTFOLIO_TOTAL_PURCHASE, LOGIN
+        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, DSEX_DATA_ARCHIVE, DSEX_DATA_SYNC, CODE_NAMES, NEWS, PORTFOLIO_SYNC, MERCHANT_PORTFOLIO_IDENTIFIER, LOGIN
     }
 
     private static ScraperConfiguration PRESSURE_CONFIG;
@@ -70,7 +74,7 @@ public class Crawler extends Thread {
     private static ScraperConfiguration CODE_NAMES_CONFIG;
     private static ScraperConfiguration NEWS_CONFIG;
     private static ScraperConfiguration PORTFOLIO_CONFIG;
-    private static ScraperConfiguration MERCHANT_PORTFOLIO_TOTAL_PURCHASE_CONFIG;
+    private static ScraperConfiguration MERCHANT_PORTFOLIO_IDENTIFIER_CONFIG;
     private static ScraperConfiguration LOGIN_CONFIG;
     private ScraperConfiguration scraperConfig = null;
 
@@ -94,7 +98,7 @@ public class Crawler extends Thread {
     private final static String codeNamesFile = "codes.xml";
     private final static String newsFile = "news.xml";
     private final static String portfolioFile = "portfolio.xml";
-    private final static String merchantPortfolioTotalPurchaseFile = "merchant_portfolio_total_purchase.xml";
+    private final static String merchantPortfolioFile = "merchant_portfolio.xml";
     private final static String loginFile = "login.xml";
     private final static String DATA_ARCHIVE_DATE_PATTERN = "yyyy-MM-dd";
     private final static String DSEX_DATA_ARCHIVE_DATE_PATTERN = "MMM dd, yyyy";
@@ -105,6 +109,8 @@ public class Crawler extends Thread {
     private final long HTTP_TIMEOUT_1_MINUTE = 60000;
     private final static String SCRAPER_OUTPUT_LOCATION = "d:/expekt";
     private final static String PURCHANSE_AMOUNT_DECIMAL_PATTERN = "###,###,###.##";
+    private final static int MERCHANT_PORTFOLIO_TOTAL_PURCHASE_THERESOLD = 1000000;
+    private final static int MERCHANT_PORTFOLIO_OLD_DAY_THRESHOLD = 180;
     private Map params;
 
     final Pattern pattern = Pattern.compile("[^-,0-9]*(-?[0-9]*\\.[0-9]*)[^0-9]*");
@@ -164,11 +170,11 @@ public class Crawler extends Thread {
                     PORTFOLIO_CONFIG = new ScraperConfiguration(configPath + portfolioFile);
                 }
                 return PORTFOLIO_CONFIG;
-            case MERCHANT_PORTFOLIO_TOTAL_PURCHASE:
-                if (MERCHANT_PORTFOLIO_TOTAL_PURCHASE_CONFIG == null) {
-                    MERCHANT_PORTFOLIO_TOTAL_PURCHASE_CONFIG = new ScraperConfiguration(configPath + merchantPortfolioTotalPurchaseFile);
+            case MERCHANT_PORTFOLIO_IDENTIFIER:
+                if (MERCHANT_PORTFOLIO_IDENTIFIER_CONFIG == null) {
+                    MERCHANT_PORTFOLIO_IDENTIFIER_CONFIG = new ScraperConfiguration(configPath + merchantPortfolioFile);
                 }
-                return MERCHANT_PORTFOLIO_TOTAL_PURCHASE_CONFIG;
+                return MERCHANT_PORTFOLIO_IDENTIFIER_CONFIG;
             case LOGIN:
                 if (LOGIN_CONFIG == null) {
                     LOGIN_CONFIG = new ScraperConfiguration(configPath + loginFile);
@@ -198,47 +204,70 @@ public class Crawler extends Thread {
                 crawlNews();
             } else if (crawlType.equals(CrawlType.PORTFOLIO_SYNC)) {
                 crawlPortfolio();
-            } else if (crawlType.equals(CrawlType.MERCHANT_PORTFOLIO_TOTAL_PURCHASE)) {
-                crawlMerchantPortfolioTotalPurchase();
+            } else if (crawlType.equals(CrawlType.MERCHANT_PORTFOLIO_IDENTIFIER)) {
+                crawlMerchantPortfolioIdentifier();
             } else if (crawlType.equals(CrawlType.LOGIN)) {
                 doLogin();
             }
             
         } catch (Exception ex) {
-            System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem());
+            System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem() + ", portfolioId: " + params.get("PORTFOLIO_ID"));
             //ex.printStackTrace();
             //this.interrupt();
         }
     }
     
-    private void crawlMerchantPortfolioTotalPurchase(){        
+    @Override
+    public Crawler call() throws Exception {
+        run();
+        return this;
+    }
+    
+    private void crawlMerchantPortfolioIdentifier(){        
         Scraper scraper = new Scraper(scraperConfig, SCRAPER_OUTPUT_LOCATION);
         
         Scraper loginScraper = (Scraper) getParams().get("LOGIN_SCRAPER");
         scraper.getHttpClientManager().getHttpClient().setState(loginScraper.getHttpClientManager().getHttpClient().getState());
+         
+        HttpConnectionParams connectionParams = new HttpConnectionParams();
+        connectionParams.setConnectionTimeout((int)HTTP_TIMEOUT_1_MINUTE*2);
+        connectionParams.setSoTimeout((int)HTTP_TIMEOUT_1_MINUTE*2);  
+        scraper.getHttpClientManager().getHttpClient().getParams().setDefaults(connectionParams);
         
-        int portfolioId = 93521;
+        Integer portfolioId = (Integer) getParams().get("PORTFOLIO_ID");
+        if(portfolioId == null){
+            System.out.println("portfolioId is null");
+            return;
+        }
+        
+        
         scraper.addVariableToContext("portfolioId", portfolioId);
+        scraper.addVariableToContext("totalPurchaseThreshold", MERCHANT_PORTFOLIO_TOTAL_PURCHASE_THERESOLD);
+        scraper.addVariableToContext("oldDayThreshold", MERCHANT_PORTFOLIO_OLD_DAY_THRESHOLD);
+        
         scraper.setDebug(true);
         synchronized (scraper) {
             scraper.execute();
         }
         
+//        Variable variable = scraper.getContext().getVar("totalPurchase");
+//        
+//        if(variable != null && !variable.toString().isEmpty()){
+//            try {
+//                DecimalFormat decimalFormat = new DecimalFormat(PURCHANSE_AMOUNT_DECIMAL_PATTERN);
+//                float totalPurchase = decimalFormat.parse(variable.toString()).floatValue();
+//                System.out.println("ID: " + portfolioId + ", totalPurchase: " + totalPurchase);
+//            } catch (ParseException ex) {
+//                System.out.println("Number parse exception: " + variable);
+//            }
+//        }
         
-//        for(KeyValuePair pair: scraper.getHttpClientManager().getHttpClient().)
-//        System.out.println("headers: " + pair.getKey() + ", value: " + pair.getValue());
-        
-        Variable variable = scraper.getContext().getVar("totalPurchase");
-        
-        if(variable != null && !variable.toString().isEmpty()){
-            try {
-                DecimalFormat decimalFormat = new DecimalFormat(PURCHANSE_AMOUNT_DECIMAL_PATTERN);
-                float totalPurchase = decimalFormat.parse(variable.toString()).floatValue();
-                System.out.println("ID: 93722, totalPurchase: " + totalPurchase);
-            } catch (ParseException ex) {
-                System.out.println("Number parse exception: " + variable);
-            }
-        }
+        Variable isQualified = scraper.getContext().getVar("isQualified");
+        Variable totalPurchaseValue = scraper.getContext().getVar("totalPurchaseValue");
+//        ListVariable totalPurchase = (ListVariable) scraper.getContext().get("totalPurchase");
+//        System.out.println("portfolioId: " + portfolioId + ", qualified: " + isQualified.toBoolean());
+        params.put("IS_QUALIFIED", isQualified.toBoolean());
+        params.put("TOTAL_PURCHASE_VALUE", totalPurchaseValue);
     }
     
     private void doLogin(){

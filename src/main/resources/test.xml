@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+	
+    <html-to-xml>
+        <http url="http://www.stockbangladesh.com/users/login" method="post">
+            <http-param name="data[User][username]">stockbangladesh123</http-param>
+            <http-param name="data[User][password]">stockbangladesh321</http-param>
+        </http>
+    </html-to-xml>  
+    
+    <!--Parameters to be supplied from from backend-->
+    
+    <var-def name ="portfolioId">
+        <template>93722</template>
+    </var-def>   
+    <var-def name ="totalPurchaseThreshold">
+        <template>400000</template>
+    </var-def>
+    <var-def name ="oldDayThreshold">
+        <template>180</template>
+    </var-def>
+              
+    <var-def name="portfolio">
+        <xpath expression="/html/body/div/table">
+            <html-to-xml>
+                <http url="http://www.stockbangladesh.com/portfolios/performance/${portfolioId}%20or%202=2"/>
+            </html-to-xml>
+        </xpath>
+    </var-def>     
+    
+    <var-def name="totalPurchase">
+        <xpath expression="//tbody/tr[last()]/th[5]/text()">
+            <var name="portfolio"/>
+        </xpath>
+    </var-def>  
+    
+    <var-def name="totalPurchaseValue">
+        <script return="totalPurchaseValueAsFloat"><![CDATA[
+        float totalPurchaseValueAsFloat = 0;
+        if(totalPurchase.toString().trim().length() > 0){
+        	java.text.DecimalFormat decimalFormat = new java.text.DecimalFormat("###,###,###.##");
+        	totalPurchaseValueAsFloat = decimalFormat.parse(totalPurchase.toString()).floatValue();
+        }   
+        ]]></script>
+    </var-def>
+    
+    <!--Default vaues-->
+    <var-def name ="lastUpdated">
+        <template></template>
+    </var-def>
+    <var-def name ="isQualified">
+        false
+    </var-def>
+    
+    <function name="getPurchaseDates">
+        <return>
+            <xpath expression="//tbody/tr/td[8]/span/text()">
+                <var name="portfolio"/>
+            </xpath>
+        </return>
+    </function>
+    
+    <function name="getLatestPurchaseDate">
+        <return>
+            <script return="maxDate"><![CDATA[
+            String PORTFOLIO_DATE_PATTERN = "dd/MM/yyyy";
+            java.text.DateFormat dateFormat = new java.text.SimpleDateFormat(PORTFOLIO_DATE_PATTERN);
+            java.util.Date maxDate = null;
+        	for(aPurchaseDate: purchaseDates.toList()){
+        		if(!aPurchaseDate.toString().equals("Multiple")){
+        			java.util.Date date = dateFormat.parse(aPurchaseDate.toString());
+        			if(maxDate == null)
+        				maxDate = date;
+        			else if(date.after(maxDate))
+        				maxDate = date;
+        		}
+        	}            
+        ]]></script>
+        </return>
+    </function>
+    
+    <function name="isOldPortfolio">
+        <return>
+            <script return="old"><![CDATA[
+    			Calendar cal = Calendar.getInstance();
+    			cal.add(Calendar.DAY_OF_YEAR, -oldDayThreshold.toInt());
+    			thresholdDate = cal.getTime();
+    			boolean old = false;
+    			if(lastUpdated.get(0).getWrappedObject().before(thresholdDate))
+    				old = true;
+    		]]></script>
+        </return>
+    </function>
+    
+    <function name="getLastUpdated">
+        <var-def name="lastUpdated">
+            <var name="lastPurchaseDate"/>
+        </var-def>
+        <case>
+            <if condition="${lastSaleDate.toString()!=null }">
+                <case>
+                    <if condition="${lastSaleDate.get(0).getWrappedObject().after(lastPurchaseDate.get(0).getWrappedObject())}">
+                        <var-def name="lastUpdated">
+                            <var name="lastSaleDate"/>
+                        </var-def>
+                    </if>
+                </case>
+            </if>
+        </case>
+        <return>
+            <var name="lastUpdated"/>
+        </return>
+    </function>     
+    
+    <function name="getLastSaleDate">
+        <var-def name="realizedPortfolio">
+            <xpath expression="/html/body/table">
+                <html-to-xml>
+                    <http url="http://www.stockbangladesh.com/portfolios/realize/${portfolioId}%20or%202=2"/>
+                </html-to-xml>
+            </xpath>
+        </var-def>
+        <var-def name="rowCount">
+            <xpath expression="count(//tbody/tr[not(@align)])">
+                <var name="realizedPortfolio"/>
+            </xpath>
+        </var-def>
+        <var-def name="lastSaleDateStr">
+            <template></template>
+        </var-def>
+        <case>
+            <if condition="${rowCount.get(0).toInt()>0}">
+                <var-def name="lastSaleDateStr">
+                    <xpath expression="//tbody/tr[not(@align)]/td[11]/text()">
+                        <var name="realizedPortfolio"/>
+                    </xpath>
+                </var-def>
+            </if>
+        </case>
+        <return>
+            <script return="lastSaleDate"><![CDATA[
+            String PORTFOLIO_DATE_PATTERN = "dd/MM/yyyy";
+            java.text.DateFormat dateFormat = new java.text.SimpleDateFormat(PORTFOLIO_DATE_PATTERN);
+            java.util.Date lastSaleDate = null;
+            if(!lastSaleDateStr.toString().equals("")){
+                    lastSaleDate = dateFormat.parse(lastSaleDateStr.toString());
+            }
+        ]]></script>
+        </return>
+    </function>
+    
+    <case>
+        <if condition="${totalPurchaseValue.toDouble() > totalPurchaseThreshold.toDouble()}">
+            <var-def name="purchaseDates">
+                <call name="getPurchaseDates">
+                    <call-param name="portfolio">
+                        <var name="portfolio"/>
+                    </call-param>
+                </call>
+            </var-def>
+            <var-def name="latestPurchaseDate">
+                <call name="getLatestPurchaseDate">
+                    <call-param name="purchaseDates">
+                        <var name="purchaseDates"/>
+                    </call-param>
+                </call>
+            </var-def>
+            <var-def name="isOldPortfolio">
+                <call name="isOldPortfolio">
+                    <call-param name="oldDayThreshold">
+                        <var name="oldDayThreshold"/>
+                    </call-param>
+                    <call-param name="lastUpdated">
+                        <var name="latestPurchaseDate"/>
+                    </call-param>
+                </call>
+            </var-def>
+            <case>
+                <if condition="${isOldPortfolio.get(0).toBoolean() == true}">
+                    <var-def name="lastSaleDate">
+                        <call name="getLastSaleDate">
+                            <call-param name="portfolioId">
+                                <var name="portfolioId"/>
+                            </call-param>
+                        </call>
+                    </var-def>
+                    <var-def name="isOldPortfolio">
+                        <call name="isOldPortfolio">
+                            <call-param name="oldDayThreshold">
+                                <var name="oldDayThreshold"/>
+                            </call-param>
+                            <call-param name="lastUpdated">
+                                <var name="lastSaleDate"/>
+                            </call-param>
+                        </call>
+                    </var-def>
+                    <case>
+                        <if condition="${isOldPortfolio.get(0).toBoolean() == false}">
+                            <var-def name="isQualified">
+                                true
+                            </var-def>
+                        </if>
+                    </case>
+                </if>
+                <else>
+                	<var-def name="lastUpdated">
+                		<var name="latestPurchaseDate"/>
+                	</var-def>
+                	<var-def name="isQualified">
+                		true
+                	</var-def>
+                </else>
+            </case>
+        </if>
+    </case>
+    
+</config>
