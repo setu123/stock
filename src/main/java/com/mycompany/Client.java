@@ -72,8 +72,8 @@ public class Client {
     }
     
     private static void identifyMerchants(){
-        MerchantService merchantService = new MerchantService();
-        merchantService.identifyMerchatPortfolios();
+        MerchantService merchantService = MerchantService.getInstance();
+        merchantService.startPortfolioIdSync();
     }
 
     private static void importMerchantIds() throws InterruptedException {

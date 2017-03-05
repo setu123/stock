@@ -90,7 +90,7 @@
     			cal.add(Calendar.DAY_OF_YEAR, -oldDayThreshold.toInt());
     			thresholdDate = cal.getTime();
     			boolean old = false;
-    			if(lastUpdated.get(0).getWrappedObject().before(thresholdDate))
+    			if(lastUpdated.toString().trim().length()==0 || lastUpdated.get(0).getWrappedObject().before(thresholdDate))
     				old = true;
     		]]></script>
         </return>

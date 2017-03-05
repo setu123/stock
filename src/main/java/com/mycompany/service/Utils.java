@@ -116,6 +116,13 @@ public class Utils {
     private static void setHoldingChangeMap() throws SQLException, ClassNotFoundException{
         holdingChangeMap = dao.getHoldingChangeList();
     }
+    
+    public static java.sql.Date getSqlDate(java.util.Date date) {
+        if (date == null) {
+            return null;
+        }
+        return new java.sql.Date(date.getTime());
+    }
 
     static {
         try {

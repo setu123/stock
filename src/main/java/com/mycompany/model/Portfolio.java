@@ -18,10 +18,10 @@ import java.util.Map;
 
 public class Portfolio implements Serializable {
     private static final long serialVersionUID = 1L;
-    private Integer id;
+    protected Integer id;
     private String name;
-    private int remoteId;
-    private Map<String, PortfolioItem> portfolioItems;
+    protected int remoteId;
+    protected Map<String, PortfolioItem> portfolioItems;
 
     public Portfolio() {
     }

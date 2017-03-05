@@ -5,6 +5,7 @@
  */
 package com.mycompany;
 
+import com.mycompany.service.MerchantService;
 import java.io.IOException;
 import java.io.PrintWriter;
 import javax.servlet.ServletException;
@@ -61,12 +62,32 @@ public class MerchantPortfolioServlet extends HttpServlet {
             throws ServletException, IOException {
         
         String uri = request.getRequestURI();
+        MerchantService merchantService = MerchantService.getInstance();
+        PrintWriter out = response.getWriter();
         
-        if (uri.endsWith("/importPortfolioId")) {
-            
+        if (uri.endsWith("/service/start")) {
+            try{
+                merchantService.startPortfolioIdSync();
+                out.println("Service started");
+            }catch(Exception ex){
+                out.println("Could not start. cause: " + ex.getMessage());
+            }
+        }else if(uri.endsWith("/service/status")){
+            String status = merchantService.getStatus();
+            out.println(status);
+        }else if(uri.endsWith("/service/stop")){
+            String result = merchantService.stopExecutorService();
+            out.println(result);
+        }else if(uri.endsWith("/service/lastPortfolioId")){
+            int lastPortfolioId = merchantService.getLastPortfolioId();
+            out.println(lastPortfolioId);
+        }else if(uri.endsWith("/service/setPortfolioId")){
+            int portfolioId = Integer.parseInt(request.getParameter("id"));
+            merchantService.setPortfolioId(portfolioId);
+            out.println("Portfolio id set to " + merchantService.getLastPortfolioId());
         }
         
-        processRequest(request, response);
+//        processRequest(request, response);
     }
 
     /**

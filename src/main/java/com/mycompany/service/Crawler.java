@@ -8,6 +8,7 @@ import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.SocketTimeoutException;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -211,7 +212,7 @@ public class Crawler extends Thread implements Callable<Crawler> {
             }
             
         } catch (Exception ex) {
-            System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem() + ", portfolioId: " + params.get("PORTFOLIO_ID"));
+            //System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem() + ", portfolioId: " + params.get("PORTFOLIO_ID"));
             //ex.printStackTrace();
             //this.interrupt();
         }
@@ -247,27 +248,24 @@ public class Crawler extends Thread implements Callable<Crawler> {
         
         scraper.setDebug(true);
         synchronized (scraper) {
-            scraper.execute();
+            try{
+                scraper.execute();
+            }catch(Exception ex){
+                if(ex instanceof SocketTimeoutException){
+                    System.out.println("Timed out for portfolio id " + portfolioId);
+                }
+            }
+                
         }
-        
-//        Variable variable = scraper.getContext().getVar("totalPurchase");
-//        
-//        if(variable != null && !variable.toString().isEmpty()){
-//            try {
-//                DecimalFormat decimalFormat = new DecimalFormat(PURCHANSE_AMOUNT_DECIMAL_PATTERN);
-//                float totalPurchase = decimalFormat.parse(variable.toString()).floatValue();
-//                System.out.println("ID: " + portfolioId + ", totalPurchase: " + totalPurchase);
-//            } catch (ParseException ex) {
-//                System.out.println("Number parse exception: " + variable);
-//            }
-//        }
         
         Variable isQualified = scraper.getContext().getVar("isQualified");
         Variable totalPurchaseValue = scraper.getContext().getVar("totalPurchaseValue");
+        Variable lastUpdated = scraper.getContext().getVar("lastUpdated");
 //        ListVariable totalPurchase = (ListVariable) scraper.getContext().get("totalPurchase");
 //        System.out.println("portfolioId: " + portfolioId + ", qualified: " + isQualified.toBoolean());
         params.put("IS_QUALIFIED", isQualified.toBoolean());
-        params.put("TOTAL_PURCHASE_VALUE", totalPurchaseValue);
+        params.put("TOTAL_PURCHASE_VALUE", totalPurchaseValue.toDouble());
+        params.put("LAST_ACTIVITY", (Date)lastUpdated.getWrappedObject());
     }
     
     private void doLogin(){
