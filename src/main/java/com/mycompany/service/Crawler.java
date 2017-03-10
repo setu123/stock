@@ -260,12 +260,15 @@ public class Crawler extends Thread implements Callable<Crawler> {
         
         Variable isQualified = scraper.getContext().getVar("isQualified");
         Variable totalPurchaseValue = scraper.getContext().getVar("totalPurchaseValue");
-        Variable lastUpdated = scraper.getContext().getVar("lastUpdated");
+        ListVariable lastUpdated = (ListVariable) scraper.getContext().get("lastUpdated");
 //        ListVariable totalPurchase = (ListVariable) scraper.getContext().get("totalPurchase");
 //        System.out.println("portfolioId: " + portfolioId + ", qualified: " + isQualified.toBoolean());
         params.put("IS_QUALIFIED", isQualified.toBoolean());
-        params.put("TOTAL_PURCHASE_VALUE", totalPurchaseValue.toDouble());
-        params.put("LAST_ACTIVITY", (Date)lastUpdated.getWrappedObject());
+        double amount =totalPurchaseValue.toDouble();
+//        if(isQualified.toBoolean())
+//            System.out.println("in crawler portfolioId: " + portfolioId + ", amount: " + amount + ", qua: " + isQualified.toBoolean() + ", lastUpdated: " + lastUpdated + ", type: " + lastUpdated.get(0).getWrappedObject().getClass());
+        params.put("TOTAL_PURCHASE_VALUE", amount);
+        params.put("LAST_ACTIVITY", (Date)lastUpdated.get(0).getWrappedObject());
     }
     
     private void doLogin(){

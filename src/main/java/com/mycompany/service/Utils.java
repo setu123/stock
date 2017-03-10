@@ -117,7 +117,7 @@ public class Utils {
         holdingChangeMap = dao.getHoldingChangeList();
     }
     
-    public static java.sql.Date getSqlDate(java.util.Date date) {
+    public static java.sql.Date getSqlDate(java.util.Date date)  {
         if (date == null) {
             return null;
         }

@@ -5,7 +5,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.mycompany.dao.ItemDaoImpl;
 import com.mycompany.dao.MerchantPortfolioDaoImpl;
 import com.mycompany.model.MerchantPortfolio;
 import java.io.FileNotFoundException;
@@ -17,8 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.concurrent.TimeUnit;
 import org.webharvest.definition.ScraperConfiguration;
 
 /**
@@ -27,10 +25,10 @@ import org.webharvest.definition.ScraperConfiguration;
  */
 public class MerchantService {
 
-    private static final int NUMBER_OF_THREAD = 100;
-    private static final int NUMBER_OF_PORTFOLIOS_IN_BATCH = 100;
+    private static final int NUMBER_OF_THREAD = 10;
+    private static final int NUMBER_OF_PORTFOLIOS_IN_BATCH = 30;
     ListeningExecutorService executorService;
-    private int PORTFOLIO_ID = 63722;
+    private int PORTFOLIO_ID;
     private final Object lock = new Object();
     private final MerchantPortfolioDaoImpl merchantDao;
     private static MerchantService merchantService;
@@ -45,8 +43,15 @@ public class MerchantService {
     }
 
     private MerchantService() {
-        merchantPortfolios = new ArrayList<>();
-        merchantDao = new MerchantPortfolioDaoImpl();
+        try {
+            merchantPortfolios = new ArrayList<>();
+            merchantDao = new MerchantPortfolioDaoImpl();
+            merchantDao.open();
+            PORTFOLIO_ID = merchantDao.getLastCrawledMerchantId();
+            merchantDao.close();
+        } catch (SQLException | ClassNotFoundException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     public void startPortfolioIdSync() {
@@ -76,9 +81,28 @@ public class MerchantService {
             response = "Not running";
         } else {
             executorService.shutdown();
+            System.out.println("shutting down " + new Date());
+            try {
+                executorService.awaitTermination(5, TimeUnit.MINUTES);
+                setLastCrawledMerchantId();
+                addToMerchantList(null, true);
+                System.out.println("Terminated: " + new Date());
+            } catch (InterruptedException ex) {
+                System.out.println("Error in termination: " + ex.getMessage());
+            }
             response = "Stopped";
         }
         return response;
+    }
+    
+    private void setLastCrawledMerchantId(){
+        try {
+            merchantDao.open();
+            merchantDao.setLastCrawledMerchantId(PORTFOLIO_ID);
+            merchantDao.close();
+        } catch (SQLException | ClassNotFoundException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     public String getStatus() {
@@ -125,7 +149,12 @@ public class MerchantService {
             
             if (!executorService.isShutdown()) {
                 //Create and submit another task
-                Callable<Crawler> task = createTask(loginCrawler, getNextPortfolioId());
+                int portfolioId = getNextPortfolioId();
+                
+                if(portfolioId <= 0)
+                    return;
+                
+                Callable<Crawler> task = createTask(loginCrawler, portfolioId);
 //                System.out.println("Adding task to executor service");
                 ListenableFuture listenableFuture = executorService.submit(task);
                 Futures.addCallback(listenableFuture, new FutureCallbackImpl(loginCrawler));
@@ -141,17 +170,22 @@ public class MerchantService {
 
     private void processResult(Crawler v) {
 //        System.out.println("PortfolioId: " + v.getParams().get("PORTFOLIO_ID") + ", isQualified: " + v.getParams().get("IS_QUALIFIED") + ", totalPurchase: " + v.getParams().get("TOTAL_PURCHASE_VALUE"));
+        Boolean qualifiedObj = (Boolean) v.getParams().get("IS_QUALIFIED");
+        if(qualifiedObj == null){
+            System.out.println("null found: portfolioid: " + v.getParams().get("PORTFOLIO_ID"));
+        }
         boolean isQualified = (boolean) v.getParams().get("IS_QUALIFIED");
         
         if (isQualified) {
             int portfolioId = (int) v.getParams().get("PORTFOLIO_ID");
-            double amount = (double) v.getParams().get("TOTAL_PURCHASE_VALUE");
+            double amounts = (double) v.getParams().get("TOTAL_PURCHASE_VALUE");
+            float amount = (float) amounts;
             Date lastActivity = (Date) v.getParams().get("LAST_ACTIVITY");
-            MerchantPortfolio portfolio = new MerchantPortfolio(portfolioId, (float) amount, lastActivity);
-            System.out.println("Adding " + portfolio);
+            MerchantPortfolio portfolio = new MerchantPortfolio(portfolioId, amount, lastActivity);
+//            System.out.println("id: " + portfolio.getRemoteId() + ", lastActivity: " + lastActivity);
             addToMerchantList(portfolio, false);
+            }
         }
-    }
 
     private synchronized void addToMerchantList(MerchantPortfolio merchantPortfolio, boolean flush) {
         if(merchantPortfolio != null)

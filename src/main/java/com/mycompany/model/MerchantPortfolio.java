@@ -16,7 +16,7 @@ public class MerchantPortfolio extends Portfolio{
     private Date lastActivity;
 
     public MerchantPortfolio(int remoteId, float amount, Date lastActivity) {
-        this.remoteId = remoteId;
+        super(null, null, remoteId);
         this.amount = amount;
         this.lastActivity = lastActivity;
     }
@@ -49,8 +49,8 @@ public class MerchantPortfolio extends Portfolio{
         this.lastActivity = lastActivity;
     }
 
-    @Override
-    public String toString() {
-        return "MerchantPortfolio{" + "portfolioId=" + remoteId + ", amount=" + amount + ", lastActivity=" + lastActivity + '}';
-    }
+//    @Override
+//    public String toString() {
+//        return "MerchantPortfolio{" + "portfolioId=" + remoteId + ", amount=" + amount + ", lastActivity=" + lastActivity + '}';
+//    }
 }
