@@ -26,3 +26,21 @@ and date = (select date from share_holding_history
 where code = s2.code
 group by date
 having count(date) > 1) 
+
+
+#Find most purchase in last week from stockbangladesh portfolios
+select st_ban.code, marchent_count, lw_quantity, last_week_buy, tradable, (lw_quantity/tradable)*100 as percentage, ids  from
+(
+SELECT code, count(code) as marchent_count, sum(quantity) as lw_quantity, sum(quantity*buy_price) as last_week_buy, group_concat(main.remote_id) as ids
+FROM stock.merchant_portfolio_details details, merchant_portfolio main
+where date > '2017-03-06'
+and quantity > 1
+and main.id = details.portfolio
+group by code
+order by count(code) desc
+) as st_ban, 
+(
+select code, ((institute+forein+public)*totalSecurity)/100  as tradable from year_statistics
+) as trade_able
+where st_ban.code = trade_able.code
+order by percentage desc

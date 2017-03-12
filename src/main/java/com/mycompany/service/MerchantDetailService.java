@@ -7,11 +7,13 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.mycompany.dao.MerchantPortfolioDaoImpl;
 import com.mycompany.model.MerchantPortfolio;
+import com.mycompany.model.PortfolioDetails;
 import java.io.FileNotFoundException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -20,41 +22,65 @@ import java.util.concurrent.TimeUnit;
 import org.webharvest.definition.ScraperConfiguration;
 
 /**
- * @date Feb 23, 2017
+ * @date Mar 10, 2017
  * @author setu
  */
-public class MerchantService {
+public class MerchantDetailService {
 
     private static final int NUMBER_OF_THREAD = 10;
-    private static final int NUMBER_OF_PORTFOLIOS_IN_BATCH = 30;
+    private static final int NUMBER_OF_PORTFOLIO_DETAILS_IN_BATCH = 100;
     ListeningExecutorService executorService;
-    private int PORTFOLIO_ID;
+    private static int PORTFOLIO_ID;
     private final Object lock = new Object();
     private final MerchantPortfolioDaoImpl merchantDao;
-    private static MerchantService merchantService;
+    private static MerchantDetailService merchantService;
 
-    private static List<MerchantPortfolio> merchantPortfolios;
+    private static List<PortfolioDetails> merchantPortfolioDetails;
+    private Iterator<MerchantPortfolio> crawledMerchantPortfolioIdIterator;
 
-    public static MerchantService getInstance() {
+    public static MerchantDetailService getInstance() {
         if (merchantService == null) {
-            merchantService = new MerchantService();
+            merchantService = new MerchantDetailService();
         }
         return merchantService;
     }
 
-    private MerchantService() {
+    private MerchantDetailService() {
         try {
-            merchantPortfolios = new ArrayList<>();
+            merchantPortfolioDetails = new ArrayList<>();
             merchantDao = new MerchantPortfolioDaoImpl();
             merchantDao.open();
-            PORTFOLIO_ID = merchantDao.getLastCrawledMerchantId();
+            crawledMerchantPortfolioIdIterator = merchantDao.getPortfolios().iterator();
             merchantDao.close();
         } catch (SQLException | ClassNotFoundException ex) {
             throw new RuntimeException(ex);
         }
     }
 
-    public void startPortfolioIdSync() {
+    public String reset() {
+        try {
+            merchantPortfolioDetails = new ArrayList<>();
+            merchantDao.open();
+            crawledMerchantPortfolioIdIterator = merchantDao.getPortfolios().iterator();
+            merchantDao.close();
+        } catch (SQLException | ClassNotFoundException ex) {
+            throw new RuntimeException(ex);
+        }
+
+        return "Reset done";
+    }
+
+    public void startPortfolioDetailSync() {
+        System.out.println("Detail sync service started at " + new Date());
+
+        try {
+            merchantDao.open();
+            merchantDao.clearDetails();
+            merchantDao.close();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+
         executorService = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(NUMBER_OF_THREAD));
 
         //Make a task
@@ -84,8 +110,8 @@ public class MerchantService {
             System.out.println("shutting down " + new Date());
             try {
                 executorService.awaitTermination(5, TimeUnit.MINUTES);
-                setLastCrawledMerchantId();
-                addToMerchantList(null, true);
+//                setLastCrawledMerchantId();
+                addToMerchantDetailList(null, true);
                 System.out.println("Terminated: " + new Date());
             } catch (InterruptedException ex) {
                 System.out.println("Error in termination: " + ex.getMessage());
@@ -94,17 +120,16 @@ public class MerchantService {
         }
         return response;
     }
-    
-    private void setLastCrawledMerchantId(){
-        try {
-            merchantDao.open();
-            merchantDao.setLastCrawledMerchantId(PORTFOLIO_ID);
-            merchantDao.close();
-        } catch (SQLException | ClassNotFoundException ex) {
-            throw new RuntimeException(ex);
-        }
-    }
 
+//    private void setLastCrawledMerchantId() {
+//        try {
+//            merchantDao.open();
+//            merchantDao.setLastCrawledMerchantId(PORTFOLIO_ID);
+//            merchantDao.close();
+//        } catch (SQLException | ClassNotFoundException ex) {
+//            throw new RuntimeException(ex);
+//        }
+//    }
     public String getStatus() {
         return (executorService == null || executorService.isTerminated()) ? "Not running" : "Running";
     }
@@ -112,20 +137,20 @@ public class MerchantService {
     public int getLastPortfolioId() {
         return PORTFOLIO_ID;
     }
-
-    public void setPortfolioId(int portfolioId) {
-        synchronized (lock) {
-            PORTFOLIO_ID = portfolioId;
-        }
-    }
+//
+//    public void setPortfolioId(int portfolioId) {
+//        synchronized (lock) {
+//            PORTFOLIO_ID = portfolioId;
+//        }
+//    }
 
     private void createAndSubmitTask(Crawler loginCrawler) {
         int initialNumberOfTasks = NUMBER_OF_THREAD;
         int counter = 0;
 
         for (; counter < initialNumberOfTasks; counter++) {
-            int portfolioId = getNextPortfolioId();
-            Callable<Crawler> task = createTask(loginCrawler, portfolioId);
+            MerchantPortfolio merchantPortfolio = getNextPortfolio();
+            Callable<Crawler> task = createTask(loginCrawler, merchantPortfolio);
 
             ListenableFuture listenableFuture = executorService.submit(task);
 
@@ -146,17 +171,17 @@ public class MerchantService {
         @Override
         public void onSuccess(Crawler v) {
             processResult(v);
-            
+
             if (!executorService.isShutdown()) {
                 //Create and submit another task
-                int portfolioId = getNextPortfolioId();
-                
-                if(portfolioId <= 0){
+                MerchantPortfolio merchantPortfolio = getNextPortfolio();
+
+                if (merchantPortfolio == null) {
                     stopExecutorService();
                     return;
                 }
-                    
-                Callable<Crawler> task = createTask(loginCrawler, portfolioId);
+
+                Callable<Crawler> task = createTask(loginCrawler, merchantPortfolio);
 //                System.out.println("Adding task to executor service");
                 ListenableFuture listenableFuture = executorService.submit(task);
                 Futures.addCallback(listenableFuture, new FutureCallbackImpl(loginCrawler));
@@ -171,56 +196,45 @@ public class MerchantService {
     }
 
     private void processResult(Crawler v) {
-//        System.out.println("PortfolioId: " + v.getParams().get("PORTFOLIO_ID") + ", isQualified: " + v.getParams().get("IS_QUALIFIED") + ", totalPurchase: " + v.getParams().get("TOTAL_PURCHASE_VALUE"));
-        Boolean qualifiedObj = (Boolean) v.getParams().get("IS_QUALIFIED");
-        if(qualifiedObj == null){
-            System.out.println("null found: portfolioid: " + v.getParams().get("PORTFOLIO_ID"));
-        }
-        boolean isQualified = (boolean) v.getParams().get("IS_QUALIFIED");
-        
-        if (isQualified) {
-            int portfolioId = (int) v.getParams().get("PORTFOLIO_ID");
-            double amounts = (double) v.getParams().get("TOTAL_PURCHASE_VALUE");
-            float amount = (float) amounts;
-            Date lastActivity = (Date) v.getParams().get("LAST_ACTIVITY");
-            MerchantPortfolio portfolio = new MerchantPortfolio(portfolioId, amount, lastActivity);
-//            System.out.println("id: " + portfolio.getRemoteId() + ", lastActivity: " + lastActivity);
-            addToMerchantList(portfolio, false);
-            }
+        List<PortfolioDetails> portfolioDetails = (List<PortfolioDetails>) v.getParams().get("PORTFOLIO_DETAILS");
+        addToMerchantDetailList(portfolioDetails, false);
+    }
+
+    private synchronized void addToMerchantDetailList(List<PortfolioDetails> portfolioDetails, boolean flush) {
+        if (portfolioDetails != null && !portfolioDetails.isEmpty()) {
+            merchantPortfolioDetails.addAll(portfolioDetails);
         }
 
-    private synchronized void addToMerchantList(MerchantPortfolio merchantPortfolio, boolean flush) {
-        if(merchantPortfolio != null)
-            merchantPortfolios.add(merchantPortfolio);
-
-        if ((merchantPortfolios.size()>=NUMBER_OF_PORTFOLIOS_IN_BATCH) || flush) {
+        if ((merchantPortfolioDetails.size() >= NUMBER_OF_PORTFOLIO_DETAILS_IN_BATCH) || flush) {
             try {
                 merchantDao.open();
-                merchantDao.importMerchantPortfolios(merchantPortfolios);
+                merchantDao.updatePortfolioDetails(portfolioDetails);
                 merchantDao.close();
-                merchantPortfolios.clear();
+                merchantPortfolioDetails.clear();
             } catch (SQLException | ClassNotFoundException ex) {
-                System.out.println("Exception caught: " + ex.getMessage());
-                throw new RuntimeException(ex.getMessage());
+                throw new RuntimeException(ex);
             }
         }
     }
 
-    private int getNextPortfolioId() {
-        synchronized (lock) {
-            PORTFOLIO_ID--;
+    private synchronized MerchantPortfolio getNextPortfolio() {
+        MerchantPortfolio merchantPortfolio = null;
+        if (crawledMerchantPortfolioIdIterator.hasNext()) {
+            merchantPortfolio = crawledMerchantPortfolioIdIterator.next();
+            PORTFOLIO_ID = merchantPortfolio.getRemoteId();
         }
-        return PORTFOLIO_ID;
+        return merchantPortfolio;
     }
 
-    private Callable<Crawler> createTask(Crawler loginCrawler, int portfolioId) {
+    private Callable<Crawler> createTask(Crawler loginCrawler, MerchantPortfolio merchantPortfolio) {
         Crawler crawler = null;
         try {
             String path = Utils.getConfigFilesPath();
             Map params = new HashMap(loginCrawler.getParams());
-            params.put("PORTFOLIO_ID", portfolioId);
-            ScraperConfiguration config = Crawler.getScraperConfig(null, path, Crawler.CrawlType.MERCHANT_PORTFOLIO_IDENTIFIER);
-            crawler = new Crawler(config, null, Crawler.CrawlType.MERCHANT_PORTFOLIO_IDENTIFIER, params);
+            params.put("PORTFOLIO_ID", merchantPortfolio.getRemoteId());
+            params.put("PORTFOLIO_INTERNAL_ID", merchantPortfolio.getId());
+            ScraperConfiguration config = Crawler.getScraperConfig(null, path, Crawler.CrawlType.MERCHANT_PORTFOLIO_DETAILS);
+            crawler = new Crawler(config, null, Crawler.CrawlType.MERCHANT_PORTFOLIO_DETAILS, params);
         } catch (FileNotFoundException ex) {
             System.out.println("Fatal error file not found");
         }

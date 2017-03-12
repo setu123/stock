@@ -64,7 +64,7 @@ public class Crawler extends Thread implements Callable<Crawler> {
 
     public enum CrawlType {
 
-        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, DSEX_DATA_ARCHIVE, DSEX_DATA_SYNC, CODE_NAMES, NEWS, PORTFOLIO_SYNC, MERCHANT_PORTFOLIO_IDENTIFIER, LOGIN
+        ITEM_PRICE, ITEM_YEAR_STATISTICS, DATA_ARCHIVE, DSEX_DATA_ARCHIVE, DSEX_DATA_SYNC, CODE_NAMES, NEWS, PORTFOLIO_SYNC, MERCHANT_PORTFOLIO_IDENTIFIER, LOGIN, MERCHANT_PORTFOLIO_DETAILS
     }
 
     private static ScraperConfiguration PRESSURE_CONFIG;
@@ -77,6 +77,7 @@ public class Crawler extends Thread implements Callable<Crawler> {
     private static ScraperConfiguration PORTFOLIO_CONFIG;
     private static ScraperConfiguration MERCHANT_PORTFOLIO_IDENTIFIER_CONFIG;
     private static ScraperConfiguration LOGIN_CONFIG;
+    private static ScraperConfiguration MERCHANT_PORTFOLIO_DETAILS_CONFIG;
     private ScraperConfiguration scraperConfig = null;
 
     static final Logger logger = Logger.getLogger(Crawler.class.getName());
@@ -100,6 +101,7 @@ public class Crawler extends Thread implements Callable<Crawler> {
     private final static String newsFile = "news.xml";
     private final static String portfolioFile = "portfolio.xml";
     private final static String merchantPortfolioFile = "merchant_portfolio.xml";
+    private final static String merchantPortfolioDetailsFile = "merchant_portfolio_details.xml";
     private final static String loginFile = "login.xml";
     private final static String DATA_ARCHIVE_DATE_PATTERN = "yyyy-MM-dd";
     private final static String DSEX_DATA_ARCHIVE_DATE_PATTERN = "MMM dd, yyyy";
@@ -109,7 +111,7 @@ public class Crawler extends Thread implements Callable<Crawler> {
     private final String SKIP_CODE_PATTERN = "(T\\d+Y\\d+|.*dse.*|DEB.*)";
     private final long HTTP_TIMEOUT_1_MINUTE = 60000;
     private final static String SCRAPER_OUTPUT_LOCATION = "d:/expekt";
-    private final static String PURCHANSE_AMOUNT_DECIMAL_PATTERN = "###,###,###.##";
+    private final static String PURCHANSE_AMOUNT_DECIMAL_PATTERN = "##,###.##";
     private final static int MERCHANT_PORTFOLIO_TOTAL_PURCHASE_THERESOLD = 1000000;
     private final static int MERCHANT_PORTFOLIO_OLD_DAY_THRESHOLD = 180;
     private Map params;
@@ -181,6 +183,11 @@ public class Crawler extends Thread implements Callable<Crawler> {
                     LOGIN_CONFIG = new ScraperConfiguration(configPath + loginFile);
                 }
                 return LOGIN_CONFIG;
+            case MERCHANT_PORTFOLIO_DETAILS:
+                if(MERCHANT_PORTFOLIO_DETAILS_CONFIG == null){
+                    MERCHANT_PORTFOLIO_DETAILS_CONFIG = new ScraperConfiguration(configPath + merchantPortfolioDetailsFile);
+                }
+                return MERCHANT_PORTFOLIO_DETAILS_CONFIG;
         }
 
         return null;
@@ -209,11 +216,13 @@ public class Crawler extends Thread implements Callable<Crawler> {
                 crawlMerchantPortfolioIdentifier();
             } else if (crawlType.equals(CrawlType.LOGIN)) {
                 doLogin();
+            } else if (crawlType.equals(CrawlType.MERCHANT_PORTFOLIO_DETAILS)) {
+                crawlPortfolioDetail();
             }
             
         } catch (Exception ex) {
-            //System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem() + ", portfolioId: " + params.get("PORTFOLIO_ID"));
-            //ex.printStackTrace();
+            System.out.println("Error caught: " + ex.getMessage() + ", skipping " + getItem() + ", portfolioId: " + params.get("PORTFOLIO_ID"));
+            ex.printStackTrace();
             //this.interrupt();
         }
     }
@@ -292,13 +301,47 @@ public class Crawler extends Thread implements Callable<Crawler> {
         synchronized (scraper) {
             scraper.execute();
         }
+        
+        ListVariable variables = (ListVariable) scraper.getContext().get("portfolioDetails");
+        List<PortfolioDetails> portfolioDetails = parsePortfolioDetails(variables.toString(), -1);
+        getParams().put("PORTFOLIO_DETAILS", portfolioDetails);
+    }
+    
+    private void crawlPortfolioDetail() {
+        Scraper scraper = new Scraper(scraperConfig, SCRAPER_OUTPUT_LOCATION);
+        
+        Scraper loginScraper = (Scraper) getParams().get("LOGIN_SCRAPER");
+        scraper.getHttpClientManager().getHttpClient().setState(loginScraper.getHttpClientManager().getHttpClient().getState());
+         
+        HttpConnectionParams connectionParams = new HttpConnectionParams();
+        connectionParams.setConnectionTimeout((int)HTTP_TIMEOUT_1_MINUTE*2);
+        connectionParams.setSoTimeout((int)HTTP_TIMEOUT_1_MINUTE*2);  
+        scraper.getHttpClientManager().getHttpClient().getParams().setDefaults(connectionParams);
+        
+        Integer portfolioId = (Integer) getParams().get("PORTFOLIO_ID");
+        if(portfolioId == null){
+            System.out.println("portfolioId is null");
+            return;
+        }       
+        scraper.addVariableToContext("portfolioId", portfolioId);
+        
+        scraper.setDebug(true);
+        synchronized (scraper) {
+            scraper.execute();
+        }
+        
+        Integer internalId = -1;
+        if(getParams().get("PORTFOLIO_INTERNAL_ID") != null){
+            internalId = (Integer) getParams().get("PORTFOLIO_INTERNAL_ID");
+        }
 
         ListVariable variables = (ListVariable) scraper.getContext().get("portfolioDetails");
-        List<PortfolioDetails> portfolioDetails = parsePortfolioDetails(variables.toString());
+        List<PortfolioDetails> portfolioDetails = parsePortfolioDetails(variables.toString(), internalId);
+        
         getParams().put("PORTFOLIO_DETAILS", portfolioDetails);
     }
 
-    private List<PortfolioDetails> parsePortfolioDetails(String domStr) {
+    private List<PortfolioDetails> parsePortfolioDetails(String domStr, int internalId) {
         Document doc;
         List<PortfolioDetails> portfolioDetails = new ArrayList<>();
         //Portfolio portfolio = (Portfolio) this.getParams().get("PORTFOLIO");
@@ -313,6 +356,7 @@ public class Crawler extends Thread implements Callable<Crawler> {
 
             NodeList nodeList = doc.getElementsByTagName("data");
             DateFormat dateFormat = new SimpleDateFormat(PORTFOLIO_DATE_PATTERN);
+            DecimalFormat decimalFormat = new DecimalFormat(PURCHANSE_AMOUNT_DECIMAL_PATTERN);
             for (int i = 0; i < nodeList.getLength(); i++) {
                 Node node = nodeList.item(i);
                 NamedNodeMap attributes = node.getAttributes();
@@ -323,9 +367,10 @@ public class Crawler extends Thread implements Callable<Crawler> {
                 String sharesStr = attributes.getNamedItem("shares").getNodeValue();
 
                 PortfolioDetails portfolioDetail = new PortfolioDetails();
+                portfolioDetail.setPortfolio(internalId);
                 portfolioDetail.setCode(code);
                 portfolioDetail.setDate(dateFormat.parse(dateStr));
-                float buyPrice = Float.parseFloat(buyPriceStr);
+                float buyPrice = decimalFormat.parse(buyPriceStr).floatValue();
                 int shares = Integer.parseInt(sharesStr);
                 portfolioDetail.setQuantity(shares);
                 portfolioDetail.setBuyPrice(buyPrice);

@@ -21,6 +21,7 @@ public class PortfolioDetails extends BasicInfo implements Serializable {
     private float buyPrice;
     private String comments;
     private Date date;
+    private int portfolio;
 
     @Override
     public int hashCode() {
@@ -98,6 +99,20 @@ public class PortfolioDetails extends BasicInfo implements Serializable {
     @Override
     public String toString() {
         return "PortfolioDetails[ code=" + code + ", date=" + date + ", quantity=" + quantity + ", buyPrice=" + buyPrice + " ]";
+    }
+
+    /**
+     * @return the portfolio
+     */
+    public int getPortfolio() {
+        return portfolio;
+    }
+
+    /**
+     * @param portfolio the portfolio to set
+     */
+    public void setPortfolio(int portfolio) {
+        this.portfolio = portfolio;
     }
 
 }

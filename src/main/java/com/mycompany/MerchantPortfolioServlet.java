@@ -5,6 +5,7 @@
  */
 package com.mycompany;
 
+import com.mycompany.service.MerchantDetailService;
 import com.mycompany.service.MerchantService;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -63,6 +64,7 @@ public class MerchantPortfolioServlet extends HttpServlet {
         
         String uri = request.getRequestURI();
         MerchantService merchantService = MerchantService.getInstance();
+        MerchantDetailService detailService = MerchantDetailService.getInstance();
         PrintWriter out = response.getWriter();
         
         if (uri.endsWith("/service/start")) {
@@ -85,6 +87,22 @@ public class MerchantPortfolioServlet extends HttpServlet {
             int portfolioId = Integer.parseInt(request.getParameter("id"));
             merchantService.setPortfolioId(portfolioId);
             out.println("Portfolio id set to " + merchantService.getLastPortfolioId());
+        }else if(uri.endsWith("/service/detail/start")){
+            try{
+                detailService.startPortfolioDetailSync();
+                out.println("Detail service started");
+            }catch(Exception ex){
+                out.println("Could not start. cause: " + ex.getMessage());
+            }
+        }else if(uri.endsWith("/service/detail/status")){
+            String status = detailService.getStatus();
+            out.println(status);
+        }else if(uri.endsWith("/service/detail/lastPortfolioId")){
+            int lastPortfolioId = detailService.getLastPortfolioId();
+            out.println(lastPortfolioId);
+        }else if(uri.endsWith("/service/detail/reset")){
+            String resetStatus = detailService.reset();
+            out.println(resetStatus);
         }
         
 //        processRequest(request, response);
