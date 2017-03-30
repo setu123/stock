@@ -418,7 +418,9 @@ public class SignalCalculator {
         
         Item minimum = new Item();
         minimum.setAdjustedClosePrice(1000000);
-        for(int i=itemss.size()-1; i>=0; i--){
+        Calendar oneYearBack = Calendar.getInstance();
+        oneYearBack.add(Calendar.YEAR, -1);
+        for(int i=itemss.size()-1; i>=0 && itemss.get(i).getDate().after(oneYearBack.getTime()); i--){
             if(itemss.get(i).getAdjustedClosePrice() < minimum.getAdjustedClosePrice()){
                 minimum = itemss.get(i);
                 queue.add(minimum);
@@ -429,7 +431,7 @@ public class SignalCalculator {
         float total = 0;
         while(itr.hasNext()){
             total += ((Item)itr.next()).getAdjustedClosePrice();
-        }
+            }
         minimum.setAdjustedClosePrice(total/queue.size());
         
         return minimum;
