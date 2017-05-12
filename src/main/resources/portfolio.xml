@@ -4,8 +4,9 @@
 	
     <html-to-xml>
                     <http url="http://www.stockbangladesh.com/users/login" method="post">
-                    	<http-param name="data[User][username]">khandakar</http-param>
-                    	<http-param name="data[User][password]">khandakar123</http-param>
+                        <!-- Username and password removed due to security reason. Please use system property to store password -->
+                    	<http-param name="data[User][username]"></http-param>
+                    	<http-param name="data[User][password]"></http-param>
                     </http>
                 </html-to-xml>     
                 
